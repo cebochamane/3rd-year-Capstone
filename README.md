@@ -1,4 +1,4 @@
-# 3rd-year Capstone
+# BridgeTut
 
 
 
@@ -15,14 +15,14 @@ Already a pro? Just edit this README.md and make it your own. Want to make it ea
 
 ```
 cd existing_repo
-git remote add origin https://gitlab.cs.uct.ac.za/chmceb001/3rd-year-capstone.git
+git remote add origin https://gitlab.cs.uct.ac.za/uct-3rd-year-group/BridgeTut.git
 git branch -M main
 git push -uf origin main
 ```
 
 ## Integrate with your tools
 
-- [ ] [Set up project integrations](https://gitlab.cs.uct.ac.za/chmceb001/3rd-year-capstone/-/settings/integrations)
+- [ ] [Set up project integrations](https://gitlab.cs.uct.ac.za/uct-3rd-year-group/BridgeTut/-/settings/integrations)
 
 ## Collaborate with your team
 
