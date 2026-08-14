@@ -67,7 +67,7 @@ public class Auction {
             }
             Bid lastBid = bids.get(bids.size() - 1);
 
-            if (lastBid.isDouble() && lastBid.getBidder().isPartner(bid.getBidder())) {
+            if (lastBid.isDouble() && !lastBid.getBidder().isPartner(bid.getBidder())) {
                 return true;
             }
             return false;
@@ -141,9 +141,9 @@ public class Auction {
      * @return true if the new bid is higher, otherwise false
      */
     private boolean isHigherBid(Bid newBid, Bid currentBid) {
-        if (newBid.getLevel() > currentBid.getLevel()) {
+        if (newBid.getLevel() >= currentBid.getLevel()) {
             return true;
-        } else if (newBid.getDenomination().ordinal() > currentBid.getDenomination().ordinal( )){
+        } else if (newBid.getDenomination().ordinal() > currentBid.getDenomination().ordinal()) {
             return true;
         } else {
             return false;
