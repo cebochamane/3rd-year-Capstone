@@ -15,7 +15,12 @@ public class Bid {
      * @param denomination the suit or NT being bid
      */
     public Bid(Seat bidder, int level, Suit denomination) {
-        // TODO: implement
+        this.bidder = bidder;
+        this.level = level;
+        this.denomination = denomination;
+        this.isPass = false;
+        this.isDouble = false;
+        this.isRedouble = false;
     }
 
     /**
@@ -28,8 +33,9 @@ public class Bid {
      * @return a Bid representing Pass
      */
     public static Bid BidPass(Seat bidder) {
-        // TODO: implement
-        return null;
+        Bid bid = new Bid(bidder, 0, null);
+        bid.isPass = true;
+        return bid;
     }
 
     /**
@@ -42,8 +48,9 @@ public class Bid {
      * @return a Bid representing Double
      */
     public static Bid BidDouble(Seat bidder) {
-        // TODO: implement
-        return null;
+        Bid bid = new Bid(bidder, 0, null);
+        bid.isDouble = true;
+        return bid;
     }
 
     /**
@@ -56,8 +63,9 @@ public class Bid {
      * @return a Bid representing Redouble
      */
     public static Bid BidRedouble(Seat bidder) {
-        // TODO: implement
-        return null;
+        Bid bid = new Bid(bidder, 0, null);
+        bid.isRedouble = true;
+        return bid;
     }
 
     /**
@@ -66,8 +74,7 @@ public class Bid {
      * @return true if this bid represents Pass, otherwise false
      */
     public boolean isPass() {
-        // TODO: implement
-        return false;
+        return isPass;
     }
 
     /**
@@ -76,8 +83,7 @@ public class Bid {
      * @return true if this bid represents Double, otherwise false
      */
     public boolean isDouble() {
-        // TODO: implement
-        return false;
+        return isDouble;
     }
 
     /**
@@ -86,7 +92,33 @@ public class Bid {
      * @return true if this bid represents Redouble, otherwise false
      */
     public boolean isRedouble() {
-        // TODO: implement
-        return false;
+        return isRedouble;
+    }
+
+    /**
+     * Returns the seat/player who made this bid.
+     * 
+     * @return the bidder
+     */
+    public Seat getBidder() {
+        return bidder;
+    }
+
+    /**
+     * Returns the level of the this bid.
+     * 
+     * @returns the bid level zero if the the bid is a Pass, Double and Redouble.
+     */
+    public int getLevel() {
+        return level;
+    }
+
+    /**
+     * Returns the Suit or the Denomination of this Bid.
+     * Pass, Double and Redouble have to denomination.
+     * returns the suit or denomination or a null.
+     */
+    public Suit getDenomination(){
+        return denomination;
     }
 }
