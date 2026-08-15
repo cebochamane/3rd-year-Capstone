@@ -17,8 +17,7 @@ public class Seat {
      * @return the seat's position
      */
     public Position getPosition() {
-        // TODO: implement
-        return null;
+        return position;
     }
 
     /**
@@ -29,8 +28,17 @@ public class Seat {
      * @return the next seat
      */
     public Seat next() {
-        // TODO: implement
-        return null;
+        switch (position) {
+            case NORTH:
+                return new Seat(Position.EAST);
+            case EAST:
+                return new Seat(Position.SOUTH);
+            case SOUTH:
+                return new Seat(Position.WEST);
+            case WEST:
+                return new Seat(Position.NORTH);
+        }
+        throw new IllegalStateException("Unkown position:" + position);
     }
 
     /**
@@ -41,8 +49,17 @@ public class Seat {
      * @return the previous seat
      */
     public Seat previous() {
-        // TODO: implement
-        return null;
+        switch (position) {
+            case NORTH:
+                return new Seat(Position.WEST);
+            case EAST:
+                return new Seat(Position.NORTH);
+            case SOUTH:
+                return new Seat(Position.EAST);
+            case WEST:
+                return new Seat(Position.SOUTH);
+        }
+        throw new IllegalStateException("Unknown position:" + position);
     }
 
     /**
@@ -54,8 +71,17 @@ public class Seat {
      * @return the opposite seat
      */
     public Seat opposite() {
-        // TODO: implement
-        return null;
+        switch (position) {
+            case NORTH:
+                return new Seat(Position.SOUTH);
+            case EAST:
+                return new Seat(Position.WEST);
+            case SOUTH:
+                return new Seat(Position.NORTH);
+            case WEST:
+                return new Seat(Position.EAST);
+        }
+        throw new IllegalStateException("Unknown position:" + position);
     }
 
     /**
@@ -65,7 +91,19 @@ public class Seat {
      */
     @Override
     public String toString() {
-        // TODO: implement
-        return "";
+        return position.toString();
+    }
+
+    /**
+     * Checks whether this seat is the partener of another seat.
+     * 
+     * @param other the seat to compare with
+     * @return true if the seats are partners, otherwise false
+     */
+    public boolean isPartner(Seat other){
+        if(other == null){
+            return false;
+        }
+        return this.position == other.opposite().getPosition();
     }
 }
