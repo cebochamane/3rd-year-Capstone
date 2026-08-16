@@ -10,10 +10,7 @@ public class Hand {
      * Cards can be added to the hand using addCard().
      */
     public Hand(ArrayList<Card> cards) {
-        this.cards = new ArrayList<>();
-        for (Card card : cards) {
-            cards.add(card);
-        }
+        this.cards = new ArrayList<>(cards);
     }
 
     public Hand() {
@@ -66,7 +63,12 @@ public class Hand {
      * @return true if the hand contains the card, otherwise false
      */
     public boolean contains(Card card) {
-        
+        if (card == null) return false;
+
+        for (Card c : cards) {
+            if (c.getSuit() == card.getSuit() && c.getRank() == card.getRank()) return true;
+        }
+
         return false;
     }
 

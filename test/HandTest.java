@@ -26,7 +26,7 @@ class HandTest {
 
         assertTrue(hand.contains(card1));
         assertFalse(hand.contains(card2));
-        assertFalse(hand.contains(new Card(Suit.SPADES, Rank.THREE)))
+        assertFalse(hand.contains(new Card(Suit.SPADES, Rank.THREE)));
     }
 
     @Test
