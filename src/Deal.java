@@ -1,3 +1,5 @@
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -5,7 +7,8 @@ public class Deal {
 
     private Seat dealer;
     private Vulnerability vulnerability;
-    private HashMap<Seat, Hand> hands;
+    private HashMap<Position, Hand> hands;
+    private ArrayList<Card> deck = new ArrayList<>();
 
     /**
      * Creates a new deal with the specified dealer and vulnerability.
@@ -14,7 +17,17 @@ public class Deal {
      * @param vulnerability the vulnerability for this deal
      */
     public Deal(Seat dealer, Vulnerability vulnerability) {
-        // TODO: implement
+        this.dealer = dealer;
+        this.vulnerability = vulnerability;
+        this.hands = new HashMap<>();
+
+        for (Rank rank : Rank.values()) {
+            for (Suit suit : Suit.values()) {
+                if (suit != Suit.NT) {
+                    deck.add(new Card(suit, rank));
+                }
+            }
+        }
     }
 
     /**
@@ -23,8 +36,7 @@ public class Deal {
      * @return the dealer's seat
      */
     public Seat getDealer() {
-        // TODO: implement
-        return null;
+        return this.dealer;
     }
 
     /**
@@ -33,8 +45,7 @@ public class Deal {
      * @return the vulnerability of the deal
      */
     public Vulnerability getVulnerability() {
-        // TODO: implement
-        return null;
+        return this.vulnerability;
     }
 
     /**
@@ -44,8 +55,7 @@ public class Deal {
      * @return the hand belonging to that seat
      */
     public Hand getHand(Seat seat) {
-        // TODO: implement
-        return null;
+        return hands.get(seat.getPosition());
     }
 
     /**
@@ -56,8 +66,35 @@ public class Deal {
      *
      * @return a map containing all seats and their hands
      */
-    public Map<Seat, Hand> getAllHands() {
-        // TODO: implement
-        return null;
+    public Map<Position, Hand> getAllHands() {
+        return hands;
+    }
+
+    public void dealCards() {
+        ArrayList<Card> shuffledDeck = new ArrayList<>(deck);
+        Collections.shuffle(shuffledDeck);
+        Position[] positions = Position.values();
+
+        // Round-robin distribution of cards to each Seat
+        for (Position position : positions) {
+            hands.put(position, new Hand());
+        }
+ 
+        for (int i = 0; i < shuffledDeck.size(); i++) {
+            Position position = positions[i % positions.length];
+            hands.get(position).addCard(shuffledDeck.get(i));;
+        }
+
+        // Sort dealt cards
+        for (Position position : positions) {
+            hands.get(position).sort();
+        }
+    }
+
+    /** Tester main method */
+    public static void main(String args[]) {
+        Deal thisDeal = new Deal(new Seat(Position.EAST), Vulnerability.NONE);
+        thisDeal.dealCards();
+        System.out.println(thisDeal.hands);
     }
 }

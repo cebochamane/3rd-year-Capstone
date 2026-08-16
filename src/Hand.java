@@ -9,8 +9,15 @@ public class Hand {
      *
      * Cards can be added to the hand using addCard().
      */
+    public Hand(ArrayList<Card> cards) {
+        this.cards = new ArrayList<>();
+        for (Card card : cards) {
+            cards.add(card);
+        }
+    }
+
     public Hand() {
-        // TODO: implement
+        this.cards = new ArrayList<>();
     }
 
     /**
@@ -19,8 +26,7 @@ public class Hand {
      * @return the cards in this hand
      */
     public ArrayList<Card> getCards() {
-        // TODO: implement
-        return null;
+        return this.cards;
     }
 
     /**
@@ -29,7 +35,7 @@ public class Hand {
      * @param card the card to add
      */
     public void addCard(Card card) {
-        // TODO: implement
+        this.cards.add(card);
     }
 
     /**
@@ -46,7 +52,11 @@ public class Hand {
      * defined by Card.compareTo().
      */
     public void sort() {
-        // TODO: implement
+        cards.sort((a, b) -> {
+            int bySuit = b.getSuit().compareTo(a.getSuit());
+            if (bySuit != 0) return bySuit;
+            return b.getRank().compareTo(a.getRank());
+        });
     }
 
     /**
@@ -71,7 +81,9 @@ public class Hand {
      * @return true if the hand contains a card of that suit
      */
     public boolean contains(Suit suit) {
-        // TODO: implement
+        for (Card card : cards) {
+
+        }
         return false;
     }
 
@@ -89,5 +101,9 @@ public class Hand {
     public ArrayList<Card> getLegalCards(Suit leadSuit, Suit trump) {
         // TODO: implement
         return null;
+    }
+
+    public String toString() {
+        return "Hand: " + cards;
     }
 }

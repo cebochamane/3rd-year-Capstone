@@ -17,7 +17,7 @@ public class Seat {
      * @return the seat's position
      */
     public Position getPosition() {
-        return position;
+        return this.position;
     }
 
     /**

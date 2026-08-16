@@ -10,7 +10,8 @@ public class Card {
      * @param rank the rank of the card
      */
     public Card(Suit suit, Rank rank) {
-        // TODO: implement
+        this.suit = suit;
+        this.rank = rank;
     }
 
     /**
@@ -19,8 +20,7 @@ public class Card {
      * @return the card's suit
      */
     public Suit getSuit() {
-        // TODO: implement
-        return null;
+        return this.suit;
     }
 
     /**
@@ -29,8 +29,7 @@ public class Card {
      * @return the card's rank
      */
     public Rank getRank() {
-        // TODO: implement
-        return null;
+        return this.rank;
     }
 
     /**
@@ -47,8 +46,22 @@ public class Card {
      *         value if the other card wins, or 0 if they are equal
      */
     public int compareTo(Card other, Suit trump, Suit leadSuit) {
-        // TODO: implement
-        return 0;
+        boolean thisIsTrump = (trump != Suit.NT) && (this.suit == trump);
+        boolean otherIsTrump = (trump != Suit.NT) && (other.suit == trump);
+
+        if (thisIsTrump && !otherIsTrump) return 1;
+        if (otherIsTrump && !thisIsTrump) return -1;
+        if (thisIsTrump && !otherIsTrump) return this.rank.compareTo(other.rank);
+
+        // Neither card is trump — only the lead suit is in contention
+        boolean thisIsLead = (this.suit == leadSuit);
+        boolean otherIsLead = (other.suit == leadSuit);
+
+        if (thisIsLead && !otherIsLead) return 1;
+        if (otherIsLead && !thisIsLead) return -1;
+        if (thisIsLead && otherIsLead) return this.rank.compareTo(other.rank);
+
+        return 0; // neither card can win the trick either way   
     }
 
     /**
@@ -60,7 +73,6 @@ public class Card {
      */
     @Override
     public String toString() {
-        // TODO: implement
-        return "";
+        return this.rank + " of " + this.suit;
     }
 }
