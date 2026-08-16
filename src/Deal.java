@@ -73,15 +73,21 @@ public class Deal {
     public void dealCards() {
         ArrayList<Card> shuffledDeck = new ArrayList<>(deck);
         Collections.shuffle(shuffledDeck);
+        Position[] positions = Position.values();
 
-        int index = 0;
-        for (Position position : Position.values()) {
-            Hand hand = new Hand();
-            for (int i = 0; i < 13; i++) {
-                hand.addCard(shuffledDeck.get(index));
-                index++;
-            }
-            hands.put(position, hand);
+        // Round-robin distribution of cards to each Seat
+        for (Position position : positions) {
+            hands.put(position, new Hand());
+        }
+ 
+        for (int i = 0; i < shuffledDeck.size(); i++) {
+            Position position = positions[i % positions.length];
+            hands.get(position).addCard(shuffledDeck.get(i));;
+        }
+
+        // Sort dealt cards
+        for (Position position : positions) {
+            hands.get(position).sort();
         }
     }
 
