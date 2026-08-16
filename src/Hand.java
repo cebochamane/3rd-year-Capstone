@@ -66,7 +66,7 @@ public class Hand {
      * @return true if the hand contains the card, otherwise false
      */
     public boolean contains(Card card) {
-        // TODO: implement
+        
         return false;
     }
 
@@ -81,9 +81,7 @@ public class Hand {
      * @return true if the hand contains a card of that suit
      */
     public boolean contains(Suit suit) {
-        for (Card card : cards) {
-
-        }
+        for (Card card : cards) if (card.getSuit() == suit) return true;
         return false;
     }
 
