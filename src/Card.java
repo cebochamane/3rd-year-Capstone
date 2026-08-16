@@ -10,7 +10,8 @@ public class Card {
      * @param rank the rank of the card
      */
     public Card(Suit suit, Rank rank) {
-        // TODO: implement
+        this.suit = suit;
+        this.rank = rank;
     }
 
     /**
@@ -19,8 +20,7 @@ public class Card {
      * @return the card's suit
      */
     public Suit getSuit() {
-        // TODO: implement
-        return null;
+        return this.suit;
     }
 
     /**
@@ -29,8 +29,7 @@ public class Card {
      * @return the card's rank
      */
     public Rank getRank() {
-        // TODO: implement
-        return null;
+        return this.rank;
     }
 
     /**
@@ -60,7 +59,6 @@ public class Card {
      */
     @Override
     public String toString() {
-        // TODO: implement
-        return "";
+        return "Card: " + this.rank + " of " + this.suit;
     }
 }

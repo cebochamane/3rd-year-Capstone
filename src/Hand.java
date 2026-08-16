@@ -9,8 +9,14 @@ public class Hand {
      *
      * Cards can be added to the hand using addCard().
      */
+    public Hand(ArrayList<Card> cards) {
+        for (Card card : cards) {
+            this.cards = new ArrayList<>();
+        }
+    }
+
     public Hand() {
-        // TODO: implement
+                    this.cards = new ArrayList<>();
     }
 
     /**
@@ -19,8 +25,7 @@ public class Hand {
      * @return the cards in this hand
      */
     public ArrayList<Card> getCards() {
-        // TODO: implement
-        return null;
+        return this.cards;
     }
 
     /**
@@ -29,7 +34,7 @@ public class Hand {
      * @param card the card to add
      */
     public void addCard(Card card) {
-        // TODO: implement
+        this.cards.add(card);
     }
 
     /**
@@ -89,5 +94,9 @@ public class Hand {
     public ArrayList<Card> getLegalCards(Suit leadSuit, Suit trump) {
         // TODO: implement
         return null;
+    }
+
+    public String toString() {
+        return "Hand: " + cards;
     }
 }

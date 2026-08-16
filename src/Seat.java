@@ -17,8 +17,7 @@ public class Seat {
      * @return the seat's position
      */
     public Position getPosition() {
-        // TODO: implement
-        return null;
+        return this.position;
     }
 
     /**
