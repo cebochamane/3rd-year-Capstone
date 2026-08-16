@@ -10,10 +10,7 @@ public class Hand {
      * Cards can be added to the hand using addCard().
      */
     public Hand(ArrayList<Card> cards) {
-        this.cards = new ArrayList<>();
-        for (Card card : cards) {
-            cards.add(card);
-        }
+        this.cards = new ArrayList<>(cards);
     }
 
     public Hand() {
