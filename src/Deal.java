@@ -95,6 +95,6 @@ public class Deal {
     public static void main(String args[]) {
         Deal thisDeal = new Deal(new Seat(Position.EAST), Vulnerability.NONE);
         thisDeal.dealCards();
-        System.out.println(thisDeal.hands);
+        System.out.println(thisDeal.hands.get(Position.NORTH).contains(Suit.HEARTS));
     }
 }

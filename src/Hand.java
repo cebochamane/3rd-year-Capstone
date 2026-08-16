@@ -81,9 +81,7 @@ public class Hand {
      * @return true if the hand contains a card of that suit
      */
     public boolean contains(Suit suit) {
-        for (Card card : cards) {
-
-        }
+        for (Card card : cards) if (card.getSuit().equals(suit)) return true;
         return false;
     }
 
