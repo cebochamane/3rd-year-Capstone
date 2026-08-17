@@ -15,6 +15,10 @@ public class Trick {
      */
     public Trick(int trickNo, Seat leader) {
         // TODO: implement
+        this.trickNo = trickNo;
+        this.leader = leader;
+        this.plays = new HashMap<>();
+
     }
 
     /**
@@ -25,6 +29,28 @@ public class Trick {
      */
     public void addPlay(Seat seat, Card card) {
         // TODO: implement
+        if (seat == null || card == null) {
+            System.out.println("Error: Seat or card is null.");
+            return;
+        }
+        if (this.plays.containsKey(seat)) {
+            System.out.println("Error: Player has already played a card in this trick.");
+            return;
+        }
+        if (this.plays.size() >= 4) {
+            // Trick is complete
+            isComplete();
+            System.err.println("Error: Cannot add more plays to a completed trick.");
+            return;
+        } else if (this.plays.size() < 4) {
+            this.plays.put(seat, card);
+            return;
+        } else {
+            System.err.println("Error: More than 4 plays made in the trick.");
+        }
+
+        this.plays.put(seat, card);
+
     }
 
     /**
@@ -45,7 +71,8 @@ public class Trick {
      */
     public boolean isComplete() {
         // TODO: implement
-        return false;
+        return this.plays.size() == Position.values().length;
+
     }
 
     /**
@@ -59,7 +86,30 @@ public class Trick {
      */
     public Seat getWinner(Suit trump) {
         // TODO: implement
-        return null;
+        if (!isComplete()) {
+            throw new IllegalStateException("Cannot determine winner: trick is not complete.");
+        }
+        Seat bestSeat = leader;
+        Card bestCard = plays.get(leader);
+        Suit leadSuit = bestCard.getSuit();
+
+        for (Map.Entry<Seat, Card> entry : plays.entrySet()) {
+            Seat seat = entry.getKey();
+            Card card = entry.getValue();
+
+            if (card.getSuit() == trump) {
+                if (bestCard.getSuit() != trump || card.getRank().ordinal() > bestCard.getRank().ordinal()) {
+                    bestSeat = seat;
+                    bestCard = card;
+                }
+            } else if (card.getSuit() == leadSuit) {
+                if (bestCard.getSuit() != trump && card.getRank().ordinal() > bestCard.getRank().ordinal()) {
+                    bestSeat = seat;
+                    bestCard = card;
+                }
+            }
+        }
+        return bestSeat;
     }
 
     /**
@@ -69,7 +119,8 @@ public class Trick {
      * @return the winning card
      */
     public Card getWinningCard(Suit trump) {
-        // TODO: implement
-        return null;
+        Seat winningSeat = getWinner(trump);
+        return plays.get(winningSeat);
+
     }
 }
