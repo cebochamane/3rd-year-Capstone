@@ -3,6 +3,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 public class Deal {
 
     private Seat dealer;
@@ -69,6 +73,44 @@ public class Deal {
     public Map<Position, Hand> getAllHands() {
         return hands;
     }
+
+    // Additions to creating own hands:
+
+    public static Deal fromHands(Seat dealer, Vulnerability vulnerability, Map<Position, List<Card>> suppliedHands) {
+        validateSuppliedHands(dealer, vulnerability, suppliedHands);
+
+        Deal deal = new Deal(dealer, vulnerability);
+        for (Position position : Position.values()) {
+            Hand hand = new Hand(new ArrayList<>(suppliedHands.get(position)));
+            hand.sort();
+            deal.hands.put(position, hand);
+        }
+        return deal;
+    }
+
+    private static void validateSuppliedHands(Seat dealer, Vulnerability vulnerability, Map<Position, List<Card>> suppliedHands) {
+        if (dealer == null || dealer.getPosition() == null) throw new IllegalArgumentException("A deal must have a dealer.");
+        if (vulnerability == null) throw new IllegalArgumentException("A deal must have a vulnerability.");
+        if (suppliedHands == null || suppliedHands.size() != Position.values().length) throw new IllegalArgumentException("A deal must contain hands for North, East, South, and West.");
+
+        Set<String> seenCards = new HashSet<>();
+        for (Position position : Position.values()) {
+            List<Card> hand = suppliedHands.get(position);
+
+            if (hand == null) throw new IllegalArgumentException("Missing hand for " + position + ".");
+            if (hand.size() != 13) throw new IllegalArgumentException(position + " must have exactly 13 cards; found " + hand.size() + ".");
+            
+            for (Card card : hand) {
+                if (card == null || card.getSuit() == null || card.getRank() == null) throw new IllegalArgumentException("Every entry must be a card with a suit and rank.");                
+                if (card.getSuit() == Suit.NT) throw new IllegalArgumentException("No-trump is a contract denomination, not a card suit.");
+                
+                String key = card.getSuit() + "-" + card.getRank();
+                if (!seenCards.add(key)) throw new IllegalArgumentException("Duplicate card in supplied deal: " + card + ".");
+            }
+        }
+    }
+
+    // End of addtitions
 
     public void dealCards() {
         ArrayList<Card> shuffledDeck = new ArrayList<>(deck);
