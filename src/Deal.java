@@ -2,7 +2,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -75,7 +74,7 @@ public class Deal {
     }
 
     // Additions to creating own hands:
-
+    // Validating the validity of created deals
     public static Deal fromHands(Seat dealer, Vulnerability vulnerability, Map<Position, List<Card>> suppliedHands) {
         validateSuppliedHands(dealer, vulnerability, suppliedHands);
 
