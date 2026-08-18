@@ -6,6 +6,7 @@ public class Trick {
     private int trickNo;
     private Seat leader;
     private HashMap<Seat, Card> plays;
+    private Seat winner;
 
     /**
      * Creates a new trick.

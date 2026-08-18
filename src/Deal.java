@@ -131,11 +131,4 @@ public class Deal {
             hands.get(position).sort();
         }
     }
-
-    /** Tester main method */
-    public static void main(String args[]) {
-        Deal thisDeal = new Deal(new Seat(Position.EAST), Vulnerability.NONE);
-        thisDeal.dealCards();
-        System.out.println(thisDeal.hands);
-    }
 }

@@ -6,6 +6,8 @@ public class GameController {
     private Auction auction;
     private Contract contract;
     private Gameplay gameplay;
+    private GamePhase phase = GamePhase.MENU;
+    private Seat currentBidder;
 
     /**
      * Starts a new bridge game by creating a new deal
@@ -31,6 +33,19 @@ public class GameController {
         // TODO: implement
     }
 
+
+    public void startRandomDeal(Seat dealer, Vulnerability vulnerability) {
+        Deal deal = new Deal(dealer, vulnerability);
+        deal.dealCards();
+        startLoadedDeal(deal);
+    }
+
+    public void startLoadedDeal(Deal deal) {
+        if (!isCompleteDeal(deal)) throw new IllegalArgumentException("A loaded deal must contain four hands of 13 cards.");
+        this.currentDeal = deal;
+        startAuction();
+    }
+
     /**
      * Starts the auction phase for the current deal.
      */
@@ -46,22 +61,14 @@ public class GameController {
     public void submitBid(Bid bid) {
         // TODO: implement
     }
+    
+    public boolean startPlay(Contract completedContract) {
+        if (phase != GamePhase.AUCTION_COMPLETE || completedContract == null) return false;
 
-    /**
-     * Starts the card-playing phase after the auction
-     * and contract have been completed.
-     */
-    public void startPlay() {
-        // TODO: implement
-    }
-
-    /**
-     * Plays a card during the current trick.
-     *
-     * @param card the card being played
-     */
-    public void playCard(Card card) {
-        // TODO: implement
+        contract = completedContract;
+        gameplay = new Gameplay(currentDeal, contract);
+        phase = GamePhase.PLAYING;
+        return true;
     }
 
     /**
@@ -77,7 +84,41 @@ public class GameController {
      * @return the current game state
      */
     public String getCurrentState() {
-        // TODO: implement
-        return "";
+        return phase.toString();
+    }
+
+    public GamePhase getPhase() {
+        return phase;
+    }
+
+    public Deal getCurrentDeal() {
+        return currentDeal;
+    }
+
+    public Auction getAuction() {
+        return auction;
+    }
+
+    public Seat getCurrentBidder() {
+        return currentBidder;
+    }
+
+    public Contract getContract() {
+        return contract;
+    }
+
+    public Gameplay getGameplay() {
+        return gameplay;
+    }
+
+    private boolean isCompleteDeal(Deal deal) {
+        if (deal == null || deal.getAllHands().size() != Position.values().length) return false;
+        
+        for (Position position : Position.values()) {
+            Hand hand = deal.getHand(new Seat(position));
+            if (hand == null || hand.getCards().size() != 13) return false;
+        }
+
+        return true;
     }
 }
