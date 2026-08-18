@@ -1,26 +1,33 @@
 import java.util.ArrayList;
 
+/**
+ * Represents a hand of cards in a Bridge game.
+ */
 public class Hand {
 
     private ArrayList<Card> cards;
 
     /**
-     * Creates an empty hand.
+     * Constructs a Hand object with the given list of cards.
      *
-     * Cards can be added to the hand using addCard().
+     * @param cards The list of cards to initialize the hand with
      */
     public Hand(ArrayList<Card> cards) {
         this.cards = new ArrayList<>(cards);
     }
 
+    /**
+     * Constructs a Hand object representing a player's hand of cards.
+     * The hand is initially empty.
+     */
     public Hand() {
         this.cards = new ArrayList<>();
     }
 
     /**
-     * Returns all cards currently in the hand.
+     * Returns the list of cards held by the player.
      *
-     * @return the cards in this hand
+     * @return An ArrayList of Card objects representing the player's cards.
      */
     public ArrayList<Card> getCards() {
         return this.cards;
@@ -29,7 +36,7 @@ public class Hand {
     /**
      * Adds a card to the hand.
      *
-     * @param card the card to add
+     * @param card The card to be added
      */
     public void addCard(Card card) {
         this.cards.add(card);
@@ -38,15 +45,14 @@ public class Hand {
     /**
      * Removes a card from the hand.
      *
-     * @param card the card to remove
+     * @param card The card to remove
      */
     public void removeCard(Card card) {
         // TODO: implement
     }
 
     /**
-     * Sorts the cards in the hand according to the ordering
-     * defined by Card.compareTo().
+     * Sorts the list of cards in descending order by suit and then by rank.
      */
     public void sort() {
         cards.sort((a, b) -> {
@@ -57,10 +63,10 @@ public class Hand {
     }
 
     /**
-     * Checks whether a specific card is in the hand.
+     * Checks if the given card is present in the collection of cards.
      *
-     * @param card the card to search for
-     * @return true if the hand contains the card, otherwise false
+     * @param card The card to check for in the collection
+     * @return true if the card is present, false otherwise
      */
     public boolean contains(Card card) {
         if (card == null) return false;
@@ -73,14 +79,10 @@ public class Hand {
     }
 
     /**
-     * Checks whether the hand contains at least one card
-     * belonging to the specified suit.
+     * Checks if the collection of cards contains a card with the specified suit.
      *
-     * This is useful when enforcing the bridge rule that a
-     * player must follow the lead suit if they have one.
-     *
-     * @param suit the suit to search for
-     * @return true if the hand contains a card of that suit
+     * @param suit The suit to check for in the collection of cards.
+     * @return true if a card with the specified suit is found, false otherwise.
      */
     public boolean contains(Suit suit) {
         for (Card card : cards) if (card.getSuit() == suit) return true;
@@ -103,6 +105,11 @@ public class Hand {
         return null;
     }
 
+    /**
+     * Returns a string representation of the Hand object.
+     *
+     * @return A string containing the cards in the hand
+     */
     public String toString() {
         return "Hand: " + cards;
     }

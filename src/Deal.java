@@ -6,6 +6,20 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Represents a deal in a card game.
+ *
+ * This class contains information about the dealer, vulnerability, hands of players,
+ * and the deck of cards used in the deal.
+ *
+ * @param dealer The player who is the dealer in this deal.
+ * @param vulnerability The vulnerability setting for this deal.
+ * @param hands A mapping of player positions to their respective hands.
+ * @param deck The deck of cards used in the deal.
+ *
+ * The constructor creates a new random deal with the specified dealer and vulnerability.
+ * It distributes the cards from a shuffled deck to each player's hand and sorts the hands.
+ */
 public class Deal {
 
     private Seat dealer;
@@ -73,8 +87,15 @@ public class Deal {
         return hands;
     }
 
-    // Additions to creating own hands:
-    // Validating the validity of created deals
+    /**
+     * Creates a Deal object from the supplied hands, dealer, and vulnerability.
+     *
+     * @param dealer The seat of the dealer for the deal.
+     * @param vulnerability The vulnerability for the deal.
+     * @param suppliedHands A map containing the hands for each position.
+     * @return The Deal object created from the supplied information.
+     * @throws InvalidDealException if the supplied hands are invalid for the given dealer and vulnerability.
+     */
     public static Deal fromHands(Seat dealer, Vulnerability vulnerability, Map<Position, List<Card>> suppliedHands) {
         validateSuppliedHands(dealer, vulnerability, suppliedHands);
 
@@ -87,6 +108,14 @@ public class Deal {
         return deal;
     }
 
+    /**
+     * Validates the supplied hands for a deal in a card game.
+     *
+     * @param dealer The dealer of the deal.
+     * @param vulnerability The vulnerability of the deal.
+     * @param suppliedHands A map containing hands for each position (North, East, South, West).
+     * @throws IllegalArgumentException if the dealer is null, vulnerability is null, or if the suppliedHands map is invalid.
+     */
     private static void validateSuppliedHands(Seat dealer, Vulnerability vulnerability, Map<Position, List<Card>> suppliedHands) {
         if (dealer == null || dealer.getPosition() == null) throw new IllegalArgumentException("A deal must have a dealer.");
         if (vulnerability == null) throw new IllegalArgumentException("A deal must have a vulnerability.");
@@ -109,14 +138,15 @@ public class Deal {
         }
     }
 
-    // End of addtitions
-
+    /**
+     * Deals cards to players based on their positions.
+     * It shuffles the deck, creates hands for each player, distributes cards, and sorts each player's hand.
+     */
     public void dealCards() {
         ArrayList<Card> shuffledDeck = new ArrayList<>(deck);
         Collections.shuffle(shuffledDeck);
         Position[] positions = Position.values();
 
-        // Round-robin distribution of cards to each Seat
         for (Position position : positions) {
             hands.put(position, new Hand());
         }
@@ -126,7 +156,6 @@ public class Deal {
             hands.get(position).addCard(shuffledDeck.get(i));;
         }
 
-        // Sort dealt cards
         for (Position position : positions) {
             hands.get(position).sort();
         }

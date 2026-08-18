@@ -1,3 +1,8 @@
+/**
+ * The GameController class manages the game logic and state for a Bridge game.
+ * It includes methods for starting a new game, loading and saving games,
+ * dealing cards, conducting auctions, playing the game, and managing game phases.
+ */
 public class GameController {
 
     private GameView view;
@@ -34,12 +39,24 @@ public class GameController {
     }
 
 
+    /**
+     * Starts a random deal with the specified dealer and vulnerability.
+     *
+     * @param dealer The seat of the dealer for the deal
+     * @param vulnerability The vulnerability for the deal
+     */
     public void startRandomDeal(Seat dealer, Vulnerability vulnerability) {
         Deal deal = new Deal(dealer, vulnerability);
         deal.dealCards();
         startLoadedDeal(deal);
     }
 
+    /**
+     * Starts a loaded deal if it contains four hands of 13 cards.
+     *
+     * @param deal The deal to start
+     * @throws IllegalArgumentException if the deal does not contain four hands of 13 cards
+     */
     public void startLoadedDeal(Deal deal) {
         if (!isCompleteDeal(deal)) throw new IllegalArgumentException("A loaded deal must contain four hands of 13 cards.");
         this.currentDeal = deal;
@@ -62,6 +79,12 @@ public class GameController {
         // TODO: implement
     }
     
+    /**
+     * Starts the gameplay with the completed contract if the game phase is AUCTION_COMPLETE and the completed contract is not null.
+     *
+     * @param completedContract The completed contract to start the gameplay with.
+     * @return true if the gameplay started successfully, false otherwise.
+     */
     public boolean startPlay(Contract completedContract) {
         if (phase != GamePhase.AUCTION_COMPLETE || completedContract == null) return false;
 
@@ -87,30 +110,66 @@ public class GameController {
         return phase.toString();
     }
 
+    /**
+     * Retrieves the current phase of the game.
+     *
+     * @return The current phase of the game.
+     */
     public GamePhase getPhase() {
         return phase;
     }
 
+    /**
+     * Retrieves the current deal.
+     *
+     * @return The current deal object.
+     */
     public Deal getCurrentDeal() {
         return currentDeal;
     }
 
+    /**
+     * Retrieves the auction object associated with this instance.
+     *
+     * @return The auction object.
+     */
     public Auction getAuction() {
         return auction;
     }
 
+    /**
+     * Retrieves the current bidder of the auction.
+     *
+     * @return The Seat object representing the current bidder.
+     */
     public Seat getCurrentBidder() {
         return currentBidder;
     }
 
+    /**
+     * Retrieves the contract associated with this instance.
+     *
+     * @return The contract object associated with this instance.
+     */
     public Contract getContract() {
         return contract;
     }
 
+    /**
+     * Returns the gameplay object associated with this instance.
+     *
+     * @return The gameplay object.
+     */
     public Gameplay getGameplay() {
         return gameplay;
     }
 
+    /**
+     * Checks if a deal is complete, meaning all hands are present and have 13 cards each.
+     *
+     * @param deal The deal to check completeness for
+     * @return true if the deal is complete, false otherwise
+     */
     private boolean isCompleteDeal(Deal deal) {
         if (deal == null || deal.getAllHands().size() != Position.values().length) return false;
         
