@@ -94,6 +94,24 @@ public class Seat {
         return position.toString();
     }
 
+    @Override
+    public boolean equals(Object otherObject) {
+        if (this == otherObject) {
+            return true;
+        }
+        if (!(otherObject instanceof Seat)) {
+            return false;
+        }
+
+        Seat otherSeat = (Seat) otherObject;
+        return this.position == otherSeat.position;
+    }
+
+    @Override
+    public int hashCode() {
+        return position == null ? 0 : position.hashCode();
+    }
+
     /**
      * Checks whether this seat is the partener of another seat.
      * 

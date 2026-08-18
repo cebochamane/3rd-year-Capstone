@@ -14,7 +14,7 @@ public class Deal {
     private ArrayList<Card> deck = new ArrayList<>();
 
     /**
-     * Creates a new deal with the specified dealer and vulnerability.
+     * Creates a new random deal with the specified dealer and vulnerability.
      *
      * @param dealer        the seat responsible for dealing
      * @param vulnerability the vulnerability for this deal
