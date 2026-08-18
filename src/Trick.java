@@ -1,11 +1,11 @@
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public class Trick {
 
     private int trickNo;
     private Seat leader;
-    private HashMap<Seat, Card> plays;
+    private LinkedHashMap<Position, Card> plays;
 
     /**
      * Creates a new trick.

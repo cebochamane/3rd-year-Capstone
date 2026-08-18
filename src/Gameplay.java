@@ -1,4 +1,6 @@
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Gameplay {
 
@@ -9,14 +11,22 @@ public class Gameplay {
     private int declarerTricks;
     private int defenderTricks;
     private boolean finished;
+    private Map<Position, Hand> remainingHands;
 
     /**
      * Creates a new gameplay session for the given contract.
      *
      * @param contract the contract being played
      */
-    public Gameplay(Contract contract) {
-        // TODO: implement
+    public Gameplay(Deal deal, Contract contract) {
+        this.contract = contract;
+        this.remainingHands = new HashMap<>();
+
+        for (Position position : Position.values()) {
+            Hand originalHand = deal.getHand(new Seat(position));
+            Hand copiedHand = new Hand(new ArrayList<>(originalHand.getCards()));
+            remainingHands.put(position, copiedHand);
+        }
     }
 
     /**
