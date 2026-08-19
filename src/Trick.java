@@ -60,8 +60,7 @@ public class Trick {
      * @return the map of players to cards
      */
     public Map<Seat, Card> getPlays() {
-        // TODO: implement
-        return null;
+        return this.plays;
     }
 
     /**
