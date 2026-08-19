@@ -1,4 +1,6 @@
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Gameplay {
 
@@ -9,14 +11,22 @@ public class Gameplay {
     private int declarerTricks;
     private int defenderTricks;
     private boolean finished;
+    private Map<Position, Hand> remainingHands;
 
     /**
      * Creates a new gameplay session for the given contract.
      *
      * @param contract the contract being played
      */
-    public Gameplay(Contract contract) {
-        // TODO: implement
+    public Gameplay(Deal deal, Contract contract) {
+        this.contract = contract;
+        this.remainingHands = new HashMap<>();
+
+        for (Position position : Position.values()) {
+            Hand originalHand = deal.getHand(new Seat(position));
+            Hand copiedHand = new Hand(new ArrayList<>(originalHand.getCards()));
+            remainingHands.put(position, copiedHand);
+        }
     }
 
     /**
@@ -25,8 +35,7 @@ public class Gameplay {
      * @return the current contract
      */
     public Contract getContract() {
-        // TODO: implement
-        return null;
+        return contract;
     }
 
     /**
@@ -35,8 +44,7 @@ public class Gameplay {
      * @return the seat that leads the current trick
      */
     public Seat getCurrentLeader() {
-        // TODO: implement
-        return null;
+        return currentLeader;
     }
 
     /**
@@ -45,8 +53,7 @@ public class Gameplay {
      * @return the list of completed and current tricks
      */
     public ArrayList<Trick> getTricks() {
-        // TODO: implement
-        return null;
+        return tricks;
     }
 
     /**
@@ -55,8 +62,7 @@ public class Gameplay {
      * @return the current trick number
      */
     public int getTrickNo() {
-        // TODO: implement
-        return 0;
+        return trickNo;
     }
 
     /**
@@ -117,8 +123,7 @@ public class Gameplay {
      * @return the number of declarer tricks
      */
     public int getDeclarerTricks() {
-        // TODO: implement
-        return 0;
+        return declarerTricks;
     }
 
     /**
@@ -127,7 +132,6 @@ public class Gameplay {
      * @return the number of defender tricks
      */
     public int getDefenderTricks() {
-        // TODO: implement
-        return 0;
+        return defenderTricks;
     }
 }

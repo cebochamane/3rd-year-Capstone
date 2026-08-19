@@ -95,7 +95,36 @@ public class Seat {
     }
 
     /**
-     * Checks whether this seat is the partener of another seat.
+     * Indicates whether some other Seat is "equal to" this one.
+     *
+     * @param otherObject The object to compare this seat with
+     * @return true if the other object is an instance of Seat and has the same position, false otherwise
+     */
+    @Override
+    public boolean equals(Object otherObject) {
+        if (this == otherObject) {
+            return true;
+        }
+        if (!(otherObject instanceof Seat)) {
+            return false;
+        }
+
+        Seat otherSeat = (Seat) otherObject;
+        return this.position == otherSeat.position;
+    }
+
+    /**
+     * Returns a hash code value for the Seat based on the position attribute.
+     *
+     * @return The hash code value for this object
+     */
+    @Override
+    public int hashCode() {
+        return position == null ? 0 : position.hashCode();
+    }
+
+    /**
+     * Checks whether this Seat is the partner of another seat.
      * 
      * @param other the seat to compare with
      * @return true if the seats are partners, otherwise false

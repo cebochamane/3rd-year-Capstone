@@ -247,7 +247,7 @@ public class AuctionTest {
         auction.addBid(bid);
         Bid bid1 = new Bid(new Seat(Position.EAST), 2, Suit.CLUBS);
 
-        assertTrue(auction.isValidBid(bid1));
+        assertFalse(auction.isValidBid(bid1));
     }
 
     @Test // isValid()

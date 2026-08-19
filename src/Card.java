@@ -51,7 +51,7 @@ public class Card {
 
         if (thisIsTrump && !otherIsTrump) return 1;
         if (otherIsTrump && !thisIsTrump) return -1;
-        if (thisIsTrump && !otherIsTrump) return this.rank.compareTo(other.rank);
+        if (thisIsTrump && otherIsTrump) return this.rank.compareTo(other.rank);
 
         // Neither card is trump — only the lead suit is in contention
         boolean thisIsLead = (this.suit == leadSuit);

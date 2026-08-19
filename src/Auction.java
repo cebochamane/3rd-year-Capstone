@@ -141,12 +141,9 @@ public class Auction {
      * @return true if the new bid is higher, otherwise false
      */
     private boolean isHigherBid(Bid newBid, Bid currentBid) {
-        if (newBid.getLevel() >= currentBid.getLevel()) {
-            return true;
-        } else if (newBid.getDenomination().ordinal() > currentBid.getDenomination().ordinal()) {
-            return true;
-        } else {
-            return false;
+        if (newBid.getLevel() == currentBid.getLevel()) {
+            return newBid.getDenomination().ordinal() > currentBid.getDenomination().ordinal();
         }
+        return newBid.getLevel() > currentBid.getLevel();
     }
 }

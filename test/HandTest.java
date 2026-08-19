@@ -16,6 +16,20 @@ class HandTest {
     }
 
     @Test
+    void containsCardFindsCardInTheHand() {
+        Hand hand = new Hand();
+        Card card1 = new Card(Suit.SPADES, Rank.TWO);
+        Card card2 = new Card(Suit.CLUBS, Rank.KING);
+
+        hand.addCard(new Card(Suit.SPADES, Rank.ACE));
+        hand.addCard(new Card(Suit.SPADES, Rank.TWO));
+
+        assertTrue(hand.contains(card1));
+        assertFalse(hand.contains(card2));
+        assertFalse(hand.contains(new Card(Suit.SPADES, Rank.THREE)));
+    }
+
+    @Test
     void containsSuitFindsPresentSuitsAndRejectsMissingSuits() {
         Hand hand = new Hand();
         hand.addCard(new Card(Suit.HEARTS, Rank.ACE));
@@ -39,7 +53,7 @@ class HandTest {
         hand.addCard(spadeAce);
         hand.addCard(heartQueen);
         hand.sort();
-        
+
         assertEquals(List.of(spadeAce, spadeTwo, heartQueen, clubKing), hand.getCards());
     }
 
