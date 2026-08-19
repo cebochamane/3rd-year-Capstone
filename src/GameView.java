@@ -1,8 +1,24 @@
 import java.util.List;
+import java.util.Map;
+import javax.swing.JFrame;
+import javax.swing.JPanel;
+import javax.swing.JButton;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.BoxLayout;
+import javax.swing.UIManager;
+
+import java.awt.BorderLayout;
+import java.awt.event.ActionListener;
+import java.awt.event.ActionEvent;
+import java.awt.GridLayout;
+import java.awt.Color;
+import java.awt.Font;
 
 public class GameView {
 
     private GameController controller;
+    private int lastMenuChoice;
 
     /**
      * Connects this view to the game controller.
@@ -10,7 +26,7 @@ public class GameView {
      * @param controller the controller that manages the game
      */
     public void setController(GameController controller) {
-        // TODO: implement
+        this.controller = controller;
     }
 
     /**
@@ -18,6 +34,9 @@ public class GameView {
      */
     public void showMenu() {
         // TODO: implement
+        String[] options = new String[] { "Start New Game", "Load Game", "Exit" };
+        lastMenuChoice = JOptionPane.showOptionDialog(null, "Choose an option:", "Main Menu",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
     }
 
     /**
@@ -27,6 +46,7 @@ public class GameView {
      */
     public void showDeal(Deal deal) {
         // TODO: implement
+
     }
 
     /**
@@ -73,6 +93,7 @@ public class GameView {
      */
     public void showMessage(String message) {
         // TODO: implement
+        JOptionPane.showMessageDialog(null, message);
     }
 
     /**
@@ -104,6 +125,6 @@ public class GameView {
      */
     public int getMenuChoice() {
         // TODO: implement
-        return 0;
+        return lastMenuChoice;
     }
 }
