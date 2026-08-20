@@ -18,7 +18,11 @@ public class Contract {
      */
     public Contract(int level, Suit denomination, Seat declarer,
             boolean doubled, boolean redoubled) {
-        // TODO: implement
+        this.level = level;
+        this.denomination = denomination;
+        this.declarer = declarer;
+        this.doubled = doubled;
+        this.redoubled = redoubled;
     }
 
     /**
@@ -27,8 +31,7 @@ public class Contract {
      * @return true if the denomination is NT, otherwise false
      */
     public boolean isNoTrump() {
-        // TODO: implement
-        return false;
+        return this.denomination == Suit.NT;
     }
 
     /**
@@ -38,8 +41,7 @@ public class Contract {
      *         otherwise false
      */
     public boolean isTrumpContract() {
-        // TODO: implement
-        return false;
+        return this.denomination != Suit.NT;
     }
 
     /**
@@ -48,8 +50,7 @@ public class Contract {
      * @return the number of tricks required
      */
     public int getRequiredTricks() {
-        // TODO: implement
-        return 0;
+        return this.level + 6; // 6 base tricks plus the level of the contract.
     }
 
     /**
@@ -58,8 +59,7 @@ public class Contract {
      * @return true if doubled, otherwise false
      */
     public boolean isDoubled() {
-        // TODO: implement
-        return false;
+        return this.doubled;
     }
 
     /**
@@ -68,8 +68,7 @@ public class Contract {
      * @return true if redoubled, otherwise false
      */
     public boolean isRedoubled() {
-        // TODO: implement
-        return false;
+        return this.redoubled;
     }
 
     /**
@@ -78,8 +77,7 @@ public class Contract {
      * @return the seat of the declarer
      */
     public Seat getDeclarer() {
-        // TODO: implement
-        return null;
+        return this.declarer;
     }
 
     /**
@@ -88,8 +86,7 @@ public class Contract {
      * @return the contract's suit or NT
      */
     public Suit getDenomination() {
-        // TODO: implement
-        return null;
+        return this.denomination;
     }
 
     /**
@@ -98,7 +95,6 @@ public class Contract {
      * @return the contract level
      */
     public int getLevel() {
-        // TODO: implement
-        return 0;
+        return this.level;
     }
 }

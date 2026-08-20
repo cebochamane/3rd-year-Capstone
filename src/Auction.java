@@ -28,8 +28,12 @@ public class Auction {
      *
      * @param bid the bid being submitted
      */
-    public void addBid(Bid bid) {
-        bids.add(bid);
+    public boolean addBid(Bid bid) {
+        if (this.isValidBid(bid)) {
+            bids.add(bid);
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -145,5 +149,31 @@ public class Auction {
             return newBid.getDenomination().ordinal() > currentBid.getDenomination().ordinal();
         }
         return newBid.getLevel() > currentBid.getLevel();
+    }
+
+    /**
+     * Creates a Contract object based on the final bid of the auction.
+     *
+     * @return a Contract object representing the final contract of the auction
+     */
+    public Contract createContract() {
+        Bid finalBid = this.getFinalBid();
+
+        boolean doubled = false;
+        boolean reDoubled = false;
+        int indexOfFinalBid = bids.indexOf(finalBid);
+        for (int i = indexOfFinalBid + 1; i < bids.size(); i++) {
+            if (bids.get(i).isDouble()) {
+                doubled = true;
+            }
+            if (bids.get(i).isRedouble()) {
+                reDoubled = true;
+                break;
+            }
+        }
+
+        Contract contract = new Contract(finalBid.getLevel(), finalBid.getDenomination(), finalBid.getBidder(), doubled,
+                reDoubled);
+        return contract;
     }
 }
