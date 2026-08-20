@@ -37,6 +37,7 @@ public class GameView {
         String[] options = new String[] { "Start New Game", "Load Game", "Exit" };
         lastMenuChoice = JOptionPane.showOptionDialog(null, "Choose an option:", "Main Menu",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+        this.lastMenuChoice = lastMenuChoice;
     }
 
     /**
@@ -46,7 +47,17 @@ public class GameView {
      */
     public void showDeal(Deal deal) {
         // TODO: implement
+        String text = "";
+        text += "Dealer: " + deal.getDealer() + "\n";
+        text += "Vulnerability" + deal.getVulnerability() + "\n";
 
+        for (Position position : Position.values()) {
+            Seat seat = new Seat(position);
+            Hand hand = deal.getHand(seat);
+            text += position + ": " + hand.getCards() + "\n";
+
+        }
+        JOptionPane.showMessageDialog(null, text, "Current Deal", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
@@ -56,6 +67,19 @@ public class GameView {
      */
     public void showAuction(Auction auction) {
         // TODO: implement
+        String text = "";
+        for (Bid bid : auction.getBids()) {
+            if (bid.isPass()) {
+                text += bid.getBidder() + " Pass\n";
+            } else if (bid.isDouble()) {
+                text += bid.getBidder() + " Doubls\n";
+            } else if (bid.isRedouble()) {
+                text += bid.getBidder() + " Redouble\n";
+            } else {
+                text += bid.getBidder() + " bids " + bid.getLevel() + "" + bid.getSuit() + "\n";
+            }
+        }
+        JOptionPane.showMessageDialog(null, text, "Current Auction", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
