@@ -124,7 +124,7 @@ public class AuctionTest {
         auction.addBid(bid2);
         Bid bid3 = new Bid(new Seat(Position.EAST), 4, Suit.CLUBS);
         auction.addBid(bid3);
-        Bid bid4 = new Bid(new Seat(Position.SOUTH), 3, Suit.SPADES);
+        Bid bid4 = new Bid(new Seat(Position.SOUTH), 5, Suit.SPADES);
         auction.addBid(bid4);
         assertEquals(bid4, auction.getFinalBid());
 
@@ -261,6 +261,24 @@ public class AuctionTest {
     }
 
     @Test // isValid()
+    void addValidBid() {
+        Auction auction = new Auction();
+        Bid bid = new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS);
+        assertTrue(auction.addBid(bid));
+        assertEquals(1, auction.getBids().size());
+    }
+
+    @Test // isInValid()
+    void addInValidBid() {
+        Auction auction = new Auction();
+        Bid validBid = new Bid(new Seat(Position.NORTH), 3, Suit.CLUBS);
+        Bid invalidBid = new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS);
+        auction.addBid(validBid);
+        assertFalse(auction.addBid(invalidBid));
+        assertEquals(1, auction.getBids().size());
+    }
+
+    @Test // isValid()
     void inValidisHigher() {
         Auction auction = new Auction();
         Bid bid1 = new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS);
@@ -279,4 +297,47 @@ public class AuctionTest {
 
         assertTrue(auction.isValidBid(bid2));
     }
+
+    @Test
+    void getFinalBidIgnoreDouble() {
+        Auction auction = new Auction();
+        Bid bid = new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS);
+        auction.addBid(bid);
+        Bid doubleBid = Bid.BidDouble(new Seat(Position.EAST));
+        assertTrue(auction.addBid(doubleBid));
+        assertEquals(bid, auction.getFinalBid());
+    }
+
+    @Test
+    void getFinalBidIgnoresRedouble() {
+        Auction auction = new Auction();
+        Bid bid = new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS);
+        auction.addBid(bid);
+
+        Bid doubleBid = Bid.BidDouble(new Seat(Position.EAST));
+        auction.addBid(doubleBid);
+
+        Bid redoubleBid = Bid.BidRedouble(new Seat(Position.SOUTH));
+        assertTrue(auction.addBid(redoubleBid));
+
+        assertEquals(bid, auction.getFinalBid());
+    }
+
+    @Test
+    void createContract() {
+        Auction auction = new Auction();
+        Bid bid = new Bid(new Seat(Position.NORTH), 5, Suit.CLUBS);
+        auction.addBid(bid);
+
+        auction.addBid(Bid.BidPass(new Seat(Position.EAST)));
+        auction.addBid(Bid.BidPass(new Seat(Position.SOUTH)));
+        auction.addBid(Bid.BidPass(new Seat(Position.WEST)));
+
+        Contract contract = auction.createContract();
+        assertNotNull(contract);
+        assertEquals(5, contract.getLevel());
+        assertEquals(Suit.CLUBS, contract.getDenomination());
+        assertEquals(new Seat(Position.NORTH), contract.getDeclarer());
+    }
+
 }
