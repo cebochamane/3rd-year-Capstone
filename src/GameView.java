@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import javax.swing.JFrame;
@@ -143,11 +144,34 @@ public class GameView {
      */
     public Bid getUserBid() {
         // TODO: implement
-        Bid selectedBid = null;
+        ArrayList<String> labels = new ArrayList<>();
+        ArrayList<Bid> bids = new ArrayList<>();
+        Seat seat = new Seat(Position.NORTH);
 
-        JPanel panel = new JPanel();
+        labels.add("Pass");
+        bids.add(Bid.BidPass(seat));
 
-        return null;
+        labels.add("Double");
+        bids.add(Bid.BidDouble(seat));
+
+        labels.add("Redouble");
+        bids.add(Bid.BidRedouble(seat));
+
+        for (int level = 1; level <= 7; level++) {
+            for (Suit suit : Suit.values()) {
+                labels.add(level + "" + suit);
+                bids.add(Bid.Bid(level, suit, seat));
+            }
+        }
+        String[] options = labels.toArray(new String[0]);
+        int choice = JOptionPane.showOptionDialog(null, "Choose a bid:", "Bid Selection",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+
+        if (choice == -1) {
+            return null;
+        } else {
+            return bids.get(choice);
+        }
     }
 
     /**
@@ -159,8 +183,21 @@ public class GameView {
      */
     public Card getUserCardToPlay(Hand hand, List<Card> legalCards) {
         // TODO: implement
+        Card[] cards = hand.getCards().toArray(new Card[0]);
+        String[] options = new String[cards.length];
 
-        return null;
+        for (int i = 0; i < cards.length; i++) {
+            options[i] = cards[i].toString();
+
+        }
+        int choice = JOptionPane.showOptionDialog(null, "Choose a card to play:", "Card Selection",
+                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
+
+        if (choice == -1) {
+            return getUserCardToPlay(hand, legalCards);
+        }
+
+        return cards[choice];
     }
 
     /**
