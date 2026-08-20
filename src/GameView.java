@@ -89,6 +89,13 @@ public class GameView {
      */
     public void showContract(Contract contract) {
         // TODO: implement
+        String text = "Declarer: " + contract.getDeclarer() + "\n";
+        text += "Level: " + contract.getLevel() + "\n";
+        if (contract.isRedoubled()) {
+            text += "(Redoubed)";
+        } else if (contract.isDoubled()) {
+            text += "(Doubled)";
+        }
     }
 
     /**
