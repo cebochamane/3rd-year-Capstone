@@ -106,6 +106,11 @@ public class GameView {
      */
     public void showTrick(int trickNo, List<Card> trick) {
         // TODO: implement
+        String text = "Trick" + trickNo + ":\n";
+        for (Card card : trick) {
+            text += card + "\n";
+        }
+        JOptionPane.showMessageDialog(null, text, "Current Trick", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
@@ -115,6 +120,10 @@ public class GameView {
      */
     public void showScores(Score score) {
         // TODO: implement
+        String text = "NS: " + score.getScoreNS() + "\n";
+        text += "EW: " + score.getScoreEW();
+
+        JOptionPane.showMessageDialog(null, text, "Current Score", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
@@ -134,6 +143,10 @@ public class GameView {
      */
     public Bid getUserBid() {
         // TODO: implement
+        Bid selectedBid = null;
+
+        JPanel panel = new JPanel();
+
         return null;
     }
 
@@ -146,6 +159,7 @@ public class GameView {
      */
     public Card getUserCardToPlay(Hand hand, List<Card> legalCards) {
         // TODO: implement
+
         return null;
     }
 
