@@ -16,6 +16,9 @@ import java.awt.GridLayout;
 import java.awt.Color;
 import java.awt.Font;
 import java.awt.FlowLayout;
+import java.awt.RenderingHints;
+import java.awt.Graphics;
+import java.awt.Graphics2D;
 
 public class GameView {
 
@@ -29,6 +32,9 @@ public class GameView {
 
     private JPanel headerBar, tablePanel, trickPanel, notesPanel;
     private JLabel declarerLabel, notesPlaceholderLabel;
+
+    private static final Color FELT_GREEN = new Color(27, 77, 62);
+    private static final Color GOLD_ACCENT = new Color(201, 162, 39);
 
     /**
      * Connects this view to the game controller.
@@ -245,18 +251,16 @@ public class GameView {
         mainFrame.setSize(900, 700);
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         mainFrame.setLayout(new BorderLayout());
-        mainFrame.getContentPane().setBackground(new Color(27, 77, 62));
 
         headerBar = new JPanel(new BorderLayout());
         headerBar.setOpaque(false);
 
         infoLabel = new JLabel("Dealer: -  Vulnerability: -");
-        Color goldAccent = new Color(201, 162, 39);
-        infoLabel.setForeground(goldAccent);
+        infoLabel.setForeground(GOLD_ACCENT);
         headerBar.add(infoLabel, BorderLayout.WEST);
 
         declarerLabel = new JLabel("Declarer: -");
-        declarerLabel.setForeground(goldAccent);
+        declarerLabel.setForeground(GOLD_ACCENT);
         headerBar.add(declarerLabel, BorderLayout.CENTER);
 
         notesPanel = new JPanel(new BorderLayout());
@@ -268,7 +272,23 @@ public class GameView {
 
         mainFrame.add(headerBar, BorderLayout.PAGE_START);
 
-        tablePanel = new JPanel(new BorderLayout());
+        tablePanel = new JPanel(new BorderLayout()) {
+            @Override
+            public void paintComponent(Graphics g) {
+                super.paintComponent(g);
+
+                Graphics2D g2d = (Graphics2D) g;
+                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
+                g2d.setColor(FELT_GREEN);
+                g2d.fillRect(0, 0, getWidth(), getHeight());
+
+                g2d.setColor(GOLD_ACCENT);
+                g2d.drawOval(2, 2, getWidth() - 4, getHeight() - 4);
+
+            }
+
+        };
         tablePanel.setOpaque(false);
 
         northPanel = new JPanel();
