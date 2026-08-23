@@ -34,11 +34,9 @@ public class GameView {
      * Displays the main game menu to the user.
      */
     public void showMenu() {
-        // TODO: implement
         String[] options = new String[] { "Start New Game", "Load Game", "Exit" };
         lastMenuChoice = JOptionPane.showOptionDialog(null, "Choose an option:", "Main Menu",
                 JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
-        this.lastMenuChoice = lastMenuChoice;
     }
 
     /**
@@ -47,10 +45,14 @@ public class GameView {
      * @param deal the deal to display
      */
     public void showDeal(Deal deal) {
-        // TODO: implement
+        if (deal == null) {
+            JOptionPane.showMessageDialog(null, "No deal available.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         String text = "";
         text += "Dealer: " + deal.getDealer() + "\n";
-        text += "Vulnerability" + deal.getVulnerability() + "\n";
+        text += "Vulnerability: " + deal.getVulnerability() + "\n";
 
         for (Position position : Position.values()) {
             Seat seat = new Seat(position);
@@ -67,17 +69,21 @@ public class GameView {
      * @param auction the auction to display
      */
     public void showAuction(Auction auction) {
-        // TODO: implement
+        if (auction == null) {
+            JOptionPane.showMessageDialog(null, "No auction available.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         String text = "";
         for (Bid bid : auction.getBids()) {
             if (bid.isPass()) {
                 text += bid.getBidder() + " Pass\n";
             } else if (bid.isDouble()) {
-                text += bid.getBidder() + " Doubls\n";
+                text += bid.getBidder() + " Double\n";
             } else if (bid.isRedouble()) {
                 text += bid.getBidder() + " Redouble\n";
             } else {
-                text += bid.getBidder() + " bids " + bid.getLevel() + "" + bid.getSuit() + "\n";
+                text += bid.getBidder() + " bids " + bid.getLevel() + " " + bid.getDenomination() + "\n";
             }
         }
         JOptionPane.showMessageDialog(null, text, "Current Auction", JOptionPane.INFORMATION_MESSAGE);
@@ -89,14 +95,18 @@ public class GameView {
      * @param contract the current contract
      */
     public void showContract(Contract contract) {
-        // TODO: implement
+        if (contract == null) {
+            JOptionPane.showMessageDialog(null, "No contract available.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         String text = "Declarer: " + contract.getDeclarer() + "\n";
         text += "Level: " + contract.getLevel() + "\n";
         if (contract.isRedoubled()) {
-            text += "(Redoubed)";
+            text += "(Redoubled)\n";
         } else if (contract.isDoubled()) {
-            text += "(Doubled)";
+            text += "(Doubled)\n";
         }
+        JOptionPane.showMessageDialog(null, text, "Current Contract", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
@@ -106,8 +116,12 @@ public class GameView {
      * @param trick   the cards played in the trick
      */
     public void showTrick(int trickNo, List<Card> trick) {
-        // TODO: implement
-        String text = "Trick" + trickNo + ":\n";
+        if (trick == null) {
+            JOptionPane.showMessageDialog(null, "No trick available.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String text = "Trick " + trickNo + ":\n";
         for (Card card : trick) {
             text += card + "\n";
         }
@@ -120,9 +134,12 @@ public class GameView {
      * @param score the score to display
      */
     public void showScores(Score score) {
-        // TODO: implement
+        if (score == null) {
+            JOptionPane.showMessageDialog(null, "No score available.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
         String text = "NS: " + score.getScoreNS() + "\n";
-        text += "EW: " + score.getScoreEW();
+        text += "EW: " + score.getScoreEW() + "\n";
 
         JOptionPane.showMessageDialog(null, text, "Current Score", JOptionPane.INFORMATION_MESSAGE);
     }
@@ -133,7 +150,11 @@ public class GameView {
      * @param message the message to display
      */
     public void showMessage(String message) {
-        // TODO: implement
+        if (message == null) {
+            JOptionPane.showMessageDialog(null, "No message to display.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
         JOptionPane.showMessageDialog(null, message);
     }
 
@@ -143,10 +164,10 @@ public class GameView {
      * @return the user's selected bid
      */
     public Bid getUserBid() {
-        // TODO: implement
+
         ArrayList<String> labels = new ArrayList<>();
         ArrayList<Bid> bids = new ArrayList<>();
-        Seat seat = new Seat(Position.NORTH);
+        Seat seat = controller.getCurrentBidder();
 
         labels.add("Pass");
         bids.add(Bid.BidPass(seat));
@@ -160,7 +181,7 @@ public class GameView {
         for (int level = 1; level <= 7; level++) {
             for (Suit suit : Suit.values()) {
                 labels.add(level + "" + suit);
-                bids.add(Bid.Bid(level, suit, seat));
+                bids.add(new Bid(seat, level, suit));
             }
         }
         String[] options = labels.toArray(new String[0]);
@@ -182,8 +203,8 @@ public class GameView {
      * @return the card selected by the user
      */
     public Card getUserCardToPlay(Hand hand, List<Card> legalCards) {
-        // TODO: implement
-        Card[] cards = hand.getCards().toArray(new Card[0]);
+
+        Card[] cards = legalCards.toArray(new Card[0]);
         String[] options = new String[cards.length];
 
         for (int i = 0; i < cards.length; i++) {
@@ -206,7 +227,7 @@ public class GameView {
      * @return the selected menu option
      */
     public int getMenuChoice() {
-        // TODO: implement
+
         return lastMenuChoice;
     }
 }
