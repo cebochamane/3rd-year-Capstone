@@ -15,11 +15,20 @@ import java.awt.event.ActionEvent;
 import java.awt.GridLayout;
 import java.awt.Color;
 import java.awt.Font;
+import java.awt.FlowLayout;
 
 public class GameView {
 
     private GameController controller;
     private int lastMenuChoice;
+
+    private JFrame mainFrame;
+    private JLabel northLabel, eastLabel, southLabel, westLabel;
+    private JPanel northPanel, eastPanel, southPanel, westPanel;
+    private JLabel infoLabel;
+
+    private JPanel headerBar, tablePanel, trickPanel, notesPanel;
+    private JLabel declarerLabel, notesPlaceholderLabel;
 
     /**
      * Connects this view to the game controller.
@@ -229,5 +238,79 @@ public class GameView {
     public int getMenuChoice() {
 
         return lastMenuChoice;
+    }
+
+    public void initialiseWindow() {
+        mainFrame = new JFrame("BridgeTut");
+        mainFrame.setSize(900, 700);
+        mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        mainFrame.setLayout(new BorderLayout());
+        mainFrame.getContentPane().setBackground(new Color(27, 77, 62));
+
+        headerBar = new JPanel(new BorderLayout());
+        headerBar.setOpaque(false);
+
+        infoLabel = new JLabel("Dealer: -  Vulnerability: -");
+        Color goldAccent = new Color(201, 162, 39);
+        infoLabel.setForeground(goldAccent);
+        headerBar.add(infoLabel, BorderLayout.WEST);
+
+        declarerLabel = new JLabel("Declarer: -");
+        declarerLabel.setForeground(goldAccent);
+        headerBar.add(declarerLabel, BorderLayout.CENTER);
+
+        notesPanel = new JPanel(new BorderLayout());
+        notesPanel.setOpaque(false);
+        notesPlaceholderLabel = new JLabel("Notes: -");
+        notesPlaceholderLabel.setForeground(Color.WHITE);
+        notesPanel.add(notesPlaceholderLabel);
+        headerBar.add(notesPanel, BorderLayout.EAST);
+
+        mainFrame.add(headerBar, BorderLayout.PAGE_START);
+
+        tablePanel = new JPanel(new BorderLayout());
+        tablePanel.setOpaque(false);
+
+        northPanel = new JPanel();
+        northPanel.setOpaque(false);
+        northLabel = new JLabel("North: -");
+        northLabel.setForeground(Color.WHITE);
+        northPanel.add(northLabel);
+
+        eastPanel = new JPanel();
+        eastPanel.setOpaque(false);
+        eastLabel = new JLabel("East: -");
+        eastLabel.setForeground(Color.WHITE);
+        eastPanel.add(eastLabel);
+
+        southPanel = new JPanel();
+        southPanel.setOpaque(false);
+        southLabel = new JLabel("South: -");
+        southLabel.setForeground(Color.WHITE);
+        southPanel.add(southLabel);
+
+        westPanel = new JPanel();
+        westPanel.setOpaque(false);
+        westLabel = new JLabel("West: -");
+        westLabel.setForeground(Color.WHITE);
+        westPanel.add(westLabel);
+
+        tablePanel.add(northPanel, BorderLayout.NORTH);
+        tablePanel.add(eastPanel, BorderLayout.EAST);
+        tablePanel.add(southPanel, BorderLayout.SOUTH);
+        tablePanel.add(westPanel, BorderLayout.WEST);
+
+        trickPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        trickPanel.setOpaque(false);
+        tablePanel.add(trickPanel, BorderLayout.CENTER);
+
+        mainFrame.add(tablePanel, BorderLayout.CENTER);
+        mainFrame.setVisible(true);
+
+    }
+
+    public static void main(String[] args) {
+        GameView view = new GameView();
+        view.initialiseWindow();
     }
 }
