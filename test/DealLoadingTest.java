@@ -77,6 +77,83 @@ class DealLoadingTest {
         assertThrows(IllegalStateException.class, draft::createDeal);
     }
 
+    @Test
+    void fromHandsRejectsMissingMetadataOrAPlayerHand() {
+        Map<Position, List<Card>> source = completeDeal();
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Deal.fromHands(null, Vulnerability.NONE, source));
+        assertThrows(IllegalArgumentException.class,
+                () -> Deal.fromHands(new Seat(Position.NORTH), null, source));
+        assertThrows(IllegalArgumentException.class,
+                () -> Deal.fromHands(new Seat(Position.NORTH), Vulnerability.NONE, null));
+
+        source.remove(Position.WEST);
+        assertThrows(IllegalArgumentException.class,
+                () -> Deal.fromHands(new Seat(Position.NORTH), Vulnerability.NONE, source));
+    }
+
+    @Test
+    void fromHandsRejectsNullAndNoTrumpCards() {
+        Map<Position, List<Card>> source = completeDeal();
+        source.get(Position.NORTH).set(0, null);
+        Map<Position, List<Card>> nullCardSource = source;
+
+        assertThrows(IllegalArgumentException.class,
+                () -> Deal.fromHands(new Seat(Position.NORTH), Vulnerability.NONE, nullCardSource));
+
+        source = completeDeal();
+        source.get(Position.NORTH).set(0, new Card(Suit.NT, Rank.ACE));
+        Map<Position, List<Card>> noTrumpSource = source;
+        assertThrows(IllegalArgumentException.class,
+                () -> Deal.fromHands(new Seat(Position.NORTH), Vulnerability.NONE, noTrumpSource));
+    }
+
+    @Test
+    void draftRemovesCardsAndReturnsReadOnlyCardLists() {
+        DealDraft draft = new DealDraft(new Seat(Position.WEST), Vulnerability.EW);
+        Card aceOfSpades = new Card(Suit.SPADES, Rank.ACE);
+        draft.assignCard(Position.NORTH, aceOfSpades);
+
+        assertTrue(draft.removeCard(Position.NORTH, new Card(Suit.SPADES, Rank.ACE)));
+        assertFalse(draft.removeCard(Position.NORTH, aceOfSpades));
+        assertEquals(52, draft.getAvailableCards().size());
+
+        assertThrows(UnsupportedOperationException.class,
+                () -> draft.getCards(Position.NORTH).add(aceOfSpades));
+        assertThrows(UnsupportedOperationException.class,
+                () -> draft.getAvailableCards().add(aceOfSpades));
+    }
+
+    @Test
+    void draftRejectsInvalidAssignmentsAndAFourteenthCard() {
+        DealDraft draft = new DealDraft(new Seat(Position.NORTH), Vulnerability.NONE);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> draft.assignCard(null, new Card(Suit.CLUBS, Rank.TWO)));
+        assertThrows(IllegalArgumentException.class,
+                () -> draft.assignCard(Position.NORTH, null));
+        assertThrows(IllegalArgumentException.class,
+                () -> draft.assignCard(Position.NORTH, new Card(Suit.NT, Rank.ACE)));
+
+        Map<Position, List<Card>> source = completeDeal();
+        for (Card card : source.get(Position.NORTH)) {
+            draft.assignCard(Position.NORTH, card);
+        }
+        assertThrows(IllegalArgumentException.class,
+                () -> draft.assignCard(Position.NORTH, new Card(Suit.DIAMONDS, Rank.TWO)));
+    }
+
+    @Test
+    void draftRequiresADealerPositionAndVulnerability() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new DealDraft(null, Vulnerability.NONE));
+        assertThrows(IllegalArgumentException.class,
+                () -> new DealDraft(new Seat(null), Vulnerability.NONE));
+        assertThrows(IllegalArgumentException.class,
+                () -> new DealDraft(new Seat(Position.NORTH), null));
+    }
+
     private Map<Position, List<Card>> completeDeal() {
         Map<Position, List<Card>> hands = new EnumMap<>(Position.class);
         for (Position position : Position.values()) {
