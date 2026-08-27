@@ -22,12 +22,16 @@ import java.awt.Graphics2D;
 
 public class GameWindow {
     // mainframe, headerbar, table panel trick panel, notes Panel
-    private JFrame MainFrame;
+    private JFrame mainFrame;
     private JPanel headerBar, tablePanel, trickPanel, notesPanel;
     // northpanels
     private JLabel northLabel, eastLabel, southLabel, westLabel;
     private JPanel northPanel, eastPanel, southPanel, westPanel;
     private JLabel infoLabel;
+
+    private JLabel scoreLabel;mainFrame.add(headerBar,BorderLayout.PAGE_START);
+
+    scoreLabel=new JLabel("NS: 0   EW: 0");scoreLabel.setForeground(GOLD_ACCENT);mainFrame.add(scoreLabel,BorderLayout.PAGE_END);
 
     private JLabel declarerLabel, notesPlaceholderLabel;
 
@@ -35,7 +39,7 @@ public class GameWindow {
     private static final Color GOLD_ACCENT = new Color(201, 162, 39);
 
     // gamewindow basically initialiseWindow()
-    public void GameWindow() {
+    public GameWindow() {
         mainFrame = new JFrame("BridgeTut");
         mainFrame.setSize(900, 700);
         mainFrame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
@@ -116,6 +120,49 @@ public class GameWindow {
         mainFrame.add(tablePanel, BorderLayout.CENTER);
         mainFrame.setVisible(true);
 
+    }
+
+    public void updateHand(Position position, Hand hand) {
+        if (position == Position.NORTH) {
+            northLabel.setText("North: " + hand.getCards());
+        } else if (position == Position.EAST) {
+            eastLabel.setText("East: " + hand.getCards());
+
+        } else if (position == Position.SOUTH) {
+            southLabel.setText("South: " + hand.getCards());
+
+        } else {
+            westLabel.setText("West: " + hand.getCards());
+        }
+    }
+
+    public void updateInfo(Seat dealer, Vulnerability vulnerability) {
+        infoLabel.setText("Dealer: " + dealer + "   Vulnerability: " + vulnerability);
+    }
+
+    public void updateDeclarer(Seat declarer) {
+        declarerLabel.setText("Declarer:" + declarer);
+    }
+
+    public void updateTrick(List<Card> trick) {
+        trickPanel.removeAll();
+        for (Card card : trick) {
+            JLabel cardLabel = new JLabel(card.toString());
+            cardLabel.setForeground(Color.WHITE);
+            cardLabel.setFont(new Font("Arial", Font.BOLD, 24));
+            trickPanel.add(cardLabel);
+        }
+        trickPanel.revalidate();
+        trickPanel.repaint();
+    }
+
+    public void updateScore(int northScore, int eastScore, int southScore, int westScore) {
+        infoLabel.setText("Scores - North: " + northScore + " East: " + eastScore + " South: " + southScore + " West: "
+                + westScore);
+    }
+
+    public void updateNotesPlaceHolder(String text) {
+        notesPlaceholderLabel.setText("Notes: " + text);
     }
 
 }
