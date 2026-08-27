@@ -131,7 +131,7 @@ public class GameView {
             JOptionPane.showMessageDialog(null, "No score available.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        window.updateScore(score.getScoreNS(), score.getScoreEW(), score.getScoreNS(), score.getScoreEW());
+        window.updateScore(score.getScoreNS(), score.getScoreEW());
         String text = "NS: " + score.getScoreNS() + "\n";
         text += "EW: " + score.getScoreEW() + "\n";
 
@@ -225,8 +225,12 @@ public class GameView {
         return lastMenuChoice;
     }
 
+    public void initialiseWindow() {
+        window = new GameWindow();
+    }
+
     public static void main(String[] args) {
         GameView view = new GameView();
-        // view.initialiseWindow();
+        view.initialiseWindow();
     }
 }

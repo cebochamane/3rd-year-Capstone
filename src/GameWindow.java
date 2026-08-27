@@ -1,44 +1,27 @@
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
-import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.BoxLayout;
-import javax.swing.UIManager;
 
 import java.awt.BorderLayout;
-import java.awt.event.ActionListener;
-import java.awt.event.ActionEvent;
-import java.awt.GridLayout;
+import java.awt.FlowLayout;
 import java.awt.Color;
 import java.awt.Font;
-import java.awt.FlowLayout;
 import java.awt.RenderingHints;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 
 public class GameWindow {
-    // mainframe, headerbar, table panel trick panel, notes Panel
+
     private JFrame mainFrame;
     private JPanel headerBar, tablePanel, trickPanel, notesPanel;
-    // northpanels
     private JLabel northLabel, eastLabel, southLabel, westLabel;
     private JPanel northPanel, eastPanel, southPanel, westPanel;
-    private JLabel infoLabel;
-
-    private JLabel scoreLabel;mainFrame.add(headerBar,BorderLayout.PAGE_START);
-
-    scoreLabel=new JLabel("NS: 0   EW: 0");scoreLabel.setForeground(GOLD_ACCENT);mainFrame.add(scoreLabel,BorderLayout.PAGE_END);
-
-    private JLabel declarerLabel, notesPlaceholderLabel;
+    private JLabel infoLabel, scoreLabel, declarerLabel, notesPlaceholderLabel;
 
     private static final Color FELT_GREEN = new Color(27, 77, 62);
     private static final Color GOLD_ACCENT = new Color(201, 162, 39);
 
-    // gamewindow basically initialiseWindow()
     public GameWindow() {
         mainFrame = new JFrame("BridgeTut");
         mainFrame.setSize(900, 700);
@@ -65,22 +48,21 @@ public class GameWindow {
 
         mainFrame.add(headerBar, BorderLayout.PAGE_START);
 
+        scoreLabel = new JLabel("NS: 0   EW: 0");
+        scoreLabel.setForeground(GOLD_ACCENT);
+        mainFrame.add(scoreLabel, BorderLayout.PAGE_END);
+
         tablePanel = new JPanel(new BorderLayout()) {
             @Override
             public void paintComponent(Graphics g) {
                 super.paintComponent(g);
-
                 Graphics2D g2d = (Graphics2D) g;
                 g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
                 g2d.setColor(FELT_GREEN);
                 g2d.fillRect(0, 0, getWidth(), getHeight());
-
                 g2d.setColor(GOLD_ACCENT);
                 g2d.drawOval(2, 2, getWidth() - 4, getHeight() - 4);
-
             }
-
         };
         tablePanel.setOpaque(false);
 
@@ -119,7 +101,6 @@ public class GameWindow {
 
         mainFrame.add(tablePanel, BorderLayout.CENTER);
         mainFrame.setVisible(true);
-
     }
 
     public void updateHand(Position position, Hand hand) {
@@ -127,10 +108,8 @@ public class GameWindow {
             northLabel.setText("North: " + hand.getCards());
         } else if (position == Position.EAST) {
             eastLabel.setText("East: " + hand.getCards());
-
         } else if (position == Position.SOUTH) {
             southLabel.setText("South: " + hand.getCards());
-
         } else {
             westLabel.setText("West: " + hand.getCards());
         }
@@ -141,7 +120,7 @@ public class GameWindow {
     }
 
     public void updateDeclarer(Seat declarer) {
-        declarerLabel.setText("Declarer:" + declarer);
+        declarerLabel.setText("Declarer: " + declarer);
     }
 
     public void updateTrick(List<Card> trick) {
@@ -156,13 +135,11 @@ public class GameWindow {
         trickPanel.repaint();
     }
 
-    public void updateScore(int northScore, int eastScore, int southScore, int westScore) {
-        infoLabel.setText("Scores - North: " + northScore + " East: " + eastScore + " South: " + southScore + " West: "
-                + westScore);
+    public void updateScore(int scoreNS, int scoreEW) {
+        scoreLabel.setText("NS: " + scoreNS + "   EW: " + scoreEW);
     }
 
     public void updateNotesPlaceHolder(String text) {
         notesPlaceholderLabel.setText("Notes: " + text);
     }
-
 }
