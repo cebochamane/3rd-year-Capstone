@@ -1,4 +1,6 @@
 import java.util.List;
+
+import javax.swing.BorderFactory;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 import javax.swing.JLabel;
@@ -6,6 +8,7 @@ import javax.swing.JLabel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Font;
 import java.awt.RenderingHints;
 import java.awt.Graphics;
@@ -18,6 +21,10 @@ public class GameWindow {
     private JLabel northLabel, eastLabel, southLabel, westLabel;
     private JPanel northPanel, eastPanel, southPanel, westPanel;
     private JLabel infoLabel, scoreLabel, declarerLabel, notesPlaceholderLabel;
+    private JLabel trickLabel;
+    private JLabel contractLabel;
+    private JLabel trumpLabel;
+    private JLabel leadLabel;
 
     private static final Color FELT_GREEN = new Color(27, 77, 62);
     private static final Color GOLD_ACCENT = new Color(201, 162, 39);
@@ -38,6 +45,20 @@ public class GameWindow {
         declarerLabel = new JLabel("Declarer: -");
         declarerLabel.setForeground(GOLD_ACCENT);
         headerBar.add(declarerLabel, BorderLayout.CENTER);
+
+        JPanel contractPanel = new JPanel(new FlowLayout());
+        contractPanel.setOpaque(false);
+        contractLabel = new JLabel("Contract: -");
+        contractLabel.setForeground(GOLD_ACCENT);
+        contractPanel.add(contractLabel);
+
+        trumpLabel = new JLabel("Trump: -");
+        trumpLabel.setForeground(GOLD_ACCENT);
+        contractPanel.add(trumpLabel);
+
+        leadLabel = new JLabel("Lead: -");
+        leadLabel.setForeground(GOLD_ACCENT);
+        contractPanel.add(leadLabel);
 
         notesPanel = new JPanel(new BorderLayout());
         notesPanel.setOpaque(false);
@@ -100,19 +121,53 @@ public class GameWindow {
         tablePanel.add(trickPanel, BorderLayout.CENTER);
 
         mainFrame.add(tablePanel, BorderLayout.CENTER);
+
+        trickLabel = new JLabel("Trick: 0");
+        trickLabel.setForeground(GOLD_ACCENT);
+        mainFrame.add(trickLabel, BorderLayout.PAGE_END);
+
         mainFrame.setVisible(true);
     }
 
-    public void updateHand(Position position, Hand hand) {
-        if (position == Position.NORTH) {
-            northLabel.setText("North: " + hand.getCards());
-        } else if (position == Position.EAST) {
-            eastLabel.setText("East: " + hand.getCards());
-        } else if (position == Position.SOUTH) {
-            southLabel.setText("South: " + hand.getCards());
+    private JLabel createCardLabel(Card card) {
+        JLabel label = new JLabel(card.toString());
+        label.setOpaque(true);
+        label.setForeground(Color.WHITE);
+        label.setBorder(BorderFactory.createLineBorder(Color.BLACK));
+        label.setFont(new Font("Arial", Font.BOLD, 14));
+
+        Suit suit = card.getSuit();
+        if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) {
+            label.setBackground(Color.RED);
         } else {
-            westLabel.setText("West: " + hand.getCards());
+            label.setBackground(Color.BLACK);
         }
+        return label;
+
+    }
+
+    public void updateHand(Position position, Hand hand) {
+        JPanel target;
+        if (position == Position.NORTH) {
+            target = northPanel;
+        } else if (position == Position.EAST) {
+            target = eastPanel;
+        } else if (position == Position.SOUTH) {
+            target = southPanel;
+        } else {
+            target = westPanel;
+        }
+        target.removeAll();
+        if (hand != null) {
+            for (Card card : hand.getCards()) {
+                JLabel cardLabel = createCardLabel(card);
+                target.add(cardLabel);
+            }
+        }
+
+        target.revalidate();
+        target.repaint();
+
     }
 
     public void updateInfo(Seat dealer, Vulnerability vulnerability) {
@@ -123,12 +178,26 @@ public class GameWindow {
         declarerLabel.setText("Declarer: " + declarer);
     }
 
+    public void updateContract(Contract contract) {
+        if (contract == null) {
+            contractLabel.setText("Contract: -");
+            return;
+        }
+
+        String text = "Contract: " + contract.getLevel() + " " + contract.getDenomination();
+
+        if (contract.isDoubled()) {
+            text += " Doubled";
+        } else if (contract.isRedoubled()) {
+            text += " Redoubled";
+        }
+        contractLabel.setText(text);
+    }
+
     public void updateTrick(List<Card> trick) {
         trickPanel.removeAll();
         for (Card card : trick) {
-            JLabel cardLabel = new JLabel(card.toString());
-            cardLabel.setForeground(Color.WHITE);
-            cardLabel.setFont(new Font("Arial", Font.BOLD, 24));
+            JLabel cardLabel = createCardLabel(card);
             trickPanel.add(cardLabel);
         }
         trickPanel.revalidate();
