@@ -31,9 +31,9 @@ public class Gameplay {
         this.trickNo = 1;
         this.declarerTricks = 0;
         this.defenderTricks = 0;
-        this.defenderTricks = 0;
         this.finished = false;
-        this.currentLeader = contract.getDeclarer();
+
+        this.currentLeader = contract.getDeclarer().next();
         this.remainingHands = new HashMap<>();
 
         for (Position position : Position.values()) {
@@ -47,7 +47,6 @@ public class Gameplay {
         }
 
         this.tricks.add(new Trick(trickNo, currentLeader));
-
     }
 
     /**
@@ -103,9 +102,11 @@ public class Gameplay {
         if (seat == null || card == null) {
             return false;
         }
-        Trick currentTrick = tricks.get(tricks.size() - 1);
-        Seat expectedPlayer = currentTrick.getLeader();// ************** */
 
+        Trick currentTrick = tricks.get(tricks.size() - 1);
+        Seat expectedPlayer = currentLeader;
+
+        // Each previous play advances the expected player clockwise.
         for (int i = 0; i < currentTrick.getPlays().size(); i++) {
             expectedPlayer = expectedPlayer.next();
         }
@@ -113,6 +114,7 @@ public class Gameplay {
         if (!expectedPlayer.equals(seat)) {
             return false;
         }
+
         Hand hand = remainingHands.get(seat.getPosition());
         if (hand == null) {
             return false;
@@ -121,20 +123,28 @@ public class Gameplay {
             return false;
         }
 
-        ArrayList<Card> legalCards = currentTrick.getLegalCards(seat, hand);// ************** */
+        ArrayList<Card> legalCards = getLegalCards(seat, hand);
         if (!legalCards.contains(card)) {
             return false;
         }
 
         currentTrick.addPlay(seat, card);
-        removeCardFromHand(seat, card);
+        removeCardFromHand(hand, card);
 
-        if (trickNo == 13) {
-            finished = true;
-        } else {
-            trickNo++;
-            currentLeader = winner;
-            tricks.add(new Trick(trickNo, currentLeader));
+        if (currentTrick.isComplete()) {
+            Seat winner = resolveCurrentTrick();
+
+            if (winner == null) {
+                return false;
+            }
+
+            if (trickNo == 13) {
+                finished = true;
+            } else {
+                currentLeader = winner;
+                trickNo++;
+                tricks.add(new Trick(trickNo, currentLeader));
+            }
         }
 
         return true;
@@ -162,13 +172,13 @@ public class Gameplay {
             return legalCards;
         }
 
-        Card leadCard = currentTrick.getPlays().get(currentTrick.getLeader());
+        Card leadCard = currentTrick.getPlays().get(currentLeader);
         if (leadCard == null) {
-            legalCards.addAll(hand.getCards());
             return legalCards;
         }
 
         Suit leadSuit = leadCard.getSuit();
+
         for (Card card : hand.getCards()) {
             if (card.getSuit() == leadSuit) {
                 legalCards.add(card);
@@ -178,6 +188,7 @@ public class Gameplay {
         if (legalCards.isEmpty()) {
             legalCards.addAll(hand.getCards());
         }
+
         return legalCards;
     }
 
@@ -202,11 +213,15 @@ public class Gameplay {
         if (tricks.isEmpty()) {
             return null;
         }
+
         Trick currentTrick = tricks.get(tricks.size() - 1);
+
         if (!currentTrick.isComplete()) {
             return null;
         }
+
         Suit trump;
+
         if (contract.isNoTrump()) {
             trump = Suit.NT;
         } else {
@@ -236,35 +251,44 @@ public class Gameplay {
 
     public Trick getCurrentTrick() {
         return tricks.get(tricks.size() - 1);
-
     }
 
     private Seat resolveCurrentTrick() {
         Trick currentTrick = getCurrentTrick();
-        Suit trump;
-        if (contract.isNoTrump()) {
-            trump = Suit.NT;
-        } else {
-        }
-        {
-            trump = contract.getDenomination();
-        }
-        Seat winner = currentTrick.getWinner(trump);
+
         if (!currentTrick.isComplete()) {
             return null;
         }
+
+        Suit trump;
+
+        if (contract.isNoTrump()) {
+            trump = Suit.NT;
+        } else {
+            trump = contract.getDenomination();
+        }
+
+        Seat winner = currentTrick.getWinner(trump);
+
+        if (winner == null) {
+            return null;
+        }
+
         if (winner.equals(contract.getDeclarer()) || winner.isPartner(contract.getDeclarer())) {
             declarerTricks++;
         } else {
             defenderTricks++;
         }
-        return currentTrick.getWinner(trump);
+
+        return winner;
     }
 
     private void removeCardFromHand(Hand hand, Card card) {
         for (int i = 0; i < hand.getCards().size(); i++) {
             Card existingCard = hand.getCards().get(i);
-            if (existingCard.getSuit() == card.getSuit() && existingCard.getRank() == card.getRank()) {
+
+            if (existingCard.getSuit() == card.getSuit()
+                    && existingCard.getRank() == card.getRank()) {
                 hand.getCards().remove(i);
                 return;
             }

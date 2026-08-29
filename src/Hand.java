@@ -48,7 +48,17 @@ public class Hand {
      * @param card The card to remove
      */
     public void removeCard(Card card) {
-        // TODO: implement
+        if (card == null)
+            return;
+
+        for (int i = 0; i < cards.size(); i++) {
+            Card currentCard = cards.get(i);
+            if (currentCard.getSuit() == card.getSuit() && currentCard.getRank() == card.getRank()) {
+                cards.remove(i);
+                return;
+            }
+        }
+
     }
 
     /**
@@ -57,7 +67,8 @@ public class Hand {
     public void sort() {
         cards.sort((a, b) -> {
             int bySuit = b.getSuit().compareTo(a.getSuit());
-            if (bySuit != 0) return bySuit;
+            if (bySuit != 0)
+                return bySuit;
             return b.getRank().compareTo(a.getRank());
         });
     }
@@ -69,10 +80,12 @@ public class Hand {
      * @return true if the card is present, false otherwise
      */
     public boolean contains(Card card) {
-        if (card == null) return false;
+        if (card == null)
+            return false;
 
         for (Card c : cards) {
-            if (c.getSuit() == card.getSuit() && c.getRank() == card.getRank()) return true;
+            if (c.getSuit() == card.getSuit() && c.getRank() == card.getRank())
+                return true;
         }
 
         return false;
@@ -85,7 +98,9 @@ public class Hand {
      * @return true if a card with the specified suit is found, false otherwise.
      */
     public boolean contains(Suit suit) {
-        for (Card card : cards) if (card.getSuit() == suit) return true;
+        for (Card card : cards)
+            if (card.getSuit() == suit)
+                return true;
         return false;
     }
 
@@ -101,8 +116,20 @@ public class Hand {
      * @return all cards that can legally be played
      */
     public ArrayList<Card> getLegalCards(Suit leadSuit, Suit trump) {
-        // TODO: implement
-        return null;
+        ArrayList<Card> legalCards = new ArrayList<>();
+        if (leadSuit == null) {
+            legalCards.addAll(cards);
+            return legalCards;
+        }
+        for (Card card : cards) {
+            if (card.getSuit() == leadSuit) {
+                legalCards.add(card);
+            }
+        }
+        if (legalCards.isEmpty()) {
+            legalCards.addAll(cards);
+        }
+        return legalCards;
     }
 
     /**
