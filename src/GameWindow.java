@@ -8,7 +8,6 @@ import javax.swing.JLabel;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.Color;
-import java.awt.Component;
 import java.awt.Font;
 import java.awt.RenderingHints;
 import java.awt.Graphics;

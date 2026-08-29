@@ -37,7 +37,10 @@ public class GameView {
             JOptionPane.showMessageDialog(null, "No deal available.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-
+        // to prevent nullPointerException if showDeal is called and window isnt created
+        if (window == null) {
+            initialiseWindow();
+        }
         window.updateInfo(deal.getDealer(), deal.getVulnerability());
 
         String text = "";
@@ -48,6 +51,7 @@ public class GameView {
             Seat seat = new Seat(position);
             Hand hand = deal.getHand(seat);
             text += position + ": " + hand.getCards() + "\n";
+            window.updateHand(position, hand);
 
         }
         JOptionPane.showMessageDialog(null, text, "Current Deal", JOptionPane.INFORMATION_MESSAGE);
@@ -89,6 +93,9 @@ public class GameView {
             JOptionPane.showMessageDialog(null, "No contract available.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+        if (window == null) {
+            initialiseWindow();
+        }
         Seat declarer = contract.getDeclarer();
         window.updateDeclarer(declarer);
         String text = "Declarer: " + contract.getDeclarer() + "\n";
@@ -112,6 +119,10 @@ public class GameView {
             JOptionPane.showMessageDialog(null, "No trick available.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
+
+        if (window == null) {
+            initialiseWindow();
+        }
         window.updateTrick(trick);
 
         String text = "Trick " + trickNo + ":\n";
@@ -130,6 +141,10 @@ public class GameView {
         if (score == null) {
             JOptionPane.showMessageDialog(null, "No score available.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
+        }
+
+        if (window == null) {
+            initialiseWindow();
         }
         window.updateScore(score.getScoreNS(), score.getScoreEW());
         String text = "NS: " + score.getScoreNS() + "\n";

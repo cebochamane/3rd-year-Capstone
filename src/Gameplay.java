@@ -19,14 +19,35 @@ public class Gameplay {
      * @param contract the contract being played
      */
     public Gameplay(Deal deal, Contract contract) {
+        if (deal == null) {
+            throw new IllegalArgumentException("Deal cannot be null");
+        }
+        if (contract == null) {
+            throw new IllegalArgumentException("Contract cannot be null");
+        }
         this.contract = contract;
+
+        this.tricks = new ArrayList<>();
+        this.trickNo = 1;
+        this.declarerTricks = 0;
+        this.defenderTricks = 0;
+        this.defenderTricks = 0;
+        this.finished = false;
+        this.currentLeader = contract.getDeclarer();
         this.remainingHands = new HashMap<>();
 
         for (Position position : Position.values()) {
             Hand originalHand = deal.getHand(new Seat(position));
-            Hand copiedHand = new Hand(new ArrayList<>(originalHand.getCards()));
-            remainingHands.put(position, copiedHand);
+            if (originalHand == null) {
+                throw new IllegalArgumentException("Hand for position " + position + " is missing in the deal");
+            } else {
+                Hand copiedHand = new Hand(new ArrayList<>(originalHand.getCards()));
+                remainingHands.put(position, copiedHand);
+            }
         }
+
+        this.tricks.add(new Trick(trickNo, currentLeader));
+
     }
 
     /**
@@ -76,8 +97,47 @@ public class Gameplay {
      * @return true if the card was legally played, otherwise false
      */
     public boolean playCard(Seat seat, Card card) {
-        // TODO: implement
-        return false;
+        if (finished) {
+            return false;
+        }
+        if (seat == null || card == null) {
+            return false;
+        }
+        Trick currentTrick = tricks.get(tricks.size() - 1);
+        Seat expectedPlayer = currentTrick.getLeader();// ************** */
+
+        for (int i = 0; i < currentTrick.getPlays().size(); i++) {
+            expectedPlayer = expectedPlayer.next();
+        }
+
+        if (!expectedPlayer.equals(seat)) {
+            return false;
+        }
+        Hand hand = remainingHands.get(seat.getPosition());
+        if (hand == null) {
+            return false;
+        }
+        if (!hand.contains(card)) {
+            return false;
+        }
+
+        ArrayList<Card> legalCards = currentTrick.getLegalCards(seat, hand);// ************** */
+        if (!legalCards.contains(card)) {
+            return false;
+        }
+
+        currentTrick.addPlay(seat, card);
+        removeCardFromHand(seat, card);
+
+        if (trickNo == 13) {
+            finished = true;
+        } else {
+            trickNo++;
+            currentLeader = winner;
+            tricks.add(new Trick(trickNo, currentLeader));
+        }
+
+        return true;
     }
 
     /**
@@ -90,8 +150,35 @@ public class Gameplay {
      * @return a list of cards that can legally be played
      */
     public ArrayList<Card> getLegalCards(Seat seat, Hand hand) {
-        // TODO: implement
-        return null;
+        ArrayList<Card> legalCards = new ArrayList<>();
+        if (seat == null || hand == null) {
+            return legalCards;
+        }
+
+        Trick currentTrick = getCurrentTrick();
+
+        if (currentTrick.getPlays().isEmpty()) {
+            legalCards.addAll(hand.getCards());
+            return legalCards;
+        }
+
+        Card leadCard = currentTrick.getPlays().get(currentTrick.getLeader());
+        if (leadCard == null) {
+            legalCards.addAll(hand.getCards());
+            return legalCards;
+        }
+
+        Suit leadSuit = leadCard.getSuit();
+        for (Card card : hand.getCards()) {
+            if (card.getSuit() == leadSuit) {
+                legalCards.add(card);
+            }
+        }
+
+        if (legalCards.isEmpty()) {
+            legalCards.addAll(hand.getCards());
+        }
+        return legalCards;
     }
 
     /**
@@ -100,8 +187,7 @@ public class Gameplay {
      * @return true if the game is finished, otherwise false
      */
     public boolean isFinished() {
-        // TODO: implement
-        return false;
+        return finished;
     }
 
     /**
@@ -113,8 +199,21 @@ public class Gameplay {
      * @return the seat that won the trick
      */
     public Seat getWinner() {
-        // TODO: implement
-        return null;
+        if (tricks.isEmpty()) {
+            return null;
+        }
+        Trick currentTrick = tricks.get(tricks.size() - 1);
+        if (!currentTrick.isComplete()) {
+            return null;
+        }
+        Suit trump;
+        if (contract.isNoTrump()) {
+            trump = Suit.NT;
+        } else {
+            trump = contract.getDenomination();
+        }
+
+        return currentTrick.getWinner(trump);
     }
 
     /**
@@ -133,5 +232,42 @@ public class Gameplay {
      */
     public int getDefenderTricks() {
         return defenderTricks;
+    }
+
+    public Trick getCurrentTrick() {
+        return tricks.get(tricks.size() - 1);
+
+    }
+
+    private Seat resolveCurrentTrick() {
+        Trick currentTrick = getCurrentTrick();
+        Suit trump;
+        if (contract.isNoTrump()) {
+            trump = Suit.NT;
+        } else {
+        }
+        {
+            trump = contract.getDenomination();
+        }
+        Seat winner = currentTrick.getWinner(trump);
+        if (!currentTrick.isComplete()) {
+            return null;
+        }
+        if (winner.equals(contract.getDeclarer()) || winner.isPartner(contract.getDeclarer())) {
+            declarerTricks++;
+        } else {
+            defenderTricks++;
+        }
+        return currentTrick.getWinner(trump);
+    }
+
+    private void removeCardFromHand(Hand hand, Card card) {
+        for (int i = 0; i < hand.getCards().size(); i++) {
+            Card existingCard = hand.getCards().get(i);
+            if (existingCard.getSuit() == card.getSuit() && existingCard.getRank() == card.getRank()) {
+                hand.getCards().remove(i);
+                return;
+            }
+        }
     }
 }

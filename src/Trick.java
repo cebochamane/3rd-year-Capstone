@@ -15,10 +15,17 @@ public class Trick {
      * @param leader  the player who leads the trick
      */
     public Trick(int trickNo, Seat leader) {
-        // TODO: implement
+        if (trickNo < 1 || trickNo > 13) {
+            throw new IllegalArgumentException("Trick number must be between 1 and 13");
+        }
+        if (leader == null) {
+            throw new IllegalArgumentException("Leader cannot be null");
+        }
         this.trickNo = trickNo;
         this.leader = leader;
         this.plays = new HashMap<>();
+
+        this.winner = null;
 
     }
 
@@ -29,7 +36,6 @@ public class Trick {
      * @param card the card that was played
      */
     public void addPlay(Seat seat, Card card) {
-        // TODO: implement
         if (seat == null || card == null) {
             System.out.println("Error: Seat or card is null.");
             return;
@@ -50,6 +56,7 @@ public class Trick {
             System.err.println("Error: More than 4 plays made in the trick.");
         }
 
+        winner = null;
         this.plays.put(seat, card);
 
     }
@@ -70,7 +77,6 @@ public class Trick {
      * @return true if the trick contains four plays, otherwise false
      */
     public boolean isComplete() {
-        // TODO: implement
         return this.plays.size() == Position.values().length;
 
     }
@@ -85,7 +91,6 @@ public class Trick {
      * @return the seat that won the trick
      */
     public Seat getWinner(Suit trump) {
-        // TODO: implement
         if (!isComplete()) {
             throw new IllegalStateException("Cannot determine winner: trick is not complete.");
         }
