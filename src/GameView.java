@@ -1,8 +1,12 @@
-import java.util.ArrayList;
-import java.util.List;
 
+import java.util.List;
 import javax.swing.JOptionPane;
 
+/**
+ * GameView handles communication between the GameController
+ * and the graphical user interface.
+ * The auction is displayed in the GameWindow.
+ */
 public class GameView {
 
     private GameController controller;
@@ -11,7 +15,7 @@ public class GameView {
 
     /**
      * Connects this view to the game controller.
-     *
+     * 
      * @param controller the controller that manages the game
      */
     public void setController(GameController controller) {
@@ -19,218 +23,389 @@ public class GameView {
     }
 
     /**
-     * Displays the main game menu to the user.
+     * Displays the main game menu.
+     *
+     * public void showMenu() {
+     * String[] options = { "Start New Game", "Load Game", "Exit" };
+     * lastMenuChoice = JOptionPane.showOptionDialog(
+     * null,
+     * "Choose an option:",
+     * "Main Menu",
+     * JOptionPane.DEFAULT_OPTION,
+     * JOptionPane.INFORMATION_MESSAGE,
+     * null,
+     * options,
+     * options[0]);
+     * }
      */
-    public void showMenu() {
-        String[] options = new String[] { "Start New Game", "Load Game", "Exit" };
-        lastMenuChoice = JOptionPane.showOptionDialog(null, "Choose an option:", "Main Menu",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
-    }
 
     /**
-     * Displays the current deal.
-     *
+     * Displays the current deal in the GameWindow.
+     * 
      * @param deal the deal to display
      */
     public void showDeal(Deal deal) {
+
         if (deal == null) {
-            JOptionPane.showMessageDialog(null, "No deal available.", "Error", JOptionPane.ERROR_MESSAGE);
+            showMessage("No deal available.");
             return;
         }
 
-        window.updateInfo(deal.getDealer(), deal.getVulnerability());
+        initialiseWindow();
 
-        String text = "";
-        text += "Dealer: " + deal.getDealer() + "\n";
-        text += "Vulnerability: " + deal.getVulnerability() + "\n";
+        // Update dealer information.
+        window.updateInfo(deal.getDealer());
 
+        // Display all four hands.
         for (Position position : Position.values()) {
             Seat seat = new Seat(position);
             Hand hand = deal.getHand(seat);
-            text += position + ": " + hand.getCards() + "\n";
-
+            window.updateHand(position, hand);
         }
-        JOptionPane.showMessageDialog(null, text, "Current Deal", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
-     * Displays the current auction and its bids.
+     * Displays the current auction in the centre
+     * of the table.
      *
-     * @param auction the auction to display
+     * @param auction the current auction
      */
     public void showAuction(Auction auction) {
         if (auction == null) {
-            JOptionPane.showMessageDialog(null, "No auction available.", "Error", JOptionPane.ERROR_MESSAGE);
+            showMessage("No auction available.");
+            return;
+        }
+        initialiseWindow();
+
+        if (controller == null || controller.getCurrentDeal() == null) {
+
             return;
         }
 
-        String text = "";
-        for (Bid bid : auction.getBids()) {
-            if (bid.isPass()) {
-                text += bid.getBidder() + " Pass\n";
-            } else if (bid.isDouble()) {
-                text += bid.getBidder() + " Double\n";
-            } else if (bid.isRedouble()) {
-                text += bid.getBidder() + " Redouble\n";
-            } else {
-                text += bid.getBidder() + " bids " + bid.getLevel() + " " + bid.getDenomination() + "\n";
-            }
-        }
-        JOptionPane.showMessageDialog(null, text, "Current Auction", JOptionPane.INFORMATION_MESSAGE);
+        window.updateAuction(
+                auction,
+                controller.getCurrentDeal().getDealer(),
+                controller.getCurrentBidder());
     }
 
     /**
-     * Displays the contract that was established after the auction.
+     * Displays the completed contract.
      *
-     * @param contract the current contract
+     * @param contract the completed contract
      */
     public void showContract(Contract contract) {
+
         if (contract == null) {
-            JOptionPane.showMessageDialog(null, "No contract available.", "Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        Seat declarer = contract.getDeclarer();
-        window.updateDeclarer(declarer);
-        String text = "Declarer: " + contract.getDeclarer() + "\n";
-        text += "Level: " + contract.getLevel() + "\n";
-        if (contract.isRedoubled()) {
-            text += "(Redoubled)\n";
-        } else if (contract.isDoubled()) {
-            text += "(Doubled)\n";
-        }
-        JOptionPane.showMessageDialog(null, text, "Current Contract", JOptionPane.INFORMATION_MESSAGE);
+
+        initialiseWindow();
+
+        /*
+         * Show the declarer in the main game window.
+         * No contract popup is displayed.
+         */
+        window.updateDeclarer(
+                contract.getDeclarer());
     }
 
     /**
-     * Displays the cards played in a trick.
+     * Starts the play phase.
      *
-     * @param trickNo the number of the trick
-     * @param trick   the cards played in the trick
+     * Cards are displayed as clickable buttons.
+     *
+     * There is NO card-selection popup.
+     */
+    public void startGameplay() {
+
+        if (controller == null) {
+
+            showMessage(
+                    "Controller has not been connected.");
+
+            return;
+        }
+
+        Gameplay gameplay = controller.getGameplay();
+
+        if (gameplay == null) {
+
+            showMessage(
+                    "Gameplay has not been started.");
+
+            return;
+        }
+
+        initialiseWindow();
+
+        /*
+         * Give the GameWindow access to the
+         * current Gameplay object.
+         */
+        window.setGameplay(gameplay);
+
+        /*
+         * Display the cards.
+         *
+         * The cards themselves are clickable.
+         */
+        updateGameplayDisplay();
+    }
+
+    /**
+     * Alias used by GameController.
+     *
+     * GameController calls showGameplay(), so this method
+     * simply starts/refreshes the gameplay display.
+     */
+    public void showGameplay() {
+        startGameplay();
+    }
+
+    /**
+     * Updates the GUI after a card has been played.
+     *
+     * This method does NOT show a popup.
+     */
+    public void updateGameplayDisplay() {
+
+        if (controller == null
+                || controller.getGameplay() == null) {
+
+            return;
+        }
+
+        initialiseWindow();
+
+        Gameplay gameplay = controller.getGameplay();
+
+        /*
+         * Make sure the GameWindow knows which
+         * Gameplay object is active.
+         */
+        window.setGameplay(gameplay);
+
+        /*
+         * Update all four hands.
+         *
+         * GameWindow displays these cards as buttons.
+         */
+        for (Position position : Position.values()) {
+
+            Seat seat = new Seat(position);
+
+            Hand hand = gameplay.getRemainingHand(seat);
+
+            window.updateHand(
+                    position,
+                    hand);
+        }
+
+        /*
+         * Display the current trick.
+         *
+         * GameWindow expects a Trick object.
+         */
+        Trick currentTrick = gameplay.getCurrentTrick();
+
+        window.updateTrick(
+                currentTrick);
+
+        /*
+         * Highlight whose turn it is.
+         */
+        window.updateCurrentPlayer(
+                getCurrentPlayer());
+    }
+
+    /**
+     * Returns the seat whose turn it currently is.
+     *
+     * @return the current player's seat
+     */
+    private Seat getCurrentPlayer() {
+
+        if (controller == null
+                || controller.getGameplay() == null) {
+
+            return null;
+        }
+
+        Gameplay gameplay = controller.getGameplay();
+
+        Trick trick = gameplay.getCurrentTrick();
+
+        if (trick == null) {
+
+            return gameplay.getCurrentLeader();
+        }
+
+        /*
+         * The leader plays first.
+         */
+        Seat current = trick.getLeader();
+
+        /*
+         * Move clockwise once for every card
+         * already played in the trick.
+         */
+        int numberOfPlays = trick.getPlays().size();
+
+        for (int i = 0; i < numberOfPlays; i++) {
+
+            current = current.next();
+        }
+
+        return current;
+    }
+
+    /**
+     * Called by GameWindow when the user clicks a card.
+     * The clicked card is sent to the controller,
+     * which handles the game logic.
+     *
+     * @param seat the player who clicked the card
+     * @param card the card that was clicked
+     */
+    public void cardClicked(Seat seat, Card card) {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+        /*
+         * Send the card to the controller.
+         * The controller decides whether the card can actually be played.
+         * If the card is not legal, nothing is played and no popup is shown.
+         */
+        controller.playCard(seat, card);
+    }
+
+    /**
+     * Displays the cards that have been played
+     * in a trick.
+     *
+     * Kept for compatibility with the existing program.
+     *
+     * @param trickNo number of the trick
+     * @param trick   cards played in the trick
      */
     public void showTrick(int trickNo, List<Card> trick) {
+
         if (trick == null) {
-            JOptionPane.showMessageDialog(null, "No trick available.", "Error", JOptionPane.ERROR_MESSAGE);
+            showMessage("No trick available.");
             return;
         }
-        window.updateTrick(trick);
 
-        String text = "Trick " + trickNo + ":\n";
-        for (Card card : trick) {
-            text += card + "\n";
+        initialiseWindow();
+
+        /*
+         * GameWindow works with the actual Trick
+         * object because it needs to know which
+         * Seat played each card.
+         */
+        if (controller != null && controller.getGameplay() != null) {
+
+            Trick currentTrick = controller.getGameplay().getCurrentTrick();
+            window.updateTrick(currentTrick);
+        } else {
+            window.clearTrickPanel();
         }
-        JOptionPane.showMessageDialog(null, text, "Current Trick", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    /**
-     * Displays the current score.
-     *
-     * @param score the score to display
-     */
-    public void showScores(Score score) {
-        if (score == null) {
-            JOptionPane.showMessageDialog(null, "No score available.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-        window.updateScore(score.getScoreNS(), score.getScoreEW());
-        String text = "NS: " + score.getScoreNS() + "\n";
-        text += "EW: " + score.getScoreEW() + "\n";
-
-        JOptionPane.showMessageDialog(null, text, "Current Score", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
      * Displays a message to the user.
      *
-     * @param message the message to display
+     * @param message message to display
      */
     public void showMessage(String message) {
         if (message == null) {
-            JOptionPane.showMessageDialog(null, "No message to display.", "Error", JOptionPane.ERROR_MESSAGE);
-            return;
+            message = "No message to display.";
         }
-
-        JOptionPane.showMessageDialog(null, message);
-    }
-
-    /**
-     * Gets a bid chosen by the user.
-     *
-     * @return the user's selected bid
-     */
-    public Bid getUserBid() {
-
-        ArrayList<String> labels = new ArrayList<>();
-        ArrayList<Bid> bids = new ArrayList<>();
-        Seat seat = controller.getCurrentBidder();
-
-        labels.add("Pass");
-        bids.add(Bid.BidPass(seat));
-
-        labels.add("Double");
-        bids.add(Bid.BidDouble(seat));
-
-        labels.add("Redouble");
-        bids.add(Bid.BidRedouble(seat));
-
-        for (int level = 1; level <= 7; level++) {
-            for (Suit suit : Suit.values()) {
-                labels.add(level + "" + suit);
-                bids.add(new Bid(seat, level, suit));
-            }
-        }
-        String[] options = labels.toArray(new String[0]);
-        int choice = JOptionPane.showOptionDialog(null, "Choose a bid:", "Bid Selection",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
-
-        if (choice == -1) {
-            return null;
-        } else {
-            return bids.get(choice);
-        }
-    }
-
-    /**
-     * Gets the card the user wants to play from the legal cards.
-     *
-     * @param hand       the user's current hand
-     * @param legalCards the cards the user is legally allowed to play
-     * @return the card selected by the user
-     */
-    public Card getUserCardToPlay(Hand hand, List<Card> legalCards) {
-
-        Card[] cards = legalCards.toArray(new Card[0]);
-        String[] options = new String[cards.length];
-
-        for (int i = 0; i < cards.length; i++) {
-            options[i] = cards[i].toString();
-
-        }
-        int choice = JOptionPane.showOptionDialog(null, "Choose a card to play:", "Card Selection",
-                JOptionPane.DEFAULT_OPTION, JOptionPane.INFORMATION_MESSAGE, null, options, options[0]);
-
-        if (choice == -1) {
-            return getUserCardToPlay(hand, legalCards);
-        }
-
-        return cards[choice];
+        JOptionPane.showMessageDialog(null, message, "BridgeTut", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**
      * Gets the user's choice from the main menu.
      *
-     * @return the selected menu option
+     * @return selected menu option
      */
     public int getMenuChoice() {
-
         return lastMenuChoice;
     }
 
-    public void initialiseWindow() {
-        window = new GameWindow();
+    /**
+     * Called by GameWindow when the user clicks
+     * a bid button.
+     *
+     * @param bid the bid selected by the user
+     */
+    public void bidClicked(Bid bid) {
+
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+
+        if (bid == null) {
+            return;
+        }
+
+        try {
+            controller.submitBid(bid); // submit bid to the controller.
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            showMessage(e.getMessage()); // popup message
+        }
     }
 
+    /**
+     * Creates the GameWindow if it does not
+     * already exist.
+     */
+    public void initialiseWindow() {
+
+        if (window == null) {
+            window = new GameWindow();
+
+            /*
+             * Give GameWindow access to this
+             * GameView.
+             *
+             * GameWindow uses this when a card
+             * button is clicked.
+             */
+            window.setView(this);
+        }
+    }
+
+    /**
+     * Updates the currently highlighted player.
+     * 
+     * @param seat current player
+     */
+    public void updateCurrentPlayer(Seat seat) {
+        if (window != null) {
+            window.updateCurrentPlayer(seat);
+        }
+    }
+
+    /**
+     * Returns the current GameWindow.
+     * 
+     * @return the game window
+     */
+    public GameWindow getWindow() {
+        return window;
+    }
+
+    /**
+     * Main method used to start the GUI.
+     */
     public static void main(String[] args) {
         GameView view = new GameView();
+        GameController controller = new GameController();
+        view.setController(controller);
+        controller.setView(view);
         view.initialiseWindow();
+        controller.startNewGame();
     }
 }
