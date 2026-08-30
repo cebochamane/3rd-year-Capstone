@@ -93,6 +93,7 @@ public class GameWindow {
         private static final int CARD_WIDTH = 68;
         private static final int CARD_HEIGHT = 36;
 
+        private Gameplay gameplay;
         /*
          * Reference to GameView.
          */
@@ -323,6 +324,15 @@ public class GameWindow {
                  * it sends bid clicks to GameView.
                  */
                 auctionPanel.setView(view);
+        }
+
+        /**
+         * Connects the GameWindow to Gameplay.
+         *
+         * @param gameplay current gameplay
+         */
+        public void setGameplay(Gameplay gameplay) {
+                this.gameplay = gameplay;
         }
 
         /**
