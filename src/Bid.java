@@ -118,7 +118,30 @@ public class Bid {
      * Pass, Double and Redouble have to denomination.
      * returns the suit or denomination or a null.
      */
-    public Suit getDenomination(){
+    public Suit getDenomination() {
         return denomination;
+    }
+
+    /**
+     * Returns a readable description of this bid.
+     *
+     * @return a string describing the bidder and bid
+     */
+    @Override
+    public String toString() {
+
+        if (isPass) {
+            return bidder + " Pass";
+        }
+
+        if (isDouble) {
+            return bidder + " Double";
+        }
+
+        if (isRedouble) {
+            return bidder + " Redouble";
+        }
+
+        return bidder + " " + level + " " + denomination;
     }
 }
