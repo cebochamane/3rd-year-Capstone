@@ -98,7 +98,8 @@ public class Seat {
      * Indicates whether some other Seat is "equal to" this one.
      *
      * @param otherObject The object to compare this seat with
-     * @return true if the other object is an instance of Seat and has the same position, false otherwise
+     * @return true if the other object is an instance of Seat and has the same
+     *         position, false otherwise
      */
     @Override
     public boolean equals(Object otherObject) {
@@ -129,10 +130,11 @@ public class Seat {
      * @param other the seat to compare with
      * @return true if the seats are partners, otherwise false
      */
-    public boolean isPartner(Seat other){
-        if(other == null){
+    public boolean isPartner(Seat other) {
+        if (other == null) {
             return false;
         }
         return this.position == other.opposite().getPosition();
     }
+
 }
