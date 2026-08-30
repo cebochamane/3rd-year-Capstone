@@ -1,3 +1,4 @@
+
 /**
  * The GameController class manages the game logic and state for a Bridge game.
  * It includes methods for starting a new game, loading and saving games,
@@ -12,7 +13,9 @@ public class GameController {
     private Auction auction;
     private Contract contract;
     private Gameplay gameplay;
+
     private GamePhase phase = GamePhase.MENU;
+
     private Seat currentBidder;
 
     /**
@@ -20,9 +23,11 @@ public class GameController {
      * and preparing the game for the auction phase.
      */
     public void startNewGame() {
-        Seat dealer = new Seat(Position.NORTH); // Choose south for simplicity it can be any other position
-        Vulnerability vulnerability = Vulnerability.NONE; // Choose NONE for simplicity it can be any other
-                                                          // vulnerability
+
+        Seat dealer = new Seat(Position.NORTH);
+
+        Vulnerability vulnerability = Vulnerability.NONE;
+
         startRandomDeal(dealer, vulnerability);
     }
 
@@ -32,39 +37,101 @@ public class GameController {
      * @param gameId the ID of the game to load
      */
     public void loadGame(String gameId) {
-        // TODO: implement
+
+        /*
+         * Storage has not been implemented yet.
+         *
+         * We leave this method in place so that the controller
+         * interface remains compatible with the rest of the
+         * project.
+         */
+        if (storage == null) {
+
+            if (view != null) {
+                view.showMessage(
+                        "Storage has not been connected yet.");
+            }
+
+            return;
+        }
+
+        /*
+         * Loading will be implemented once the Storage class
+         * is connected to the controller.
+         */
     }
 
     /**
      * Saves the current game state using the storage system.
      */
     public void saveGame() {
-        // TODO: implement
+
+        /*
+         * Storage has not been implemented yet.
+         */
+        if (storage == null) {
+
+            if (view != null) {
+                view.showMessage(
+                        "Storage has not been connected yet.");
+            }
+
+            return;
+        }
+
+        /*
+         * Saving will be implemented once the Storage class
+         * is connected to the controller.
+         */
     }
 
     /**
      * Starts a random deal with the specified dealer and vulnerability.
      *
-     * @param dealer        The seat of the dealer for the deal
-     * @param vulnerability The vulnerability for the deal
+     * @param dealer        the dealer
+     * @param vulnerability the vulnerability
      */
-    public void startRandomDeal(Seat dealer, Vulnerability vulnerability) {
+    public void startRandomDeal(
+            Seat dealer,
+            Vulnerability vulnerability) {
+
+        if (dealer == null) {
+            throw new IllegalArgumentException(
+                    "Dealer cannot be null.");
+        }
+
+        if (vulnerability == null) {
+            throw new IllegalArgumentException(
+                    "Vulnerability cannot be null.");
+        }
+
         Deal deal = new Deal(dealer, vulnerability);
         deal.dealCards();
         startLoadedDeal(deal);
     }
 
     /**
-     * Starts a loaded deal if it contains four hands of 13 cards.
+     * Starts a loaded deal if it contains four hands
+     * of thirteen cards.
      *
-     * @param deal The deal to start
-     * @throws IllegalArgumentException if the deal does not contain four hands of
-     *                                  13 cards
+     * @param deal the deal to start
      */
     public void startLoadedDeal(Deal deal) {
-        if (!isCompleteDeal(deal))
-            throw new IllegalArgumentException("A loaded deal must contain four hands of 13 cards.");
+
+        if (!isCompleteDeal(deal)) {
+            throw new IllegalArgumentException(
+                    "A loaded deal must contain four hands of 13 cards.");
+        }
+
         this.currentDeal = deal;
+
+        /*
+         * Clear any old game information.
+         */
+        this.auction = null;
+        this.contract = null;
+        this.gameplay = null;
+
         startAuction();
     }
 
@@ -72,12 +139,31 @@ public class GameController {
      * Starts the auction phase for the current deal.
      */
     public void startAuction() {
-        if (currentDeal == null)
-            throw new IllegalStateException("Cannot start auction without a deal.");
+
+        if (currentDeal == null) {
+
+            throw new IllegalStateException(
+                    "Cannot start auction without a deal.");
+        }
+
+        /*
+         * Create a new auction.
+         */
         this.auction = new Auction();
-        this.currentBidder = currentDeal.getDealer(); // Start with the player after the dealer
+
+        /*
+         * The dealer bids first.
+         */
+        this.currentBidder = currentDeal.getDealer();
         this.phase = GamePhase.BIDDING;
 
+        /*
+         * Display the deal and auction.
+         */
+        if (view != null) {
+            view.showDeal(currentDeal);
+            view.showAuction(auction);
+        }
     }
 
     /**
@@ -86,50 +172,199 @@ public class GameController {
      * @param bid the bid being submitted
      */
     public void submitBid(Bid bid) {
-        if (phase != GamePhase.BIDDING)
-            throw new IllegalStateException("Cannot submit bid when not in bidding phase."); // Check if the game is in
-                                                                                             // the bidding phase
-        if (bid == null)
-            throw new IllegalArgumentException("Bid cannot be null."); // Check if the bid is null
-        if (!currentBidder.getPosition().equals(bid.getBidder().getPosition()))
-            throw new IllegalArgumentException("It's not the turn of the seat making the bid.");// Check if the bid is
-                                                                                                // made by the current
-                                                                                                // bidder
 
-        boolean added = auction.addBid(bid); // Add the bid to the auction
-        if (!added)
-            throw new IllegalArgumentException("The bid is not valid according to the auction rules."); // Check if the
-                                                                                                        // bid is valid
+        if (phase != GamePhase.BIDDING) {
+            throw new IllegalStateException(
+                    "Cannot submit bid when not in bidding phase.");
+        }
+
+        if (bid == null) {
+            throw new IllegalArgumentException(
+                    "Bid cannot be null.");
+        }
+
+        if (currentBidder == null) {
+            throw new IllegalStateException(
+                    "There is currently no bidder.");
+        }
+
+        /*
+         * Make sure the bid belongs to the player whose turn
+         * it currently is.
+         */
+        if (!currentBidder.equals(
+                bid.getBidder())) {
+
+            throw new IllegalArgumentException("It's not the turn of the seat making the bid.");
+        }
+
+        /*
+         * Add the bid to the auction.
+         */
+        boolean added = auction.addBid(bid);
+
+        if (!added) {
+
+            throw new IllegalArgumentException("The bid is not valid according to the auction rules.");
+        }
+
+        /*
+         * Check whether the auction has finished.
+         */
         if (auction.isComplete()) {
-            this.contract = auction.createContract();
             phase = GamePhase.AUCTION_COMPLETE;
+
+            /*
+             * Create the contract if there was a final bid.
+             */
+            if (auction.getFinalBid() != null) {
+
+                this.contract = auction.createContract();
+                if (view != null) {
+                    view.showAuction(auction);
+                    view.showContract(contract);
+                }
+
+                /*
+                 * Automatically start the playing phase.
+                 */
+                startPlay(contract);
+
+            } else {
+                if (view != null) {
+                    view.showAuction(auction);
+                    view.showMessage("The auction has ended without a contract.");
+                }
+            }
+
         } else {
-            currentBidder = currentBidder.next(); // Move to the next bidder
+
+            /*
+             * Move to the next player.
+             */
+            currentBidder = currentBidder.next();
+            if (view != null) {
+                view.showAuction(auction);
+            }
         }
     }
 
     /**
-     * Starts the gameplay with the completed contract if the game phase is
-     * AUCTION_COMPLETE and the completed contract is not null.
+     * Starts gameplay with the completed contract.
      *
-     * @param completedContract The completed contract to start the gameplay with.
-     * @return true if the gameplay started successfully, false otherwise.
+     * @param completedContract the contract
+     * @return true if gameplay started successfully
      */
-    public boolean startPlay(Contract completedContract) {
-        if (phase != GamePhase.AUCTION_COMPLETE || completedContract == null)
-            return false;
+    public boolean startPlay(
+            Contract completedContract) {
 
-        contract = completedContract;
-        gameplay = new Gameplay(currentDeal, contract);
-        phase = GamePhase.PLAYING;
+        if (phase != GamePhase.AUCTION_COMPLETE) {
+            return false;
+        }
+
+        if (completedContract == null) {
+            return false;
+        }
+
+        if (currentDeal == null) {
+            return false;
+        }
+
+        /*
+         * Store the contract.
+         */
+        this.contract = completedContract;
+
+        /*
+         * Create the gameplay object.
+         */
+        this.gameplay = new Gameplay(
+                currentDeal,
+                contract);
+
+        /*
+         * Change the game phase.
+         */
+        this.phase = GamePhase.PLAYING;
+
+        /*
+         * Tell the view to display the playing table.
+         */
+        if (view != null) {
+
+            view.startGameplay();
+        }
+
+        return true;
+    }
+
+    /**
+     * Plays a card selected from the graphical interface.
+     *
+     * @param seat the player playing the card
+     * @param card the card being played
+     * @return true if the card was successfully played
+     */
+    public boolean playCard(
+            Seat seat,
+            Card card) {
+
+        if (phase != GamePhase.PLAYING || gameplay == null) {
+            return false;
+        }
+
+        /*
+         * Ask Gameplay to process the card.
+         */
+        boolean played = gameplay.playCard(
+                seat,
+                card);
+
+        if (!played) {
+            return false;
+        }
+
+        /*
+         * Refresh the GUI.
+         */
+        if (view != null) {
+
+            view.updateGameplayDisplay();
+        }
+
+        /*
+         * Check whether all thirteen tricks have been played.
+         */
+        if (gameplay.isFinished()) {
+
+            phase = GamePhase.FINISHED;
+
+            if (view != null) {
+
+                view.showMessage(
+                        "Game complete!\n"
+                                + "Declarer tricks: "
+                                + gameplay.getDeclarerTricks()
+                                + "\nDefender tricks: "
+                                + gameplay.getDefenderTricks());
+            }
+        }
+
         return true;
     }
 
     /**
      * Undoes the most recent game action when possible.
+     *
+     * Undo is not implemented yet.
      */
     public void undo() {
-        // TODO: implement
+
+        if (view != null) {
+
+            view.showMessage(
+                    "Undo has not been implemented yet.");
+        }
     }
 
     /**
@@ -138,80 +373,116 @@ public class GameController {
      * @return the current game state
      */
     public String getCurrentState() {
+
         return phase.toString();
     }
 
     /**
-     * Retrieves the current phase of the game.
+     * Returns the current phase.
      *
-     * @return The current phase of the game.
+     * @return current game phase
      */
     public GamePhase getPhase() {
+
         return phase;
     }
 
     /**
-     * Retrieves the current deal.
+     * Returns the current deal.
      *
-     * @return The current deal object.
+     * @return current deal
      */
     public Deal getCurrentDeal() {
+
         return currentDeal;
     }
 
     /**
-     * Retrieves the auction object associated with this instance.
+     * Returns the auction.
      *
-     * @return The auction object.
+     * @return auction
      */
     public Auction getAuction() {
+
         return auction;
     }
 
     /**
-     * Retrieves the current bidder of the auction.
+     * Returns the current bidder.
      *
-     * @return The Seat object representing the current bidder.
+     * @return current bidder
      */
     public Seat getCurrentBidder() {
+
         return currentBidder;
     }
 
     /**
-     * Retrieves the contract associated with this instance.
+     * Returns the contract.
      *
-     * @return The contract object associated with this instance.
+     * @return contract
      */
     public Contract getContract() {
+
         return contract;
     }
 
     /**
-     * Returns the gameplay object associated with this instance.
+     * Returns the gameplay object.
      *
-     * @return The gameplay object.
+     * @return gameplay
      */
     public Gameplay getGameplay() {
+
         return gameplay;
     }
 
     /**
-     * Checks if a deal is complete, meaning all hands are present and have 13 cards
-     * each.
+     * Checks whether a deal contains four hands
+     * with thirteen cards each.
      *
-     * @param deal The deal to check completeness for
-     * @return true if the deal is complete, false otherwise
+     * @param deal the deal
+     * @return true if complete
      */
-    private boolean isCompleteDeal(Deal deal) {
-        if (deal == null || deal.getAllHands().size() != Position.values().length)
+    private boolean isCompleteDeal(
+            Deal deal) {
+
+        if (deal == null
+                || deal.getAllHands().size() != Position.values().length) {
+
             return false;
+        }
 
         for (Position position : Position.values()) {
-            Hand hand = deal.getHand(new Seat(position));
-            if (hand == null || hand.getCards().size() != 13)
+
+            Hand hand = deal.getHand(
+                    new Seat(position));
+
+            if (hand == null
+                    || hand.getCards().size() != 13) {
+
                 return false;
+            }
         }
 
         return true;
+    }
+
+    /**
+     * Connects the controller to the view.
+     *
+     * @param view the game view
+     */
+    public void setView(GameView view) {
+        this.view = view;
+    }
+
+    /**
+     * Connects the controller to the storage system.
+     *
+     * @param storage storage system
+     */
+    public void setStorage(Storage storage) {
+        this.storage = storage;
     }
 }
