@@ -194,7 +194,6 @@ public class GameController {
          */
         if (!currentBidder.equals(
                 bid.getBidder())) {
-
             throw new IllegalArgumentException("It's not the turn of the seat making the bid.");
         }
 
@@ -255,9 +254,7 @@ public class GameController {
      * @param completedContract the contract
      * @return true if gameplay started successfully
      */
-    public boolean startPlay(
-            Contract completedContract) {
-
+    public boolean startPlay(Contract completedContract) {
         if (phase != GamePhase.AUCTION_COMPLETE) {
             return false;
         }
@@ -278,9 +275,7 @@ public class GameController {
         /*
          * Create the gameplay object.
          */
-        this.gameplay = new Gameplay(
-                currentDeal,
-                contract);
+        this.gameplay = new Gameplay(currentDeal, contract);
 
         /*
          * Change the game phase.
@@ -291,10 +286,8 @@ public class GameController {
          * Tell the view to display the playing table.
          */
         if (view != null) {
-
             view.startGameplay();
         }
-
         return true;
     }
 
@@ -305,10 +298,7 @@ public class GameController {
      * @param card the card being played
      * @return true if the card was successfully played
      */
-    public boolean playCard(
-            Seat seat,
-            Card card) {
-
+    public boolean playCard(Seat seat, Card card) {
         if (phase != GamePhase.PLAYING || gameplay == null) {
             return false;
         }
@@ -316,10 +306,7 @@ public class GameController {
         /*
          * Ask Gameplay to process the card.
          */
-        boolean played = gameplay.playCard(
-                seat,
-                card);
-
+        boolean played = gameplay.playCard(seat, card);
         if (!played) {
             return false;
         }
@@ -328,7 +315,6 @@ public class GameController {
          * Refresh the GUI.
          */
         if (view != null) {
-
             view.updateGameplayDisplay();
         }
 
@@ -336,17 +322,11 @@ public class GameController {
          * Check whether all thirteen tricks have been played.
          */
         if (gameplay.isFinished()) {
-
             phase = GamePhase.FINISHED;
-
             if (view != null) {
-
-                view.showMessage(
-                        "Game complete!\n"
-                                + "Declarer tricks: "
-                                + gameplay.getDeclarerTricks()
-                                + "\nDefender tricks: "
-                                + gameplay.getDefenderTricks());
+                view.showMessage("Game complete!\n" + "Declarer tricks: "
+                        + gameplay.getDeclarerTricks() + "\nDefender tricks: "
+                        + gameplay.getDefenderTricks());
             }
         }
 
@@ -359,11 +339,8 @@ public class GameController {
      * Undo is not implemented yet.
      */
     public void undo() {
-
         if (view != null) {
-
-            view.showMessage(
-                    "Undo has not been implemented yet.");
+            view.showMessage("Undo has not been implemented yet.");
         }
     }
 
@@ -373,7 +350,6 @@ public class GameController {
      * @return the current game state
      */
     public String getCurrentState() {
-
         return phase.toString();
     }
 
@@ -383,7 +359,6 @@ public class GameController {
      * @return current game phase
      */
     public GamePhase getPhase() {
-
         return phase;
     }
 
@@ -393,7 +368,6 @@ public class GameController {
      * @return current deal
      */
     public Deal getCurrentDeal() {
-
         return currentDeal;
     }
 
@@ -403,7 +377,6 @@ public class GameController {
      * @return auction
      */
     public Auction getAuction() {
-
         return auction;
     }
 
@@ -413,7 +386,6 @@ public class GameController {
      * @return current bidder
      */
     public Seat getCurrentBidder() {
-
         return currentBidder;
     }
 
@@ -423,7 +395,6 @@ public class GameController {
      * @return contract
      */
     public Contract getContract() {
-
         return contract;
     }
 
@@ -433,7 +404,6 @@ public class GameController {
      * @return gameplay
      */
     public Gameplay getGameplay() {
-
         return gameplay;
     }
 
@@ -444,23 +414,14 @@ public class GameController {
      * @param deal the deal
      * @return true if complete
      */
-    private boolean isCompleteDeal(
-            Deal deal) {
-
-        if (deal == null
-                || deal.getAllHands().size() != Position.values().length) {
-
+    private boolean isCompleteDeal(Deal deal) {
+        if (deal == null || deal.getAllHands().size() != Position.values().length) {
             return false;
         }
 
         for (Position position : Position.values()) {
-
-            Hand hand = deal.getHand(
-                    new Seat(position));
-
-            if (hand == null
-                    || hand.getCards().size() != 13) {
-
+            Hand hand = deal.getHand(new Seat(position));
+            if (hand == null || hand.getCards().size() != 13) {
                 return false;
             }
         }
