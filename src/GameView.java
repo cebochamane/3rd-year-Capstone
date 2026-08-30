@@ -1,6 +1,7 @@
 
 import java.util.List;
 import javax.swing.JOptionPane;
+import javax.swing.Timer;
 
 /**
  * GameView handles communication between the GameController
@@ -357,6 +358,40 @@ public class GameView {
      */
     public GameWindow getWindow() {
         return window;
+    }
+
+    /**
+     * GenAi hepled here.
+     * Displays a completed trick for a short time
+     * before refreshing the table for the next trick.
+     *
+     * @param trick the completed trick
+     */
+    public void showCompletedTrick(Trick trick) {
+
+        if (trick == null) {
+            return;
+        }
+        initialiseWindow();
+
+        /*
+         * Display all four cards from the completed trick.
+         */
+        window.updateTrick(trick);
+
+        /*
+         * Wait two seconds before displaying
+         * the next trick.
+         */
+        Timer timer = new Timer(2000, e -> {
+            updateGameplayDisplay();
+        });
+
+        /*
+         * Only run the timer once.
+         */
+        timer.setRepeats(false);
+        timer.start();
     }
 
     /**
