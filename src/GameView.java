@@ -60,7 +60,7 @@ public class GameView {
         for (Position position : Position.values()) {
             Seat seat = new Seat(position);
             Hand hand = deal.getHand(seat);
-            window.updateHand(position, hand);
+            window.updateHand(position, hand); // update the GUI.
         }
     }
 
@@ -78,14 +78,12 @@ public class GameView {
         initialiseWindow();
 
         if (controller == null || controller.getCurrentDeal() == null) {
-
             return;
         }
 
-        window.updateAuction(
-                auction,
-                controller.getCurrentDeal().getDealer(),
-                controller.getCurrentBidder());
+        window.updateAuction(auction, controller.getCurrentDeal().getDealer(), controller.getCurrentBidder()); // Diplay
+                                                                                                               // in the
+                                                                                                               // window.
     }
 
     /**
@@ -105,34 +103,23 @@ public class GameView {
          * Show the declarer in the main game window.
          * No contract popup is displayed.
          */
-        window.updateDeclarer(
-                contract.getDeclarer());
+        window.updateDeclarer(contract.getDeclarer());
     }
 
     /**
      * Starts the play phase.
-     *
      * Cards are displayed as clickable buttons.
-     *
      * There is NO card-selection popup.
      */
     public void startGameplay() {
-
         if (controller == null) {
-
-            showMessage(
-                    "Controller has not been connected.");
-
+            showMessage("Controller has not been connected.");
             return;
         }
 
         Gameplay gameplay = controller.getGameplay();
-
         if (gameplay == null) {
-
-            showMessage(
-                    "Gameplay has not been started.");
-
+            showMessage("Gameplay has not been started.");
             return;
         }
 
@@ -146,15 +133,12 @@ public class GameView {
 
         /*
          * Display the cards.
-         *
          * The cards themselves are clickable.
          */
         updateGameplayDisplay();
     }
 
     /**
-     * Alias used by GameController.
-     *
      * GameController calls showGameplay(), so this method
      * simply starts/refreshes the gameplay display.
      */
@@ -164,21 +148,13 @@ public class GameView {
 
     /**
      * Updates the GUI after a card has been played.
-     *
-     * This method does NOT show a popup.
      */
     public void updateGameplayDisplay() {
-
-        if (controller == null
-                || controller.getGameplay() == null) {
-
+        if (controller == null || controller.getGameplay() == null) {
             return;
         }
-
         initialiseWindow();
-
         Gameplay gameplay = controller.getGameplay();
-
         /*
          * Make sure the GameWindow knows which
          * Gameplay object is active.
@@ -187,47 +163,35 @@ public class GameView {
 
         /*
          * Update all four hands.
-         *
          * GameWindow displays these cards as buttons.
          */
         for (Position position : Position.values()) {
-
             Seat seat = new Seat(position);
-
             Hand hand = gameplay.getRemainingHand(seat);
-
-            window.updateHand(
-                    position,
-                    hand);
+            window.updateHand(position, hand);
         }
 
         /*
          * Display the current trick.
-         *
          * GameWindow expects a Trick object.
          */
         Trick currentTrick = gameplay.getCurrentTrick();
-
-        window.updateTrick(
-                currentTrick);
+        window.updateTrick(currentTrick);
 
         /*
          * Highlight whose turn it is.
          */
-        window.updateCurrentPlayer(
-                getCurrentPlayer());
+        window.updateCurrentPlayer(getCurrentPlayer());
     }
 
     /**
      * Returns the seat whose turn it currently is.
-     *
+     * 
      * @return the current player's seat
      */
     private Seat getCurrentPlayer() {
 
-        if (controller == null
-                || controller.getGameplay() == null) {
-
+        if (controller == null || controller.getGameplay() == null) {
             return null;
         }
 
@@ -236,7 +200,6 @@ public class GameView {
         Trick trick = gameplay.getCurrentTrick();
 
         if (trick == null) {
-
             return gameplay.getCurrentLeader();
         }
 
@@ -252,7 +215,6 @@ public class GameView {
         int numberOfPlays = trick.getPlays().size();
 
         for (int i = 0; i < numberOfPlays; i++) {
-
             current = current.next();
         }
 

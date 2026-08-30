@@ -23,7 +23,6 @@ import javax.swing.SwingConstants;
 
 /**
  * GameWindow class.
- *
  * Displays the Bridge table, player hands,
  * auction and played cards.
  */
@@ -95,11 +94,6 @@ public class GameWindow {
         private static final int CARD_HEIGHT = 36;
 
         /*
-         * Reference to current Gameplay.
-         */
-        private Gameplay gameplay;
-
-        /*
          * Reference to GameView.
          */
         private GameView view;
@@ -133,14 +127,12 @@ public class GameWindow {
                 dealerLabel = new JLabel("Dealer:", SwingConstants.CENTER);
                 dealerLabel.setForeground(GOLD_ACCENT);
                 dealerLabel.setFont(PLAYER_FONT);
-                dealerLabel.setBorder(
-                                BorderFactory.createEmptyBorder(10, 10, 10, 10));
+                dealerLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // chat idea
 
                 declarerLabel = new JLabel("", SwingConstants.CENTER);
                 declarerLabel.setForeground(GOLD_ACCENT);
                 declarerLabel.setFont(PLAYER_FONT);
-                declarerLabel.setBorder(
-                                BorderFactory.createEmptyBorder(10, 10, 10, 10));
+                declarerLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // chat idea
 
                 headerPanel.add(dealerLabel);
                 headerPanel.add(declarerLabel);
@@ -154,50 +146,33 @@ public class GameWindow {
                  */
 
                 tablePanel = new JPanel(new BorderLayout()) {
-
+                        // subclass of JPanel for custom drawing.
                         @Override
                         protected void paintComponent(Graphics g) {
-
                                 super.paintComponent(g);
-
                                 Graphics2D g2d = (Graphics2D) g;
-
-                                g2d.setRenderingHint(
-                                                RenderingHints.KEY_ANTIALIASING,
-                                                RenderingHints.VALUE_ANTIALIAS_ON);
+                                g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING,
+                                                RenderingHints.VALUE_ANTIALIAS_ON); // chat'ts idea for smoothing the//
+                                                                                    // edges of the oval.
 
                                 int marginX = 250;
                                 int marginY = 145;
 
-                                int tableWidth = Math.max(
-                                                0,
-                                                getWidth() - (2 * marginX));
+                                int tableWidth = getWidth() - (2 * marginX);
 
-                                int tableHeight = Math.max(
-                                                0,
-                                                getHeight() - (2 * marginY));
+                                int tableHeight = getHeight() - (2 * marginY);
 
                                 /*
                                  * Draw green table.
                                  */
                                 g2d.setColor(FELT_GREEN);
-
-                                g2d.fillOval(
-                                                marginX,
-                                                marginY,
-                                                tableWidth,
-                                                tableHeight);
+                                g2d.fillOval(marginX, marginY, tableWidth, tableHeight); // interior
 
                                 /*
                                  * Draw gold outline.
                                  */
                                 g2d.setColor(GOLD_ACCENT);
-
-                                g2d.drawOval(
-                                                marginX,
-                                                marginY,
-                                                tableWidth,
-                                                tableHeight);
+                                g2d.drawOval(marginX, marginY, tableWidth, tableHeight);
                         }
                 };
 
@@ -217,9 +192,7 @@ public class GameWindow {
                 northLabel.setForeground(Color.WHITE);
                 northLabel.setFont(PLAYER_FONT);
 
-                northHandPanel = new JPanel(
-                                new FlowLayout(FlowLayout.CENTER, 2, 5));
-
+                northHandPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 2, 5));
                 northHandPanel.setOpaque(false);
 
                 northPanel.add(northLabel, BorderLayout.NORTH);
@@ -239,20 +212,15 @@ public class GameWindow {
                  * Give the cards a little space from the
                  * right edge of the window.
                  */
-                eastPanel.setBorder(
-                                BorderFactory.createEmptyBorder(0, 0, 0, 15));
+                eastPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 15)); // avoid cards on the edge of the
+                                                                                   // screen
 
                 eastLabel = new JLabel("EAST", SwingConstants.CENTER);
                 eastLabel.setForeground(Color.WHITE);
                 eastLabel.setFont(PLAYER_FONT);
 
                 eastHandPanel = new JPanel();
-
-                eastHandPanel.setLayout(
-                                new BoxLayout(
-                                                eastHandPanel,
-                                                BoxLayout.Y_AXIS));
-
+                eastHandPanel.setLayout(new BoxLayout(eastHandPanel, BoxLayout.Y_AXIS));
                 eastHandPanel.setOpaque(false);
 
                 eastPanel.add(eastLabel, BorderLayout.NORTH);
@@ -294,19 +262,14 @@ public class GameWindow {
                  * Give the cards a little space from the
                  * left edge of the window.
                  */
-                westPanel.setBorder(
-                                BorderFactory.createEmptyBorder(0, 15, 0, 0));
+                westPanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
 
                 westLabel = new JLabel("WEST", SwingConstants.CENTER);
                 westLabel.setForeground(Color.WHITE);
                 westLabel.setFont(PLAYER_FONT);
 
                 westHandPanel = new JPanel();
-
-                westHandPanel.setLayout(
-                                new BoxLayout(
-                                                westHandPanel,
-                                                BoxLayout.Y_AXIS));
+                westHandPanel.setLayout(new BoxLayout(westHandPanel, BoxLayout.Y_AXIS));
 
                 westHandPanel.setOpaque(false);
 
@@ -334,15 +297,11 @@ public class GameWindow {
                 trickPanel.setOpaque(false);
 
                 /*
-                 * The auction now has its own class.
-                 *
                  * GameWindow creates one AuctionPanel and reuses it
                  * whenever bidding information changes.
                  */
                 auctionPanel = new AuctionPanel();
-
                 tablePanel.add(trickPanel, BorderLayout.CENTER);
-
                 mainFrame.add(tablePanel, BorderLayout.CENTER);
 
                 /*
@@ -358,23 +317,12 @@ public class GameWindow {
          * @param view the GameView
          */
         public void setView(GameView view) {
-
                 this.view = view;
-
                 /*
                  * AuctionPanel also needs GameView because
                  * it sends bid clicks to GameView.
                  */
                 auctionPanel.setView(view);
-        }
-
-        /**
-         * Connects the GameWindow to Gameplay.
-         *
-         * @param gameplay current gameplay
-         */
-        public void setGameplay(Gameplay gameplay) {
-                this.gameplay = gameplay;
         }
 
         /**
@@ -388,7 +336,6 @@ public class GameWindow {
                 if (hand == null) {
                         return;
                 }
-
                 JPanel handPanel;
 
                 /*
@@ -396,17 +343,13 @@ public class GameWindow {
                  */
                 if (position == Position.NORTH) {
                         handPanel = northHandPanel;
-
                 } else if (position == Position.EAST) {
                         handPanel = eastHandPanel;
-
                 } else if (position == Position.SOUTH) {
                         handPanel = southHandPanel;
-
                 } else {
                         handPanel = westHandPanel;
                 }
-
                 /*
                  * Remove the cards previously displayed.
                  */
@@ -416,9 +359,7 @@ public class GameWindow {
                  * Add every remaining card.
                  */
                 for (Card card : hand.getCards()) {
-
                         JButton cardButton = createCardButton(position, card);
-
                         handPanel.add(cardButton);
                 }
 
@@ -433,79 +374,38 @@ public class GameWindow {
          * @param card     card represented by the button
          * @return card button
          */
-        private JButton createCardButton(
-                        final Position position,
-                        final Card card) {
+        private JButton createCardButton(Position position, Card card) {
 
-                /*
-                 * Instead of displaying:
-                 *
-                 * ACE of SPADES
-                 *
-                 * display:
-                 *
-                 * A♠
-                 */
-                String cardText = getRankText(card.getRank())
-                                + getSuitSymbol(card.getSuit());
-
+                String cardText = getRankText(card.getRank()) + getSuitSymbol(card.getSuit());
                 JButton button = new JButton(cardText);
 
                 button.setFont(CARD_FONT);
-                button.setForeground(
-                                getSuitColor(card.getSuit()));
-
+                button.setForeground(getSuitColor(card.getSuit()));
                 button.setBackground(CARD_BACKGROUND);
                 button.setOpaque(true);
                 button.setContentAreaFilled(true);
 
-                button.setPreferredSize(
-                                new Dimension(
-                                                CARD_WIDTH,
-                                                CARD_HEIGHT));
-
-                button.setMinimumSize(
-                                new Dimension(
-                                                CARD_WIDTH,
-                                                CARD_HEIGHT));
-
-                button.setMaximumSize(
-                                new Dimension(
-                                                CARD_WIDTH,
-                                                CARD_HEIGHT));
-
+                // ensure that the cards maintain the same size throught(chat's advise)
+                button.setPreferredSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
+                button.setMinimumSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
+                button.setMaximumSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
                 button.setFocusPainted(false);
 
-                button.setBorder(
-                                BorderFactory.createCompoundBorder(
-                                                BorderFactory.createLineBorder(
-                                                                GOLD_ACCENT,
-                                                                1),
-                                                BorderFactory.createEmptyBorder(
-                                                                3,
-                                                                5,
-                                                                3,
-                                                                5)));
+                // draw the edges and add spacing around the text.
+                button.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(GOLD_ACCENT, 1),
+                                BorderFactory.createEmptyBorder(3, 5, 3, 5)));
 
                 /*
                  * Listen for a click on this card.
                  */
-                button.addActionListener(
-                                new ActionListener() {
-
-                                        @Override
-                                        public void actionPerformed(
-                                                        ActionEvent e) {
-
-                                                if (view != null) {
-
-                                                        view.cardClicked(
-                                                                        new Seat(position),
-                                                                        card);
-                                                }
-                                        }
-                                });
-
+                button.addActionListener(new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                                if (view != null) {
+                                        view.cardClicked(new Seat(position), card);
+                                }
+                        }
+                });
                 return button;
         }
 
@@ -517,75 +417,55 @@ public class GameWindow {
          * @return short rank text
          */
         private String getRankText(Rank rank) {
-
                 switch (rank) {
-
                         case TWO:
                                 return "2";
-
                         case THREE:
                                 return "3";
-
                         case FOUR:
                                 return "4";
-
                         case FIVE:
                                 return "5";
-
                         case SIX:
                                 return "6";
-
                         case SEVEN:
                                 return "7";
-
                         case EIGHT:
                                 return "8";
-
                         case NINE:
                                 return "9";
-
                         case TEN:
                                 return "10";
-
                         case JACK:
                                 return "J";
-
                         case QUEEN:
                                 return "Q";
-
                         case KING:
                                 return "K";
-
                         case ACE:
                                 return "A";
-
                         default:
                                 return "";
                 }
         }
 
         /**
+         * GenAi was used to write the symbol then copied and pasted from there.
          * Converts a Suit enum into a playing-card symbol.
          *
          * @param suit card suit
          * @return suit symbol
          */
         private String getSuitSymbol(Suit suit) {
-
                 switch (suit) {
-
                         case CLUBS:
                                 return "♣";
-
                         case DIAMONDS:
                                 return "♦";
-
                         case HEARTS:
                                 return "♥";
-
                         case SPADES:
                                 return "♠";
-
                         default:
                                 return "";
                 }
@@ -593,7 +473,6 @@ public class GameWindow {
 
         /**
          * Returns the colour used for a card suit.
-         *
          * Hearts and diamonds are red.
          * Spades and clubs are black.
          *
@@ -601,13 +480,9 @@ public class GameWindow {
          * @return suit colour
          */
         private Color getSuitColor(Suit suit) {
-
-                if (suit == Suit.HEARTS
-                                || suit == Suit.DIAMONDS) {
-
+                if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) {
                         return RED_SUIT;
                 }
-
                 return Color.BLACK;
         }
 
@@ -617,9 +492,7 @@ public class GameWindow {
          * @param dealer dealer
          */
         public void updateInfo(Seat dealer) {
-
-                dealerLabel.setText(
-                                "Dealer: " + dealer);
+                dealerLabel.setText("Dealer: " + dealer);
         }
 
         /**
@@ -628,9 +501,7 @@ public class GameWindow {
          * @param declarer declarer
          */
         public void updateDeclarer(Seat declarer) {
-
-                declarerLabel.setText(
-                                "Declarer: " + declarer);
+                declarerLabel.setText("Declarer: " + declarer);
         }
 
         /**
@@ -657,19 +528,15 @@ public class GameWindow {
                  * Highlight the current player.
                  */
                 switch (seat.getPosition()) {
-
                         case NORTH:
                                 northLabel.setForeground(GOLD_ACCENT);
                                 break;
-
                         case EAST:
                                 eastLabel.setForeground(GOLD_ACCENT);
                                 break;
-
                         case SOUTH:
                                 southLabel.setForeground(GOLD_ACCENT);
                                 break;
-
                         case WEST:
                                 westLabel.setForeground(GOLD_ACCENT);
                                 break;
@@ -679,21 +546,10 @@ public class GameWindow {
                  * Only cards belonging to the current
                  * player should be clickable.
                  */
-                setHandEnabled(
-                                northHandPanel,
-                                seat.getPosition() == Position.NORTH);
-
-                setHandEnabled(
-                                eastHandPanel,
-                                seat.getPosition() == Position.EAST);
-
-                setHandEnabled(
-                                southHandPanel,
-                                seat.getPosition() == Position.SOUTH);
-
-                setHandEnabled(
-                                westHandPanel,
-                                seat.getPosition() == Position.WEST);
+                setHandEnabled(northHandPanel, seat.getPosition() == Position.NORTH);
+                setHandEnabled(eastHandPanel, seat.getPosition() == Position.EAST);
+                setHandEnabled(southHandPanel, seat.getPosition() == Position.SOUTH);
+                setHandEnabled(westHandPanel, seat.getPosition() == Position.WEST);
         }
 
         /**
@@ -703,14 +559,11 @@ public class GameWindow {
          * @param handPanel panel containing cards
          * @param enabled   whether cards can be clicked
          */
-        private void setHandEnabled(
-                        JPanel handPanel,
-                        boolean enabled) {
+        private void setHandEnabled(JPanel handPanel, boolean enabled) {
 
                 for (java.awt.Component component : handPanel.getComponents()) {
-
                         if (component instanceof JButton) {
-                                component.setEnabled(enabled);
+                                component.setEnabled(enabled); // setEnabled(boolean) is given by java.
                         }
                 }
         }
@@ -750,77 +603,46 @@ public class GameWindow {
                         Seat seat = entry.getKey();
                         Card card = entry.getValue();
 
-                        String cardText = getRankText(card.getRank())
-                                        + getSuitSymbol(card.getSuit());
-
-                        JLabel cardLabel = new JLabel(
-                                        cardText,
-                                        SwingConstants.CENTER);
+                        String cardText = getRankText(card.getRank()) + getSuitSymbol(card.getSuit());
+                        JLabel cardLabel = new JLabel(cardText, SwingConstants.CENTER);
 
                         cardLabel.setFont(CARD_FONT);
-
-                        cardLabel.setForeground(
-                                        getSuitColor(card.getSuit()));
-
-                        cardLabel.setBackground(
-                                        CARD_BACKGROUND);
-
+                        cardLabel.setForeground(getSuitColor(card.getSuit()));
+                        cardLabel.setBackground(CARD_BACKGROUND);
                         cardLabel.setOpaque(true);
+                        cardLabel.setPreferredSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
 
-                        cardLabel.setPreferredSize(
-                                        new Dimension(
-                                                        CARD_WIDTH,
-                                                        CARD_HEIGHT));
-
-                        cardLabel.setBorder(
-                                        BorderFactory.createCompoundBorder(
-                                                        BorderFactory.createLineBorder(
-                                                                        GOLD_ACCENT,
-                                                                        1),
-                                                        BorderFactory.createEmptyBorder(
-                                                                        3,
-                                                                        5,
-                                                                        3,
-                                                                        5)));
-
+                        cardLabel.setBorder(BorderFactory.createCompoundBorder(
+                                        BorderFactory.createLineBorder(GOLD_ACCENT, 1), BorderFactory.createEmptyBorder(
+                                                        3, 5, 3, 5)));
+                        // GenAi helped
                         GridBagConstraints gbc = new GridBagConstraints();
-
-                        gbc.insets = new Insets(
-                                        15,
-                                        25,
-                                        15,
-                                        25);
+                        gbc.insets = new Insets(15, 25, 15, 25);
 
                         /*
+                         * GenAi helped with the coordinates.
                          * Position the card according
                          * to the player who played it.
                          */
                         switch (seat.getPosition()) {
-
                                 case NORTH:
                                         gbc.gridx = 1;
                                         gbc.gridy = 0;
                                         break;
-
                                 case EAST:
                                         gbc.gridx = 2;
                                         gbc.gridy = 1;
                                         break;
-
                                 case SOUTH:
                                         gbc.gridx = 1;
                                         gbc.gridy = 2;
                                         break;
-
                                 case WEST:
                                         gbc.gridx = 0;
                                         gbc.gridy = 1;
                                         break;
                         }
-
-                        trickPanel.add(
-                                        cardLabel,
-                                        gbc);
+                        trickPanel.add(cardLabel, gbc);
                 }
 
                 trickPanel.revalidate();
@@ -856,10 +678,7 @@ public class GameWindow {
                  * Give the current auction information
                  * to AuctionPanel.
                  */
-                auctionPanel.updateAuction(
-                                auction,
-                                dealer,
-                                bidder);
+                auctionPanel.updateAuction(auction, dealer, bidder);
 
                 /*
                  * Put AuctionPanel into the centre.
@@ -877,7 +696,6 @@ public class GameWindow {
          * Clears the centre of the table.
          */
         public void clearTrickPanel() {
-
                 trickPanel.removeAll();
                 trickPanel.revalidate();
                 trickPanel.repaint();
