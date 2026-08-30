@@ -111,6 +111,7 @@ public class GameController {
             }
             return false;
         }
+
         if (gameplay == null || gameplay.isFinished()) {
             if (view != null) {
                 view.showMessage("Game is already finished.");
@@ -128,6 +129,16 @@ public class GameController {
 
         if (view != null) {
             view.showGameplayState(gameplay);
+
+            // ===== NEW: Show quick note option after completed tricks =====
+            Trick currentTrick = gameplay.getCurrentTrick();
+            if (currentTrick != null && currentTrick.isComplete()) {
+                int trickNo = gameplay.getTrickNo();
+                // Prompt after tricks 2, 4, 6, 8, 10, 12 (not every trick to avoid spam)
+                if (trickNo % 2 == 0 && trickNo < 13) {
+                    view.showQuickNotePrompt("PLAYING");
+                }
+            }
         }
 
         if (gameplay.isFinished()) {
@@ -135,19 +146,39 @@ public class GameController {
             int declarerTricks = gameplay.getDeclarerTricks();
             int requiredTricks = contract.getRequiredTricks();
             boolean madeContract = declarerTricks >= requiredTricks;
+            int overtricks = Math.max(0, declarerTricks - requiredTricks);
+            int undertricks = Math.max(0, requiredTricks - declarerTricks);
+
+            String resultMessage;
+            if (madeContract && overtricks > 0) {
+                resultMessage = "CONTRACT MADE + " + overtricks + " OVERTRICK" + (overtricks > 1 ? "S" : "");
+            } else if (madeContract) {
+                resultMessage = "CONTRACT MADE";
+            } else {
+                resultMessage = "CONTRACT FAILED (" + undertricks + " undertrick" + (undertricks > 1 ? "s" : "") + ")";
+            }
 
             if (view != null) {
                 view.showMessage(String.format(
                         "Game finished!\nDeclarer made %d tricks (needed %d)\n%s!",
-                        declarerTricks, requiredTricks,
-                        madeContract ? "CONTRACT MADE" : "CONTRACT FAILED"));
+                        declarerTricks, requiredTricks, resultMessage));
+
+                // ===== NEW: Prompt for post-play reflection =====
+                view.showPostPlayNotePrompt(
+                        contract.getLevel() + " " + contract.getDenomination(),
+                        declarerTricks,
+                        requiredTricks);
             }
+
+            // Save the completed game
+            saveGame();
         } else {
             currentPlayer = gameplay.getCurrentLeader();
             if (view != null) {
                 view.showPlayPrompt(currentPlayer);
             }
         }
+
         return true;
     }
 
