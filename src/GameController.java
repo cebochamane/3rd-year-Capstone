@@ -303,6 +303,10 @@ public class GameController {
             return false;
         }
 
+        // Remember this trick before the card is played.
+        Trick trickBeforePlay = gameplay.getCurrentTrick();
+
+        boolean completingTrick = trickBeforePlay != null && trickBeforePlay.getPlays().size() == 3;
         /*
          * Ask Gameplay to process the card.
          */
@@ -315,7 +319,14 @@ public class GameController {
          * Refresh the GUI.
          */
         if (view != null) {
-            view.updateGameplayDisplay();
+            if (completingTrick) {
+                /*
+                 * the trick object is the is complete.
+                 */
+                view.showCompletedTrick(trickBeforePlay);
+            } else {
+                view.updateGameplayDisplay();
+            }
         }
 
         /*
