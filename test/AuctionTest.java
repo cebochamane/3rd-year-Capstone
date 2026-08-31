@@ -166,11 +166,12 @@ public class AuctionTest {
         assertFalse(auction.isValidBid(null));
     }
 
-    @Test // isValidBid()
+    @Test // inValidBid()
     void passOnEmpty() {
         Auction auction = new Auction();
         Bid pass = Bid.BidPass(new Seat(Position.WEST));
-        assertTrue(auction.isValidBid(pass));
+        assertFalse(auction.isValidBid(pass));
+        assertEquals(0, auction.getBids().size());
     }
 
     @Test // isValidBid()
