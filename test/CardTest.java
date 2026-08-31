@@ -47,4 +47,22 @@ class CardTest {
         assertTrue(ace.compareTo(two, Suit.SPADES, Suit.HEARTS) > 0);
         assertTrue(two.compareTo(ace, Suit.SPADES, Suit.HEARTS) < 0);
     }
+
+    @Test
+    void noTrumpContractUsesOnlyTheLeadSuit() {
+        Card lead = new Card(Suit.HEARTS, Rank.TWO);
+        Card offSuitAce = new Card(Suit.SPADES, Rank.ACE);
+
+        assertTrue(lead.compareTo(offSuitAce, Suit.NT, Suit.HEARTS) > 0);
+        assertTrue(offSuitAce.compareTo(lead, Suit.NT, Suit.HEARTS) < 0);
+    }
+
+    @Test
+    void twoOffSuitCardsAreTiedWhenNeitherIsTrumpOrTheLeadSuit() {
+        Card club = new Card(Suit.CLUBS, Rank.TWO);
+        Card spade = new Card(Suit.SPADES, Rank.ACE);
+
+        assertEquals(0, club.compareTo(spade, Suit.DIAMONDS, Suit.HEARTS));
+        assertEquals(0, spade.compareTo(club, Suit.DIAMONDS, Suit.HEARTS));
+    }
 }
