@@ -48,7 +48,25 @@ public class Hand {
      * @param card The card to remove
      */
     public void removeCard(Card card) {
-        // TODO: implement
+        if (card == null) {
+            return;
+        }
+
+        /*
+         * Use the existing contains method because Card
+         * does not override equals().
+         */
+        for (int i = 0; i < cards.size(); i++) {
+
+            Card currentCard = cards.get(i);
+
+            if (currentCard.getSuit() == card.getSuit()
+                    && currentCard.getRank() == card.getRank()) {
+
+                cards.remove(i);
+                return;
+            }
+        }
     }
 
     /**
@@ -57,7 +75,10 @@ public class Hand {
     public void sort() {
         cards.sort((a, b) -> {
             int bySuit = b.getSuit().compareTo(a.getSuit());
-            if (bySuit != 0) return bySuit;
+
+            if (bySuit != 0)
+                return bySuit;
+
             return b.getRank().compareTo(a.getRank());
         });
     }
@@ -69,10 +90,16 @@ public class Hand {
      * @return true if the card is present, false otherwise
      */
     public boolean contains(Card card) {
-        if (card == null) return false;
+        if (card == null)
+            return false;
 
         for (Card c : cards) {
-            if (c.getSuit() == card.getSuit() && c.getRank() == card.getRank()) return true;
+
+            if (c.getSuit() == card.getSuit()
+                    && c.getRank() == card.getRank()) {
+
+                return true;
+            }
         }
 
         return false;
@@ -85,7 +112,14 @@ public class Hand {
      * @return true if a card with the specified suit is found, false otherwise.
      */
     public boolean contains(Suit suit) {
-        for (Card card : cards) if (card.getSuit() == suit) return true;
+
+        for (Card card : cards) {
+
+            if (card.getSuit() == suit) {
+                return true;
+            }
+        }
+
         return false;
     }
 
@@ -101,8 +135,45 @@ public class Hand {
      * @return all cards that can legally be played
      */
     public ArrayList<Card> getLegalCards(Suit leadSuit, Suit trump) {
-        // TODO: implement
-        return null;
+
+        ArrayList<Card> legalCards = new ArrayList<>();
+
+        /*
+         * If there is no lead suit yet, every card is legal.
+         */
+        if (leadSuit == null) {
+            legalCards.addAll(cards);
+            return legalCards;
+        }
+
+        /*
+         * Check whether the player has a card
+         * belonging to the lead suit.
+         */
+        boolean hasLeadSuit = contains(leadSuit);
+
+        if (hasLeadSuit) {
+
+            /*
+             * The player MUST follow suit.
+             */
+            for (Card card : cards) {
+
+                if (card.getSuit() == leadSuit) {
+                    legalCards.add(card);
+                }
+            }
+
+        } else {
+
+            /*
+             * The player does not have the lead suit,
+             * so they may play any card.
+             */
+            legalCards.addAll(cards);
+        }
+
+        return legalCards;
     }
 
     /**
@@ -110,6 +181,7 @@ public class Hand {
      *
      * @return A string containing the cards in the hand
      */
+    @Override
     public String toString() {
         return "Hand: " + cards;
     }

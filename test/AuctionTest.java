@@ -9,14 +9,14 @@ public class AuctionTest {
         assertFalse(auction.isComplete());
     }
 
-    @Test // isComplete()
+    @Test // is NotComplete()
     void threeConsecutivePasses() {
         Auction auction = new Auction();
 
         auction.addBid(Bid.BidPass(new Seat(Position.NORTH)));
         auction.addBid(Bid.BidPass(new Seat(Position.EAST)));
         auction.addBid(Bid.BidPass(new Seat(Position.SOUTH)));
-        assertTrue(auction.isComplete());
+        assertFalse(auction.isComplete());
 
     }
 
@@ -166,11 +166,12 @@ public class AuctionTest {
         assertFalse(auction.isValidBid(null));
     }
 
-    @Test // isValidBid()
+    @Test // inValidBid()
     void passOnEmpty() {
         Auction auction = new Auction();
         Bid pass = Bid.BidPass(new Seat(Position.WEST));
-        assertTrue(auction.isValidBid(pass));
+        assertFalse(auction.isValidBid(pass));
+        assertEquals(0, auction.getBids().size());
     }
 
     @Test // isValidBid()
