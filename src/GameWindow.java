@@ -710,4 +710,14 @@ public class GameWindow {
                 trickPanel.revalidate();
                 trickPanel.repaint();
         }
+
+        /**
+         * Returns the main application frame.
+         * 
+         * @return main frame
+         */
+        public JFrame getMainFrame() {
+                return mainFrame;
+
+        }
 }

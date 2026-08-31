@@ -284,7 +284,8 @@ public class GameView {
         if (message == null) {
             message = "No message to display.";
         }
-        JOptionPane.showMessageDialog(null, message, "BridgeTut", JOptionPane.INFORMATION_MESSAGE);
+        initialiseWindow();
+        JOptionPane.showMessageDialog(window.getMainFrame(), message, "BridgeTut", JOptionPane.INFORMATION_MESSAGE);
     }
 
     /**

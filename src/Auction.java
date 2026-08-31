@@ -53,6 +53,9 @@ public class Auction {
             if (this.isComplete()) {
                 return false;
             }
+            if (bids.isEmpty()) {
+                return false;
+            }
             return true;
         } else if (bid.isDouble()) {
             Bid lastContractBid = this.getFinalBid();
