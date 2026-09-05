@@ -441,18 +441,6 @@ public class GameView {
     }
 
     /**
-     * Main method used to start the GUI.
-     */
-    public static void main(String[] args) {
-        GameView view = new GameView();
-        GameController controller = new GameController();
-        view.setController(controller);
-        controller.setView(view);
-        view.initialiseWindow();
-        controller.startNewGame();
-    }
-
-    /**
      * Returns the declarer's partener , who is the dummy.
      * 
      * @param gameplay the current gameplay
@@ -484,5 +472,56 @@ public class GameView {
         Trick currentTrick = gameplay.getCurrentTrick();
 
         return currentTrick != null && currentTrick.getPlays().size() > 0; // Dummy is visible after the opening lead.
+    }
+
+    /**
+     * Called when the user clicks New Game from the home page.
+     */
+    public void newGameClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+        initialiseWindow();
+
+        /*
+         * Replace the home page with the game table.
+         */
+        window.showGameTable();
+
+        /**
+         * Create the deal and begin the auction.
+         */
+        controller.startNewGame();
+    }
+
+    /**
+     * Called when the user selects Quit Game.
+     */
+    public void quitGameClicked() {
+        if (controller == null) {
+            return;
+        }
+        initialiseWindow();
+        int choice = JOptionPane.showConfirmDialog(window.getMainFrame(),
+                "Are you sure you want to quit the current game?\n" + "Unsaved progress will be lost.",
+                "Quit Game", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (choice == JOptionPane.YES_OPTION) {
+            controller.quitGame();
+            window.showHomePage();
+        }
+    }
+
+    /**
+     * Main method used to start the GUI.
+     */
+    public static void main(String[] args) {
+        GameView view = new GameView();
+        GameController controller = new GameController();
+        view.setController(controller);
+        controller.setView(view);
+        view.initialiseWindow();
+        view.getWindow().showHomePage();
     }
 }

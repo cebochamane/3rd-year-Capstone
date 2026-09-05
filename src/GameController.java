@@ -32,6 +32,19 @@ public class GameController {
     }
 
     /**
+     * Ends the current game and returns to the main menu.
+     * 
+     */
+    public void quitGame() {
+        this.currentDeal = null;
+        this.auction = null;
+        this.contract = null;
+        this.gameplay = null;
+        this.phase = GamePhase.MENU;
+
+    }
+
+    /**
      * Loads a previously saved game using its game ID.
      *
      * @param gameId the ID of the game to load

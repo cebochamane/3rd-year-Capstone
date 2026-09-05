@@ -43,6 +43,11 @@ public class GameWindow {
         private AuctionPanel auctionPanel;
 
         /*
+         * Separate panel responsible for the home page.
+         */
+        private HomePanel homePanel;
+
+        /*
          * Panels containing each player's cards.
          */
         private JPanel northHandPanel;
@@ -71,6 +76,7 @@ public class GameWindow {
          */
         private JLabel dealerLabel;
         private JLabel declarerLabel;
+        private JButton quitGameButton;
 
         /*
          * Colours.
@@ -135,8 +141,18 @@ public class GameWindow {
                 declarerLabel.setFont(PLAYER_FONT);
                 declarerLabel.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10)); // chat idea
 
+                quitGameButton = new JButton("Quit Game");
+                quitGameButton.setFont(new Font("Arial", Font.BOLD, 13));
+                quitGameButton.setBackground(FELT_GREEN);
+                quitGameButton.setForeground(Color.WHITE);
+                quitGameButton.setFocusPainted(false);
+
+                quitGameButton.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(GOLD_ACCENT),
+                                BorderFactory.createEmptyBorder(5, 10, 5, 10)));
+
                 headerPanel.add(dealerLabel);
                 headerPanel.add(declarerLabel);
+                headerPanel.add(quitGameButton);
 
                 mainFrame.add(headerPanel, BorderLayout.NORTH);
 
@@ -306,6 +322,11 @@ public class GameWindow {
                 mainFrame.add(tablePanel, BorderLayout.CENTER);
 
                 /*
+                 * Create the home page.
+                 */
+                homePanel = new HomePanel();
+
+                /*
                  * Centre and display the window.
                  */
                 mainFrame.setLocationRelativeTo(null);
@@ -324,6 +345,39 @@ public class GameWindow {
                  * it sends bid clicks to GameView.
                  */
                 auctionPanel.setView(view);
+                /*
+                 * Start the new game from the home page.
+                 */
+                homePanel.setNewGameAction(new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                                if (GameWindow.this.view != null) {
+                                        GameWindow.this.view.newGameClicked();
+                                }
+                        }
+                });
+
+                /*
+                 * Close the BridgeTut application.
+                 */
+                homePanel.setExitAction(new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                                mainFrame.dispose();
+                        }
+                });
+
+                /*
+                 * Quit the current game and return to the home page.
+                 */
+                quitGameButton.addActionListener(new ActionListener() {
+                        @Override
+                        public void actionPerformed(ActionEvent e) {
+                                if (GameWindow.this.view != null) {
+                                        GameWindow.this.view.quitGameClicked();
+                                }
+                        }
+                });
         }
 
         /**
@@ -770,12 +824,33 @@ public class GameWindow {
         }
 
         /**
+         * Dispaly the home page.
+         * 
+         */
+        public void showHomePage() {
+                mainFrame.getContentPane().removeAll();
+                mainFrame.getContentPane().add(homePanel, BorderLayout.CENTER);
+                mainFrame.revalidate();
+                mainFrame.repaint();
+        }
+
+        /**
+         * Dispaly the bridge game table.
+         */
+        public void showGameTable() {
+                mainFrame.getContentPane().removeAll();
+                mainFrame.getContentPane().add(headerPanel, BorderLayout.NORTH);
+                mainFrame.getContentPane().add(tablePanel, BorderLayout.CENTER);
+                mainFrame.revalidate();
+                mainFrame.repaint();
+        }
+
+        /**
          * Returns the main application frame.
          * 
          * @return main frame
          */
         public JFrame getMainFrame() {
                 return mainFrame;
-
         }
 }
