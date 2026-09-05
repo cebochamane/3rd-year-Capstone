@@ -80,7 +80,7 @@ public class GameWindow {
         private static final Color GOLD_ACCENT = new Color(201, 162, 39);
         private static final Color CARD_BACKGROUND = new Color(250, 248, 240);
         private static final Color RED_SUIT = new Color(190, 30, 45);
-
+        private static final Color CARD_BACK = new Color(35, 55, 100);
         /*
          * Fonts.
          */
@@ -378,6 +378,38 @@ public class GameWindow {
         }
 
         /**
+         * Displays a player's cards face-down.
+         * 
+         * @param position      player's position
+         * @param numberOfCards number of cards to display
+         */
+
+        public void updateHiddenHand(Position position, int numberOfCards) {
+                if (position == null || numberOfCards < 0) {
+                        return;
+                }
+                JPanel handPanel;
+                if (position == Position.NORTH) {
+                        handPanel = northHandPanel;
+                } else if (position == Position.EAST) {
+                        handPanel = eastHandPanel;
+                } else if (position == Position.SOUTH) {
+                        handPanel = southHandPanel;
+                } else {
+                        handPanel = westHandPanel;
+                }
+                handPanel.removeAll();
+                /*
+                 * Add face-down cards.
+                 */
+                for (int i = 0; i < numberOfCards; i++) {
+                        handPanel.add(createCardBackButton());
+                }
+                handPanel.revalidate();
+                handPanel.repaint();
+        }
+
+        /**
          * Creates one clickable card button.
          *
          * @param position position owning the card
@@ -416,6 +448,32 @@ public class GameWindow {
                                 }
                         }
                 });
+                return button;
+        }
+
+        /**
+         * Creates one disabled face-down card button.
+         * 
+         * @return a card-back button
+         */
+        private JButton createCardBackButton() {
+                JButton button = new JButton("◆");
+                button.setFont(CARD_FONT);
+                button.setForeground(GOLD_ACCENT);
+                button.setEnabled(false);
+                button.setBackground(CARD_BACK);
+                button.setOpaque(true);
+                button.setContentAreaFilled(true);
+
+                button.setPreferredSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
+                button.setMinimumSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
+                button.setMaximumSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
+                button.setFocusPainted(false);
+
+                // draw the edges and add spacing around the text.
+                button.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(GOLD_ACCENT, 1),
+                                BorderFactory.createEmptyBorder(3, 5, 3, 5)));
+
                 return button;
         }
 
