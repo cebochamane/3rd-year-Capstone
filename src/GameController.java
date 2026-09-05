@@ -216,7 +216,7 @@ public class GameController {
             /*
              * Create the contract if there was a final bid.
              */
-            if (auction.getFinalBid() != null) {
+            if (!auction.isPassedOut()) {
 
                 this.contract = auction.createContract();
                 if (view != null) {
