@@ -162,6 +162,7 @@ public class Auction {
      */
     public Contract createContract() {
         Bid finalBid = this.getFinalBid();
+        Seat declarer = this.findDeclarer(finalBid);
 
         boolean doubled = false;
         boolean reDoubled = false;
@@ -176,8 +177,27 @@ public class Auction {
             }
         }
 
-        Contract contract = new Contract(finalBid.getLevel(), finalBid.getDenomination(), finalBid.getBidder(), doubled,
+        Contract contract = new Contract(finalBid.getLevel(), finalBid.getDenomination(), declarer, doubled,
                 reDoubled);
         return contract;
+    }
+
+    /**
+     * Finds the declarer for the fhe final contract bid in the auction.
+     * The declarer is the first player from the winning partnership to bid the
+     * denomination of the final contract.
+     * 
+     * @param finalBid the final contract bid of the auction
+     * @return the Seat of the declarer
+     */
+    private Seat findDeclarer(Bid finalBid) {
+        for (Bid bid : bids) {
+            if (bid.getDenomination() == finalBid.getDenomination()
+                    && (bid.getBidder().isPartner(finalBid.getBidder())
+                            || bid.getBidder().equals(finalBid.getBidder()))) {
+                return bid.getBidder();
+            }
+        }
+        return finalBid.getBidder();
     }
 }
