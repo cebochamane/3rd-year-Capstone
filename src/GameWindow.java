@@ -98,7 +98,6 @@ public class GameWindow {
         private static final int CARD_WIDTH = 68;
         private static final int CARD_HEIGHT = 36;
 
-        private Gameplay gameplay;
         /*
          * Reference to GameView.
          */
@@ -375,15 +374,6 @@ public class GameWindow {
         }
 
         /**
-         * Connects the GameWindow to Gameplay.
-         *
-         * @param gameplay current gameplay
-         */
-        public void setGameplay(Gameplay gameplay) {
-                this.gameplay = gameplay;
-        }
-
-        /**
          * Updates the cards displayed for a particular player.
          *
          * @param position player's position
@@ -622,15 +612,6 @@ public class GameWindow {
                 /*
                  * Recalculate and redraw the centre.
                  */
-                trickPanel.revalidate();
-                trickPanel.repaint();
-        }
-
-        /**
-         * Clears the centre of the table.
-         */
-        public void clearTrickPanel() {
-                trickPanel.removeAll();
                 trickPanel.revalidate();
                 trickPanel.repaint();
         }

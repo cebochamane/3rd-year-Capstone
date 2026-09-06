@@ -11,7 +11,6 @@ import javax.swing.Timer;
 public class GameView {
 
     private GameController controller;
-    private int lastMenuChoice;
     private GameWindow window;
 
     /**
@@ -22,23 +21,6 @@ public class GameView {
     public void setController(GameController controller) {
         this.controller = controller;
     }
-
-    /**
-     * Displays the main game menu.
-     *
-     * public void showMenu() {
-     * String[] options = { "Start New Game", "Load Game", "Exit" };
-     * lastMenuChoice = JOptionPane.showOptionDialog(
-     * null,
-     * "Choose an option:",
-     * "Main Menu",
-     * JOptionPane.DEFAULT_OPTION,
-     * JOptionPane.INFORMATION_MESSAGE,
-     * null,
-     * options,
-     * options[0]);
-     * }
-     */
 
     /**
      * Displays the current deal in the GameWindow.
@@ -58,16 +40,7 @@ public class GameView {
         window.updateInfo(deal.getDealer());
 
         Seat currentBidder = controller.getCurrentBidder();
-        // Display all four hands.
-        for (Position position : Position.values()) {
-            Seat seat = new Seat(position);
-            Hand hand = deal.getHand(seat);
-            if (seat.equals(currentBidder)) {
-                window.updateHand(position, hand); // update the GUI.
-            } else {
-                window.updateHiddenHand(position, hand.getCards().size()); // Hide other hands.
-            }
-        }
+        this.updateBiddingHands(deal, currentBidder);
     }
 
     /**
@@ -89,19 +62,7 @@ public class GameView {
         Deal deal = controller.getCurrentDeal();
         Seat currentBidder = controller.getCurrentBidder();
 
-        /*
-         * Reveal only the current bidder's hand, hide the other hands.
-         */
-        for (Position position : Position.values()) {
-            Seat seat = new Seat(position);
-            Hand hand = deal.getHand(seat);
-            if (seat.equals(currentBidder)) {
-                window.updateHand(position, hand); // update the GUI.
-            } else {
-                window.updateHiddenHand(position, hand.getCards().size()); // Hide other hands.
-            }
-        }
-
+        updateBiddingHands(deal, currentBidder);
         window.updateAuction(auction, deal.getDealer(), currentBidder);
     }
 
@@ -145,24 +106,10 @@ public class GameView {
         initialiseWindow();
 
         /*
-         * Give the GameWindow access to the
-         * current Gameplay object.
-         */
-        window.setGameplay(gameplay);
-
-        /*
          * Display the cards.
          * The cards themselves are clickable.
          */
         updateGameplayDisplay();
-    }
-
-    /**
-     * GameController calls showGameplay(), so this method
-     * simply starts/refreshes the gameplay display.
-     */
-    public void showGameplay() {
-        startGameplay();
     }
 
     /**
@@ -174,15 +121,8 @@ public class GameView {
         }
         initialiseWindow();
         Gameplay gameplay = controller.getGameplay();
-        /*
-         * Make sure the GameWindow knows which
-         * Gameplay object is active.
-         */
-        window.setGameplay(gameplay);
-        Seat currentPlayer = getCurrentPlayer();
-        Seat declarer = gameplay.getContract().getDeclarer();
-        Seat dummy = this.getDummy(gameplay);
-        boolean dummyVisible = this.isDummyVisible(gameplay);
+
+        Seat currentPlayer = gameplay.getCurrentPlayer();
 
         /*
          * Update all four hands.
@@ -192,25 +132,7 @@ public class GameView {
             Seat seat = new Seat(position);
             Hand hand = gameplay.getRemainingHand(seat);
 
-            boolean showHand = seat.equals(currentPlayer);
-
-            /*
-             * After the opening lead, dummy remains visible.
-             */
-
-            if (dummyVisible && seat.equals(dummy)) {
-                showHand = true;
-            }
-
-            /*
-             * When it is dummy's turn, declarer also sees
-             * their own hand while controlling dummy.
-             */
-
-            if (dummyVisible && currentPlayer.equals(dummy) && seat.equals(declarer)) {
-                showHand = true;
-            }
-            if (showHand) {
+            if (gameplay.isHandVisible(seat)) {
                 window.updateHand(position, hand);
             } else {
                 window.updateHiddenHand(position, hand.getCards().size());
@@ -227,44 +149,7 @@ public class GameView {
         /*
          * Highlight whose turn it is.
          */
-        window.updateCurrentPlayer(getCurrentPlayer());
-    }
-
-    /**
-     * Returns the seat whose turn it currently is.
-     * 
-     * @return the current player's seat
-     */
-    private Seat getCurrentPlayer() {
-
-        if (controller == null || controller.getGameplay() == null) {
-            return null;
-        }
-
-        Gameplay gameplay = controller.getGameplay();
-
-        Trick trick = gameplay.getCurrentTrick();
-
-        if (trick == null) {
-            return gameplay.getCurrentLeader();
-        }
-
-        /*
-         * The leader plays first.
-         */
-        Seat current = trick.getLeader();
-
-        /*
-         * Move clockwise once for every card
-         * already played in the trick.
-         */
-        int numberOfPlays = trick.getPlays().size();
-
-        for (int i = 0; i < numberOfPlays; i++) {
-            current = current.next();
-        }
-
-        return current;
+        window.updateCurrentPlayer(currentPlayer);
     }
 
     /**
@@ -289,38 +174,6 @@ public class GameView {
     }
 
     /**
-     * Displays the cards that have been played
-     * in a trick.
-     *
-     * Kept for compatibility with the existing program.
-     *
-     * @param trickNo number of the trick
-     * @param trick   cards played in the trick
-     */
-    public void showTrick(int trickNo, List<Card> trick) {
-
-        if (trick == null) {
-            showMessage("No trick available.");
-            return;
-        }
-
-        initialiseWindow();
-
-        /*
-         * GameWindow works with the actual Trick
-         * object because it needs to know which
-         * Seat played each card.
-         */
-        if (controller != null && controller.getGameplay() != null) {
-
-            Trick currentTrick = controller.getGameplay().getCurrentTrick();
-            window.updateTrick(currentTrick);
-        } else {
-            window.clearTrickPanel();
-        }
-    }
-
-    /**
      * Displays a message to the user.
      *
      * @param message message to display
@@ -331,15 +184,6 @@ public class GameView {
         }
         initialiseWindow();
         JOptionPane.showMessageDialog(window.getMainFrame(), message, "BridgeTut", JOptionPane.INFORMATION_MESSAGE);
-    }
-
-    /**
-     * Gets the user's choice from the main menu.
-     *
-     * @return selected menu option
-     */
-    public int getMenuChoice() {
-        return lastMenuChoice;
     }
 
     /**
@@ -387,17 +231,6 @@ public class GameView {
     }
 
     /**
-     * Updates the currently highlighted player.
-     * 
-     * @param seat current player
-     */
-    public void updateCurrentPlayer(Seat seat) {
-        if (window != null) {
-            window.updateCurrentPlayer(seat);
-        }
-    }
-
-    /**
      * Returns the current GameWindow.
      * 
      * @return the game window
@@ -438,40 +271,6 @@ public class GameView {
          */
         timer.setRepeats(false);
         timer.start();
-    }
-
-    /**
-     * Returns the declarer's partener , who is the dummy.
-     * 
-     * @param gameplay the current gameplay
-     * @return the dummy's seat
-     */
-    private Seat getDummy(Gameplay gameplay) {
-        if (gameplay == null || gameplay.getContract().getDeclarer() == null) {
-            return null;
-        }
-        Seat declarer = gameplay.getContract().getDeclarer();
-        return declarer.next().next(); // The dummy is the partner of the declarer.
-    }
-
-    /**
-     * Checks whether the dummy's cards should be visible.
-     * Dummy becomes visible after the opening lead is made.
-     * and remains visible for the rest of the play phase.
-     * 
-     * @param gameplay the current gameplay
-     * @return true if the dummy's cards should be visible, otherwise false
-     */
-    private boolean isDummyVisible(Gameplay gameplay) {
-        if (gameplay == null || gameplay.getContract() == null) {
-            return false;
-        }
-        if (gameplay.getTrickNo() > 1) {
-            return true; // Dummy is visible after the first trick.
-        }
-        Trick currentTrick = gameplay.getCurrentTrick();
-
-        return currentTrick != null && currentTrick.getPlays().size() > 0; // Dummy is visible after the opening lead.
     }
 
     /**
@@ -524,4 +323,32 @@ public class GameView {
         view.initialiseWindow();
         view.getWindow().showHomePage();
     }
+
+    /**
+     * Shows the current bidder's hand and hides the other hands.
+     *
+     * @param deal          current deal
+     * @param currentBidder player whose turn it is to bid
+     */
+    private void updateBiddingHands(Deal deal, Seat currentBidder) {
+        if (deal == null || currentBidder == null) {
+            return;
+        }
+
+        for (Position position : Position.values()) {
+            Seat seat = new Seat(position);
+            Hand hand = deal.getHand(seat);
+
+            if (hand == null) {
+                continue;
+            }
+
+            if (seat.equals(currentBidder)) {
+                window.updateHand(position, hand);
+            } else {
+                window.updateHiddenHand(position, hand.getCards().size());
+            }
+        }
+    }
+
 }
