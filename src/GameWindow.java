@@ -36,6 +36,7 @@ public class GameWindow {
         private JPanel tablePanel;
         private JPanel trickPanel;
         private JPanel headerPanel;
+        private ContractMarkerPanel contractMarkerPanel;
 
         /*
          * Separate panel responsible for the auction UI.
@@ -77,6 +78,9 @@ public class GameWindow {
         private JLabel dealerLabel;
         private JLabel declarerLabel;
         private JButton quitGameButton;
+        private JPanel actionPanel;
+        private JButton swapCardsButton;
+        private JButton claimButton;
 
         /*
          * Colours.
@@ -150,8 +154,6 @@ public class GameWindow {
 
                 headerPanel.add(dealerLabel);
                 headerPanel.add(declarerLabel);
-                headerPanel.add(quitGameButton);
-
                 mainFrame.add(headerPanel, BorderLayout.NORTH);
 
                 /*
@@ -171,23 +173,24 @@ public class GameWindow {
                                                                                     // edges of the oval.
 
                                 int marginX = 250;
-                                int marginY = 145;
+                                int topMargin = 145;
+                                int bottomMargin = 190;
 
                                 int tableWidth = getWidth() - (2 * marginX);
 
-                                int tableHeight = getHeight() - (2 * marginY);
+                                int tableHeight = getHeight() - topMargin - bottomMargin;
 
                                 /*
                                  * Draw green table.
                                  */
                                 g2d.setColor(FELT_GREEN);
-                                g2d.fillOval(marginX, marginY, tableWidth, tableHeight); // interior
+                                g2d.fillOval(marginX, topMargin, tableWidth, tableHeight); // interior
 
                                 /*
                                  * Draw gold outline.
                                  */
                                 g2d.setColor(GOLD_ACCENT);
-                                g2d.drawOval(marginX, marginY, tableWidth, tableHeight);
+                                g2d.drawOval(marginX, topMargin, tableWidth, tableHeight);
                         }
                 };
 
@@ -243,7 +246,7 @@ public class GameWindow {
                  */
 
                 southPanel = new JPanel(new BorderLayout());
-                southPanel.setPreferredSize(new Dimension(0, 110));
+                southPanel.setPreferredSize(new Dimension(0, 150));
                 southPanel.setOpaque(false);
 
                 southLabel = new JLabel("SOUTH", SwingConstants.CENTER);
@@ -251,10 +254,20 @@ public class GameWindow {
                 southLabel.setFont(PLAYER_FONT);
 
                 southHandPanel = new PlayerHandPanel(Position.SOUTH, false);
+                actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
+                actionPanel.setOpaque(false);
+                swapCardsButton = createActionButton("Swap cards");
+                claimButton = createActionButton("Claim");
+                swapCardsButton.setEnabled(false);
+                claimButton.setEnabled(false);
+                actionPanel.add(quitGameButton);
+                actionPanel.add(swapCardsButton);
+                actionPanel.add(claimButton);
                 southHandPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 2, 5));
 
                 southPanel.add(southLabel, BorderLayout.NORTH);
                 southPanel.add(southHandPanel, BorderLayout.CENTER);
+                southPanel.add(actionPanel, BorderLayout.SOUTH);
 
                 /*
                  * =====================================================
@@ -298,9 +311,16 @@ public class GameWindow {
                  * =====================================================
                  */
 
-                trickPanel = new JPanel(new GridBagLayout());
-                trickPanel.setOpaque(false);
+                GridBagLayout trickLayout = new GridBagLayout();
+                /*
+                * Reserve permanent space for the three columns and three rows used by the trick dispaly
+                 */
+                trickLayout.columnWidths = new int[]{140,140,140};
+                trickLayout.rowHeights = new int[]{95,95,95};
 
+                trickPanel = new JPanel(trickLayout);
+                trickPanel.setOpaque(false);
+                this.contractMarkerPanel = new ContractMarkerPanel();
                 /*
                  * GameWindow creates one AuctionPanel and reuses it
                  * whenever bidding information changes.
@@ -509,11 +529,19 @@ public class GameWindow {
                  */
                 trickPanel.removeAll();
 
-                if (trick == null) {
+                /*
+                 *Place the contarct marker in centre of the 4 cards.
+                 * 
+                 */
+                GridBagConstraints contractConstraints = new GridBagConstraints();
+                contractConstraints.gridx = 1;
+                contractConstraints.gridy = 1;
+                contractConstraints.insets = new Insets(10, 15, 10, 15);
+                trickPanel.add(contractMarkerPanel, contractConstraints);
 
+                if (trick == null) {
                         trickPanel.revalidate();
                         trickPanel.repaint();
-
                         return;
                 }
 
@@ -607,11 +635,17 @@ public class GameWindow {
                 /*
                  * Put AuctionPanel into the centre.
                  */
-                trickPanel.add(auctionPanel);
-
+                GridBagConstraints auctionConstraints = new GridBagConstraints();
                 /*
-                 * Recalculate and redraw the centre.
-                 */
+                * Let the auction occupy the 3x3 trick display grid
+                */
+                auctionConstraints.gridx = 0;
+                auctionConstraints.gridy = 0;
+                auctionConstraints.gridwidth = 3;
+                auctionConstraints.gridheight = 3;
+                auctionConstraints.anchor = GridBagConstraints.CENTER;
+                
+                trickPanel.add(auctionPanel, auctionConstraints);
                 trickPanel.revalidate();
                 trickPanel.repaint();
         }
@@ -645,5 +679,26 @@ public class GameWindow {
          */
         public JFrame getMainFrame() {
                 return mainFrame;
+        }
+
+        /**
+         * Updates the contract displayed in the centre of the table.
+         * 
+         * @param
+         */
+        public void updateContract(Contract contract) {
+                contractMarkerPanel.updateContract(contract);
+        }
+
+        private JButton createActionButton(String text){
+                JButton button = new JButton(text);
+
+                button.setFont(new Font("Arial", Font.BOLD, 13));
+                button.setBackground(FELT_GREEN);
+                button.setFocusPainted(false);
+
+                button.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(GOLD_ACCENT),BorderFactory.createEmptyBorder(5, 12, 5,12)));
+
+                return  button;
         }
 }

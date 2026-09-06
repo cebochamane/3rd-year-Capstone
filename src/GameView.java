@@ -1,5 +1,4 @@
 
-import java.util.List;
 import javax.swing.JOptionPane;
 import javax.swing.Timer;
 
@@ -79,11 +78,7 @@ public class GameView {
 
         initialiseWindow();
 
-        /*
-         * Show the declarer in the main game window.
-         * No contract popup is displayed.
-         */
-        window.updateDeclarer(contract.getDeclarer());
+        window.updateContract(contract);
     }
 
     /**
