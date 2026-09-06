@@ -50,10 +50,10 @@ public class GameWindow {
         /*
          * Panels containing each player's cards.
          */
-        private JPanel northHandPanel;
-        private JPanel eastHandPanel;
-        private JPanel southHandPanel;
-        private JPanel westHandPanel;
+        private PlayerHandPanel northHandPanel;
+        private PlayerHandPanel eastHandPanel;
+        private PlayerHandPanel southHandPanel;
+        private PlayerHandPanel westHandPanel;
 
         /*
          * Panels containing player names and hands.
@@ -86,7 +86,6 @@ public class GameWindow {
         private static final Color GOLD_ACCENT = new Color(201, 162, 39);
         private static final Color CARD_BACKGROUND = new Color(250, 248, 240);
         private static final Color RED_SUIT = new Color(190, 30, 45);
-        private static final Color CARD_BACK = new Color(35, 55, 100);
         /*
          * Fonts.
          */
@@ -209,9 +208,7 @@ public class GameWindow {
                 northLabel.setForeground(Color.WHITE);
                 northLabel.setFont(PLAYER_FONT);
 
-                northHandPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 2, 5));
-                northHandPanel.setOpaque(false);
-
+                northHandPanel = new PlayerHandPanel(Position.NORTH, false);
                 northPanel.add(northLabel, BorderLayout.NORTH);
                 northPanel.add(northHandPanel, BorderLayout.CENTER);
 
@@ -221,10 +218,8 @@ public class GameWindow {
                  * =====================================================
                  */
 
-                eastPanel = new JPanel(new BorderLayout());
+                eastPanel = new PlayerHandPanel(Position.EAST, true);
                 eastPanel.setPreferredSize(new Dimension(105, 0));
-                eastPanel.setOpaque(false);
-
                 /*
                  * Give the cards a little space from the
                  * right edge of the window.
@@ -236,9 +231,8 @@ public class GameWindow {
                 eastLabel.setForeground(Color.WHITE);
                 eastLabel.setFont(PLAYER_FONT);
 
-                eastHandPanel = new JPanel();
+                eastHandPanel = new PlayerHandPanel(Position.EAST, true);
                 eastHandPanel.setLayout(new BoxLayout(eastHandPanel, BoxLayout.Y_AXIS));
-                eastHandPanel.setOpaque(false);
 
                 eastPanel.add(eastLabel, BorderLayout.NORTH);
                 eastPanel.add(eastHandPanel, BorderLayout.CENTER);
@@ -257,10 +251,8 @@ public class GameWindow {
                 southLabel.setForeground(Color.WHITE);
                 southLabel.setFont(PLAYER_FONT);
 
-                southHandPanel = new JPanel(
-                                new FlowLayout(FlowLayout.CENTER, 2, 5));
-
-                southHandPanel.setOpaque(false);
+                southHandPanel = new PlayerHandPanel(Position.SOUTH, false);
+                southHandPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 2, 5));
 
                 southPanel.add(southLabel, BorderLayout.NORTH);
                 southPanel.add(southHandPanel, BorderLayout.CENTER);
@@ -285,10 +277,7 @@ public class GameWindow {
                 westLabel.setForeground(Color.WHITE);
                 westLabel.setFont(PLAYER_FONT);
 
-                westHandPanel = new JPanel();
-                westHandPanel.setLayout(new BoxLayout(westHandPanel, BoxLayout.Y_AXIS));
-
-                westHandPanel.setOpaque(false);
+                westHandPanel = new PlayerHandPanel(Position.WEST, true);
 
                 westPanel.add(westLabel, BorderLayout.NORTH);
                 westPanel.add(westHandPanel, BorderLayout.CENTER);
@@ -340,6 +329,11 @@ public class GameWindow {
          */
         public void setView(GameView view) {
                 this.view = view;
+                northHandPanel.setView(view);
+                eastHandPanel.setView(view);
+                southHandPanel.setView(view);
+                westHandPanel.setView(view);
+
                 /*
                  * AuctionPanel also needs GameView because
                  * it sends bid clicks to GameView.
@@ -397,10 +391,10 @@ public class GameWindow {
          */
         public void updateHand(Position position, Hand hand) {
 
-                if (hand == null) {
+                if (hand == null || position == null) {
                         return;
                 }
-                JPanel handPanel;
+                PlayerHandPanel handPanel;
 
                 /*
                  * Select the correct hand panel.
@@ -414,21 +408,7 @@ public class GameWindow {
                 } else {
                         handPanel = westHandPanel;
                 }
-                /*
-                 * Remove the cards previously displayed.
-                 */
-                handPanel.removeAll();
-
-                /*
-                 * Add every remaining card.
-                 */
-                for (Card card : hand.getCards()) {
-                        JButton cardButton = createCardButton(position, card);
-                        handPanel.add(cardButton);
-                }
-
-                handPanel.revalidate();
-                handPanel.repaint();
+                handPanel.showCards(hand);
         }
 
         /**
@@ -442,7 +422,7 @@ public class GameWindow {
                 if (position == null || numberOfCards < 0) {
                         return;
                 }
-                JPanel handPanel;
+                PlayerHandPanel handPanel;
                 if (position == Position.NORTH) {
                         handPanel = northHandPanel;
                 } else if (position == Position.EAST) {
@@ -452,160 +432,7 @@ public class GameWindow {
                 } else {
                         handPanel = westHandPanel;
                 }
-                handPanel.removeAll();
-                /*
-                 * Add face-down cards.
-                 */
-                for (int i = 0; i < numberOfCards; i++) {
-                        handPanel.add(createCardBackButton());
-                }
-                handPanel.revalidate();
-                handPanel.repaint();
-        }
-
-        /**
-         * Creates one clickable card button.
-         *
-         * @param position position owning the card
-         * @param card     card represented by the button
-         * @return card button
-         */
-        private JButton createCardButton(Position position, Card card) {
-
-                String cardText = getRankText(card.getRank()) + getSuitSymbol(card.getSuit());
-                JButton button = new JButton(cardText);
-
-                button.setFont(CARD_FONT);
-                button.setForeground(getSuitColor(card.getSuit()));
-                button.setBackground(CARD_BACKGROUND);
-                button.setOpaque(true);
-                button.setContentAreaFilled(true);
-
-                // ensure that the cards maintain the same size throught(chat's advise)
-                button.setPreferredSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
-                button.setMinimumSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
-                button.setMaximumSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
-                button.setFocusPainted(false);
-
-                // draw the edges and add spacing around the text.
-                button.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(GOLD_ACCENT, 1),
-                                BorderFactory.createEmptyBorder(3, 5, 3, 5)));
-
-                /*
-                 * Listen for a click on this card.
-                 */
-                button.addActionListener(new ActionListener() {
-                        @Override
-                        public void actionPerformed(ActionEvent e) {
-                                if (view != null) {
-                                        view.cardClicked(new Seat(position), card);
-                                }
-                        }
-                });
-                return button;
-        }
-
-        /**
-         * Creates one disabled face-down card button.
-         * 
-         * @return a card-back button
-         */
-        private JButton createCardBackButton() {
-                JButton button = new JButton("◆");
-                button.setFont(CARD_FONT);
-                button.setForeground(GOLD_ACCENT);
-                button.setEnabled(false);
-                button.setBackground(CARD_BACK);
-                button.setOpaque(true);
-                button.setContentAreaFilled(true);
-
-                button.setPreferredSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
-                button.setMinimumSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
-                button.setMaximumSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
-                button.setFocusPainted(false);
-
-                // draw the edges and add spacing around the text.
-                button.setBorder(BorderFactory.createCompoundBorder(BorderFactory.createLineBorder(GOLD_ACCENT, 1),
-                                BorderFactory.createEmptyBorder(3, 5, 3, 5)));
-
-                return button;
-        }
-
-        /**
-         * Converts a Rank enum into the short text
-         * displayed on a playing card.
-         *
-         * @param rank card rank
-         * @return short rank text
-         */
-        private String getRankText(Rank rank) {
-                switch (rank) {
-                        case TWO:
-                                return "2";
-                        case THREE:
-                                return "3";
-                        case FOUR:
-                                return "4";
-                        case FIVE:
-                                return "5";
-                        case SIX:
-                                return "6";
-                        case SEVEN:
-                                return "7";
-                        case EIGHT:
-                                return "8";
-                        case NINE:
-                                return "9";
-                        case TEN:
-                                return "10";
-                        case JACK:
-                                return "J";
-                        case QUEEN:
-                                return "Q";
-                        case KING:
-                                return "K";
-                        case ACE:
-                                return "A";
-                        default:
-                                return "";
-                }
-        }
-
-        /**
-         * GenAi was used to write the symbol then copied and pasted from there.
-         * Converts a Suit enum into a playing-card symbol.
-         *
-         * @param suit card suit
-         * @return suit symbol
-         */
-        private String getSuitSymbol(Suit suit) {
-                switch (suit) {
-                        case CLUBS:
-                                return "♣";
-                        case DIAMONDS:
-                                return "♦";
-                        case HEARTS:
-                                return "♥";
-                        case SPADES:
-                                return "♠";
-                        default:
-                                return "";
-                }
-        }
-
-        /**
-         * Returns the colour used for a card suit.
-         * Hearts and diamonds are red.
-         * Spades and clubs are black.
-         *
-         * @param suit card suit
-         * @return suit colour
-         */
-        private Color getSuitColor(Suit suit) {
-                if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) {
-                        return RED_SUIT;
-                }
-                return Color.BLACK;
+                handPanel.showHiddenCards(numberOfCards);
         }
 
         /**
@@ -668,26 +495,10 @@ public class GameWindow {
                  * Only cards belonging to the current
                  * player should be clickable.
                  */
-                setHandEnabled(northHandPanel, seat.getPosition() == Position.NORTH);
-                setHandEnabled(eastHandPanel, seat.getPosition() == Position.EAST);
-                setHandEnabled(southHandPanel, seat.getPosition() == Position.SOUTH);
-                setHandEnabled(westHandPanel, seat.getPosition() == Position.WEST);
-        }
-
-        /**
-         * Enables or disables every card button
-         * inside one player's hand.
-         *
-         * @param handPanel panel containing cards
-         * @param enabled   whether cards can be clicked
-         */
-        private void setHandEnabled(JPanel handPanel, boolean enabled) {
-
-                for (java.awt.Component component : handPanel.getComponents()) {
-                        if (component instanceof JButton) {
-                                component.setEnabled(enabled); // setEnabled(boolean) is given by java.
-                        }
-                }
+                northHandPanel.setCardsEnabled(seat.getPosition() == Position.NORTH);
+                eastHandPanel.setCardsEnabled(seat.getPosition() == Position.EAST);
+                southHandPanel.setCardsEnabled(seat.getPosition() == Position.SOUTH);
+                westHandPanel.setCardsEnabled(seat.getPosition() == Position.WEST);
         }
 
         /**
@@ -725,11 +536,12 @@ public class GameWindow {
                         Seat seat = entry.getKey();
                         Card card = entry.getValue();
 
-                        String cardText = getRankText(card.getRank()) + getSuitSymbol(card.getSuit());
+                        String cardText = PlayerHandPanel.getRankText(card.getRank())
+                                        + PlayerHandPanel.getSuitSymbol(card.getSuit());
                         JLabel cardLabel = new JLabel(cardText, SwingConstants.CENTER);
 
                         cardLabel.setFont(CARD_FONT);
-                        cardLabel.setForeground(getSuitColor(card.getSuit()));
+                        cardLabel.setForeground(PlayerHandPanel.getSuitColor(card.getSuit()));
                         cardLabel.setBackground(CARD_BACKGROUND);
                         cardLabel.setOpaque(true);
                         cardLabel.setPreferredSize(new Dimension(CARD_WIDTH, CARD_HEIGHT));
