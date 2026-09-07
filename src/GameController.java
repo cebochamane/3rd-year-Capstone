@@ -59,12 +59,9 @@ public class GameController {
          * project.
          */
         if (storage == null) {
-
             if (view != null) {
-                view.showMessage(
-                        "Storage has not been connected yet.");
+                view.showMessage("Storage has not been connected yet.");
             }
-
             return;
         }
 
@@ -85,10 +82,8 @@ public class GameController {
         if (storage == null) {
 
             if (view != null) {
-                view.showMessage(
-                        "Storage has not been connected yet.");
+                view.showMessage("Storage has not been connected yet.");
             }
-
             return;
         }
 
@@ -104,18 +99,14 @@ public class GameController {
      * @param dealer        the dealer
      * @param vulnerability the vulnerability
      */
-    public void startRandomDeal(
-            Seat dealer,
-            Vulnerability vulnerability) {
+    public void startRandomDeal(Seat dealer, Vulnerability vulnerability) {
 
         if (dealer == null) {
-            throw new IllegalArgumentException(
-                    "Dealer cannot be null.");
+            throw new IllegalArgumentException("Dealer cannot be null.");
         }
 
         if (vulnerability == null) {
-            throw new IllegalArgumentException(
-                    "Vulnerability cannot be null.");
+            throw new IllegalArgumentException("Vulnerability cannot be null.");
         }
 
         Deal deal = new Deal(dealer, vulnerability);
@@ -132,10 +123,8 @@ public class GameController {
     public void startLoadedDeal(Deal deal) {
 
         if (!isCompleteDeal(deal)) {
-            throw new IllegalArgumentException(
-                    "A loaded deal must contain four hands of 13 cards.");
+            throw new IllegalArgumentException("A loaded deal must contain four hands of 13 cards.");
         }
-
         this.currentDeal = deal;
 
         /*
@@ -154,9 +143,7 @@ public class GameController {
     public void startAuction() {
 
         if (currentDeal == null) {
-
-            throw new IllegalStateException(
-                    "Cannot start auction without a deal.");
+            throw new IllegalStateException("Cannot start auction without a deal.");
         }
 
         /*
@@ -230,7 +217,6 @@ public class GameController {
              * Create the contract if there was a final bid.
              */
             if (!auction.isPassedOut()) {
-
                 this.contract = auction.createContract();
                 if (view != null) {
                     view.showAuction(auction);
@@ -348,9 +334,8 @@ public class GameController {
         if (gameplay.isFinished()) {
             phase = GamePhase.FINISHED;
             if (view != null) {
-                view.showMessage("Game complete!\n" + "Declarer tricks: "
-                        + gameplay.getDeclarerTricks() + "\nDefender tricks: "
-                        + gameplay.getDefenderTricks());
+                view.showMessage("Game complete!\n" + "Declarer tricks: " + gameplay.getDeclarerTricks()
+                        + "\nDefender tricks: " + gameplay.getDefenderTricks());
             }
         }
 
@@ -469,5 +454,34 @@ public class GameController {
      */
     public void setStorage(Storage storage) {
         this.storage = storage;
+    }
+
+    /**
+     * Checks whether cards may currently be swapped.
+     * Cards may be swapped repeatedly, but only before the first bid has been made.
+     * 
+     * @return true if swapping is currently allowed.
+     */
+    public boolean canSwapCards() {
+        boolean check = phase == GamePhase.BIDDING && currentDeal != null && auction != null
+                && auction.getBids().isEmpty();
+        return check;
+
+    }
+
+    /**
+     * Swaps two cards belonging to two different players.
+     * 
+     * @param firstSeat  owner of the first card.
+     * @param firstCard  first selected card
+     * @param secondSeat owner of the second card.
+     * @param secondCard second selected card
+     */
+    public boolean swapCards(Seat firstSeat, Card firstCard, Seat secondSeat, Card secondCard) {
+        if (!canSwapCards()) {
+            return false;
+        }
+        boolean check = currentDeal.swapCards(firstSeat, firstCard, secondSeat, secondCard);
+        return check;
     }
 }

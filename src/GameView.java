@@ -11,6 +11,9 @@ public class GameView {
 
     private GameController controller;
     private GameWindow window;
+    private boolean swapMode;
+    private Seat firstSwapSeat;
+    private Card firstSwapCard;
 
     /**
      * Connects this view to the game controller.
@@ -63,6 +66,7 @@ public class GameView {
 
         updateBiddingHands(deal, currentBidder);
         window.updateAuction(auction, deal.getDealer(), currentBidder);
+        window.setSwapCardsEnabled(controller.canSwapCards());
     }
 
     /**
@@ -161,10 +165,13 @@ public class GameView {
             return;
         }
         /*
-         * Send the card to the controller.
-         * The controller decides whether the card can actually be played.
-         * If the card is not legal, nothing is played and no popup is shown.
+         * During swapping mode, clicking a card selects it for swapping instead of
+         * attempting to attempting to play.
          */
+        if (swapMode) {
+            handleSwapCardSelection(seat, card);
+            return;
+        }
         controller.playCard(seat, card);
     }
 
@@ -308,6 +315,34 @@ public class GameView {
     }
 
     /**
+     * Start card-swapping mode.
+     * All four hands are temporarily shown so that the user can select two cards.
+     */
+    public void swapCardsClicked() {
+        if (controller == null || !controller.canSwapCards()) {
+            showMessage("Cards can only be swapped before the first bid.");
+            return;
+        }
+        initialiseWindow();
+        swapMode = true;
+        firstSwapCard = null;
+        firstSwapSeat = null;
+
+        Deal deal = controller.getCurrentDeal();
+
+        /*
+         * Temporarily reveal all four hands
+         */
+        for (Position position : Position.values()) {
+            Seat seat = new Seat(position);
+            Hand hand = deal.getHand(seat);
+            window.updateHand(position, hand);
+        }
+        window.setAllHandsEnabled(true);
+        showMessage("Select a card from the first player.");
+    }
+
+    /**
      * Main method used to start the GUI.
      */
     public static void main(String[] args) {
@@ -346,4 +381,53 @@ public class GameView {
         }
     }
 
+    /**
+     * Handles a card clicked while card-swappind mode is active.
+     * 
+     * @param seat owner of the selected card
+     * @param card selected card
+     */
+    private void handleSwapCardSelection(Seat seat, Card card) {
+        /*
+         * The first click records the first card.
+         */
+        if (firstSwapCard == null) {
+            firstSwapSeat = seat;
+            firstSwapCard = card;
+
+            showMessage("First card selected:" + card + " from" + seat + ".\nSelect a card from a different player.");
+            return;
+        }
+
+        int choice = JOptionPane.showConfirmDialog(window.getMainFrame(),
+                "Swap " + firstSwapCard + " from " + firstSwapSeat + "\nwith " + card + " from " +
+                        seat + "?",
+                "Confirm Card Swap", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (choice == JOptionPane.YES_OPTION) {
+            boolean swapped = controller.swapCards(firstSwapSeat, firstSwapCard, seat, card);
+
+            swapMode = false;
+            firstSwapSeat = null;
+            firstSwapCard = null;
+            showAuction(controller.getAuction());
+
+            /*
+             * Restore normal bidding visibility.
+             */
+            showAuction(controller.getAuction());
+            if (swapped) {
+                showMessage("The cards were swapped successfully.");
+            } else {
+                showMessage("The cards could not be swapped.");
+            }
+        } else {
+            /*
+             * Cancel this swap and return to normal bidding.
+             */
+            swapMode = false;
+            firstSwapCard = null;
+            firstSwapCard = null;
+            showAuction(controller.getAuction());
+        }
+    }
 }

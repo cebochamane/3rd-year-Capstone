@@ -29,6 +29,7 @@ public class PlayerHandPanel extends JPanel {
 
     public PlayerHandPanel(Position position, boolean vertical) {
         this.position = position;
+        this.vertical = vertical;
         this.setOpaque(false);
         if (vertical) {
             this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));

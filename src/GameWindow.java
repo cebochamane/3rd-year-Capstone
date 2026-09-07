@@ -258,6 +258,16 @@ public class GameWindow {
         swapCardsButton = createActionButton("Swap cards");
         claimButton = createActionButton("Claim");
         swapCardsButton.setEnabled(false);
+
+        swapCardsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (view != null) {
+                    view.swapCardsClicked();
+                }
+            }
+        });
+
         claimButton.setEnabled(false);
         actionPanel.add(quitGameButton);
         actionPanel.add(swapCardsButton);
@@ -698,5 +708,25 @@ public class GameWindow {
                 BorderFactory.createEmptyBorder(5, 12, 5, 12)));
 
         return button;
+    }
+
+    /**
+     * Enables or disables the swap cards button.
+     * 
+     * @param enabled true when swapping is allowed.
+     */
+    public void setSwapCardsEnabled(boolean enabled) {
+        swapCardsButton.setEnabled(enabled);
+    }
+
+    /**
+     * Enables or disables the cards belonging to all four players.
+     * 
+     * @param enabled whether every face-up card can be clicked
+     */
+    public void setAllHandsEnabled(boolean enabled) {
+        northHandPanel.setCardsEnabled(enabled);
+        eastHandPanel.setCardsEnabled(enabled);
+        southHandPanel.setCardsEnabled(enabled);
     }
 }
