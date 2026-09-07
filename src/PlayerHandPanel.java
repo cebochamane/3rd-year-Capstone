@@ -8,10 +8,14 @@ import java.awt.Font;
 import javax.swing.BorderFactory;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import javax.swing.Box;
+import java.util.ArrayList;
+import java.util.EnumMap;
 
 public class PlayerHandPanel extends JPanel {
     private Position position;
     private GameView view;
+    private boolean vertical;
 
     private static final Color GOLD_ACCENT = new Color(201, 162, 39);
     private static final Color CARD_BACK = new Color(35, 55, 100);
@@ -217,7 +221,7 @@ public class PlayerHandPanel extends JPanel {
 
         this.removeAll();
 
-        for (Card card : hand.getCards()) {
+        for (Card card : this.getAlternatingCards(hand)) {
             this.add(createCardButton(card));
         }
 
@@ -225,4 +229,64 @@ public class PlayerHandPanel extends JPanel {
         this.repaint();
     }
 
+    /**
+     * Rearrange cards so that suit alternate.
+     * 
+     * The order is: Spades, Heart, Clubs, Diamonds.
+     * 
+     * @param hand hand containing the cards
+     * @return cards in alternating-suit order
+     */
+    private ArrayList<Card> getAlternatingCards(Hand hand) {
+        ArrayList<Card> alternatingCards = new ArrayList<>();
+
+        EnumMap<Suit, ArrayList<Card>> cardsBySuit = new EnumMap<>(Suit.class);
+        /*
+         * Alternating black and red suits.
+         */
+        Suit[] suitOrder = { Suit.SPADES, Suit.HEARTS, Suit.CLUBS, Suit.DIAMONDS };
+
+        /*
+         * Create an empty list for every play-card suit.
+         */
+        for (Suit suit : suitOrder) {
+            cardsBySuit.put(suit, new ArrayList<>());
+        }
+        /*
+         * Place each card into its list.
+         * The existing rank order insede each suit is preserved.
+         */
+        for (Card card : hand.getCards()) {
+            ArrayList<Card> suitCards = cardsBySuit.get(card.getSuit());
+            if (suitCards != null) {
+                suitCards.add(card);
+            }
+        }
+        /*
+         * Find the largest number of cards held in any one suit
+         */
+        int longestSuit = 0;
+        for (Suit suit : suitOrder) {
+            int suitSize = cardsBySuit.get(suit).size();
+
+            if (suitSize > longestSuit) {
+                longestSuit = suitSize;
+            }
+        }
+        /*
+         * Take card 0 from every suit, then card 1 from every suit, and continue until
+         * the
+         * longest suit has been exhausted.
+         */
+        for (int cardIndex = 0; cardIndex < longestSuit; cardIndex++) {
+            for (Suit suit : suitOrder) {
+                ArrayList<Card> suitCards = cardsBySuit.get(suit);
+
+                if (cardIndex < suitCards.size()) {
+                    alternatingCards.add(suitCards.get((cardIndex)));
+                }
+            }
+        }
+        return alternatingCards;
+    }
 }
