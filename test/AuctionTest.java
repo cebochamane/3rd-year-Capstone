@@ -166,15 +166,17 @@ public class AuctionTest {
         assertFalse(auction.isValidBid(null));
     }
 
-    @Test // inValidBid()
+    @Test // ValidBid()
     void passOnEmpty() {
         Auction auction = new Auction();
         Bid pass = Bid.BidPass(new Seat(Position.WEST));
-        assertFalse(auction.isValidBid(pass));
-        assertEquals(0, auction.getBids().size());
+        assertTrue(auction.isValidBid(pass));
+        assertTrue(auction.addBid(pass));
+        assertEquals(1, auction.getBids().size());
+        assertFalse(auction.isComplete());
     }
 
-    @Test // isValidBid()
+    @Test
     void invalidPass() {
         Auction auction = new Auction();
 
@@ -183,7 +185,9 @@ public class AuctionTest {
         auction.addBid(Bid.BidPass(new Seat(Position.EAST)));
 
         Bid pass = Bid.BidPass(new Seat(Position.WEST));
-        assertFalse(auction.isValidBid(pass));
+        assertTrue(auction.addBid(pass));
+        assertTrue(auction.isComplete());
+        assertTrue(auction.isPassedOut());
 
     }
 

@@ -212,6 +212,7 @@ public class GameController {
          */
         if (auction.isComplete()) {
             phase = GamePhase.AUCTION_COMPLETE;
+            currentBidder = null;
 
             /*
              * Create the contract if there was a final bid.
@@ -229,6 +230,7 @@ public class GameController {
                 startPlay(contract);
 
             } else {
+                phase = GamePhase.PASSED_OUT;
                 if (view != null) {
                     view.showAuction(auction);
                     view.showMessage("The auction has ended without a contract.");
