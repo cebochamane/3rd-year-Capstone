@@ -10,6 +10,8 @@ import javax.swing.Box;
 import java.awt.Dimension;
 import javax.swing.BorderFactory;
 import java.awt.event.ActionListener;
+import javax.swing.JComboBox;
+import java.util.ArrayList;
 
 public class HomePanel extends JPanel {
     private static final Color BACKGROUND_GREEN = new Color(20, 58, 48);
@@ -20,6 +22,8 @@ public class HomePanel extends JPanel {
     private JButton newGameButton;
     private JButton loadGameButton;
     private JButton exitButton;
+    private JComboBox<User> userComboBox;
+    private JButton createUserButton;
 
     public HomePanel() {
         this.setLayout(new GridBagLayout());
@@ -39,6 +43,22 @@ public class HomePanel extends JPanel {
          */
 
         menuPanel.add(Box.createVerticalStrut(30));
+        JLabel profileLabel = new JLabel("Player Profile", SwingConstants.CENTER);
+        profileLabel.setForeground(Color.WHITE);
+        profileLabel.setFont(BUTTON_FONT);
+        profileLabel.setAlignmentX(CENTER_ALIGNMENT);
+
+        userComboBox = new JComboBox<>();
+        userComboBox.setFont(BUTTON_FONT);
+        userComboBox.setMaximumSize(new Dimension(220, 40));
+        userComboBox.setAlignmentX(CENTER_ALIGNMENT);
+
+        createUserButton = createMenuButton("Create Profile");
+        menuPanel.add(profileLabel);
+        menuPanel.add(Box.createVerticalStrut(8));
+        menuPanel.add(userComboBox);
+        menuPanel.add(Box.createVerticalStrut(8));
+        menuPanel.add(createUserButton);
         newGameButton = createMenuButton("New Game");
         loadGameButton = createMenuButton("Load Game");
         exitButton = createMenuButton("Exit");
@@ -53,7 +73,74 @@ public class HomePanel extends JPanel {
         menuPanel.add(loadGameButton);
         menuPanel.add(Box.createVerticalStrut(12));
         menuPanel.add(exitButton);
+        menuPanel.add(Box.createVerticalStrut(25));
         this.add(menuPanel);
+    }
+
+    /**
+     * Displays all available user profiles.
+     *
+     * @param users stored user profiles
+     */
+    public void setUsers(ArrayList<User> users) {
+        userComboBox.removeAllItems();
+
+        if (users != null) {
+            for (User user : users) {
+                userComboBox.addItem(user);
+            }
+        }
+        boolean hasUser = userComboBox.getItemCount() > 0;
+
+        newGameButton.setEnabled(hasUser);
+        loadGameButton.setEnabled(hasUser);
+    }
+
+    /**
+     * Selects a particular user in the profile combo box.
+     *
+     * @param user user that should be selected
+     */
+    public void selectUser(User user) {
+        if (user == null) {
+            return;
+        }
+
+        for (int index = 0; index < userComboBox.getItemCount(); index++) {
+
+            User item = userComboBox.getItemAt(index);
+            if (item.getUserId().equals(user.getUserId())) {
+                userComboBox.setSelectedIndex(index);
+                return;
+            }
+        }
+    }
+
+    /**
+     * Returns the profile selected in the combo box.
+     *
+     * @return selected user, or null if none is selected
+     */
+    public User getSelectedUser() {
+        return (User) userComboBox.getSelectedItem();
+    }
+
+    /**
+     * Sets the action for the Create Profile button.
+     *
+     * @param listener action to perform
+     */
+    public void setCreateUserAction(ActionListener listener) {
+        createUserButton.addActionListener(listener);
+    }
+
+    /**
+     * Sets the action performed when a profile is selected.
+     *
+     * @param listener action to perform
+     */
+    public void setUserSelectionAction(ActionListener listener) {
+        userComboBox.addActionListener(listener);
     }
 
     /**

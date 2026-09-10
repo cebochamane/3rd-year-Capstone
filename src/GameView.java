@@ -1,6 +1,15 @@
 
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import javax.swing.JDialog;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import javax.swing.SwingUtilities;
 
 /**
  * GameView handles communication between the GameController
@@ -118,7 +127,7 @@ public class GameView {
         if (controller == null || controller.getGameplay() == null) {
             return;
         }
-        initialiseWindow();
+        this.initialiseWindow();
         Gameplay gameplay = controller.getGameplay();
 
         Seat currentPlayer = gameplay.getCurrentPlayer();
@@ -180,12 +189,55 @@ public class GameView {
      *
      * @param message message to display
      */
+    // chat gpt helped to center the pop up message.
     public void showMessage(String message) {
         if (message == null) {
             message = "No message to display.";
         }
-        initialiseWindow();
-        JOptionPane.showMessageDialog(window.getMainFrame(), message, "BridgeTut", JOptionPane.INFORMATION_MESSAGE);
+
+        this.initialiseWindow();
+        JOptionPane optionPane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE);
+        JDialog dialog = optionPane.createDialog(window.getMainFrame(), "BridgeTut");
+
+        /*
+         * Ensure the dialog has its final width and height before calculating its
+         * position.
+         */
+        dialog.pack();
+
+        /*
+         * Centre it before displaying it.
+         */
+        int x = window.getMainFrame().getX() + (window.getMainFrame().getWidth() - dialog.getWidth()) / 2;
+
+        int y = window.getMainFrame().getY() + (window.getMainFrame().getHeight() - dialog.getHeight()) / 2;
+
+        dialog.setLocation(x, y);
+
+        /*
+         * WSL's window manager may reposition the dialog while
+         * showing it. Centre it again after it becomes visible.
+         */
+        dialog.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent event) {
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        int centredX = window.getMainFrame().getX()
+                                + (window.getMainFrame().getWidth() - dialog.getWidth()) / 2;
+
+                        int centredY = window.getMainFrame().getY()
+                                + (window.getMainFrame().getHeight() - dialog.getHeight()) / 2;
+
+                        dialog.setLocation(centredX, centredY);
+                    }
+                });
+            }
+        });
+
+        dialog.setVisible(true);
+        dialog.dispose();
     }
 
     /**
@@ -343,18 +395,6 @@ public class GameView {
     }
 
     /**
-     * Main method used to start the GUI.
-     */
-    public static void main(String[] args) {
-        GameView view = new GameView();
-        GameController controller = new GameController();
-        view.setController(controller);
-        controller.setView(view);
-        view.initialiseWindow();
-        view.getWindow().showHomePage();
-    }
-
-    /**
      * Shows the current bidder's hand and hides the other hands.
      *
      * @param deal          current deal
@@ -430,4 +470,209 @@ public class GameView {
             showAuction(controller.getAuction());
         }
     }
+
+    /**
+     * Dispaly a game that has been loaded from storage.
+     */
+    public void showLoadedGame() {
+        if (controller == null || controller.getCurrentDeal() == null) {
+            this.showMessage("There is no loaded game to display.");
+            return;
+        }
+        this.initialiseWindow();
+        window.showGameTable();
+
+        Deal deal = controller.getCurrentDeal();
+        GamePhase phase = controller.getPhase();
+
+        // Update dealer information
+        window.updateInfo(deal.getDealer());
+
+        /*
+         * An unfinished auction must display the auction and the hand of the current
+         * bidder.
+         */
+        if (phase == GamePhase.BIDDING) {
+            this.showAuction(controller.getAuction());
+            return;
+        }
+
+        /*
+         * A game in the playing or finished phase must display the contract, remaining
+         * hands and tricks.
+         */
+
+        if (phase == GamePhase.PLAYING || phase == GamePhase.FINISHED) {
+            this.showContract(controller.getContract());
+            this.updateGameplayDisplay();
+            return;
+        }
+
+        /*
+         * A passed out deal has no contract or gameplay.
+         * Show the original hands because the deal is over.
+         */
+        if (phase == GamePhase.PASSED_OUT) {
+            for (Position position : Position.values()) {
+                Seat seat = new Seat(position);
+                Hand hand = deal.getHand(seat);
+
+                window.updateHand(position, hand);
+            }
+            this.showMessage("This deal was passed out.");
+            return;
+        }
+    }
+
+    /**
+     * Called when the user clicks Load Game.
+     */
+    public void loadGameClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+
+        this.initialiseWindow();
+
+        try {
+            ArrayList<SavedGame> savedGames = controller.getSavedGames();
+
+            if (savedGames.isEmpty()) {
+                showMessage("This profile has no saved games.");
+                return;
+            }
+
+            /*
+             * Display the saved games in a selection dialog.
+             */
+            SavedGame selectedGame = (SavedGame) JOptionPane.showInputDialog(window.getMainFrame(),
+                    "Select a game to load:",
+                    "Load Game", JOptionPane.PLAIN_MESSAGE, null, savedGames.toArray(), savedGames.get(0));
+
+            /*
+             * A null result means the user clicked Cancel or closed the dialog.
+             */
+            if (selectedGame == null) {
+                return;
+            }
+
+            controller.loadGame(selectedGame.getGameId());
+
+        } catch (IllegalStateException exception) {
+            showMessage("Saved games could not be retrieved.\n" + exception.getMessage());
+        }
+    }
+
+    /**
+     * Reloads the available user profiles from storage.
+     */
+    public void refreshUsers() {
+        if (controller == null) {
+            return;
+        }
+
+        this.initialiseWindow();
+        window.updateUsers(controller.getUsers());
+
+        /*
+         * Keep the current user selected after refreshing the combo box.
+         */
+        User currentUser = controller.getCurrentUser();
+
+        if (currentUser != null) {
+            window.selectUser(currentUser);
+        }
+    }
+
+    /**
+     * Called when the Create Profile button is clicked.
+     */
+    public void createUserClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+
+        this.initialiseWindow();
+        String username = JOptionPane.showInputDialog(window.getMainFrame(), "Enter the new profile name:",
+                "Create Profile", JOptionPane.PLAIN_MESSAGE);
+
+        /*
+         * showInputDialog returns null when Cancel is clicked.
+         */
+        if (username == null) {
+            return;
+        }
+
+        try {
+            User createdUser = controller.createUser(username);
+
+            /*
+             * Reload the profile list so that the new user
+             * appears in the combo box.
+             */
+            window.updateUsers(controller.getUsers());
+
+            /*
+             * Automatically select the newly created user.
+             */
+            window.selectUser(createdUser);
+
+            this.showMessage("Profile created for " + createdUser.getUsername() + ".");
+
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            this.showMessage("The profile could not be created.\n" + exception.getMessage());
+        }
+    }
+
+    /**
+     * Called when a profile is selected on the home page.
+     *
+     * @param user selected user
+     */
+    public void userSelected(User user) {
+        if (controller == null || user == null) {
+            return;
+        }
+        controller.setCurrentUser(user);
+    }
+
+    /**
+     * Main method used to start the GUI.
+     */
+    public static void main(String[] args) {
+        GameView view = new GameView();
+        GameController controller = new GameController();
+
+        view.setController(controller);
+        controller.setView(view);
+
+        try {
+            /*
+             * Create a permanent BridgeTut data directory
+             * inside the current operating-system user's home directory.
+             */
+            Path dataDirectory = Path.of(System.getProperty("user.home"), ".bridgetut");
+            Files.createDirectories(dataDirectory);
+            Path databasePath = dataDirectory.resolve("bridgetut.db");
+
+            Storage storage = new Storage(databasePath.toString());
+
+            controller.setStorage(storage);
+
+        } catch (IOException | IllegalStateException exception) {
+            view.showMessage("BridgeTut could not open its database.\n" + exception.getMessage());
+        }
+
+        view.initialiseWindow();
+        view.getWindow().showHomePage();
+
+        /*
+         * Read the existing profiles from SQLite
+         * and display them on the home page.
+         */
+        view.refreshUsers();
+    }
+
 }

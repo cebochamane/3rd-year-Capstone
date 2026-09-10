@@ -20,6 +20,7 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
+import java.util.ArrayList;
 
 /**
  * GameWindow class.
@@ -381,6 +382,46 @@ public class GameWindow {
         });
 
         /*
+         * Load a saved game belonging to the selected profile.
+         */
+        homePanel.setLoadGameAction(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (GameWindow.this.view != null) {
+                    GameWindow.this.view.loadGameClicked();
+                }
+            }
+        });
+
+        /*
+         * Create a new user profile.
+         */
+        homePanel.setCreateUserAction(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (GameWindow.this.view != null) {
+                    GameWindow.this.view.createUserClicked();
+                }
+            }
+        });
+
+        /*
+         * Change the currently selected user profile.
+         */
+        homePanel.setUserSelectionAction(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                User selectedUser = homePanel.getSelectedUser();
+
+                if (GameWindow.this.view != null
+                        && selectedUser != null) {
+
+                    GameWindow.this.view.userSelected(selectedUser);
+                }
+            }
+        });
+
+        /*
          * Close the BridgeTut application.
          */
         homePanel.setExitAction(new ActionListener() {
@@ -401,6 +442,24 @@ public class GameWindow {
                 }
             }
         });
+    }
+
+    /**
+     * Updates the user profiles displayed on the home page.
+     *
+     * @param users available user profiles
+     */
+    public void updateUsers(ArrayList<User> users) {
+        homePanel.setUsers(users);
+    }
+
+    /**
+     * Selects a user profile on the home page.
+     *
+     * @param user user to select
+     */
+    public void selectUser(User user) {
+        homePanel.selectUser(user);
     }
 
     /**

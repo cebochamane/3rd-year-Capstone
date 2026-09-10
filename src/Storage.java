@@ -7,7 +7,6 @@ import java.sql.ResultSet;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.UUID;
-import org.sqlite.SQLiteException;
 import java.sql.ResultSet;
 import java.util.ArrayList;
 import java.sql.Types;
@@ -337,9 +336,9 @@ public class Storage {
             /*
              * Load the saved model objects.
              */
-            Deal deal = loadDeal(connection, gameId.trim(), dealer, vulnerability);
-            Auction savedAuction = loadAuction(connection, gameId.trim());
-            Contract savedContract = loadContract(connection, gameId.trim());
+            Deal deal = this.loadDeal(connection, gameId.trim(), dealer, vulnerability);
+            Auction savedAuction = this.loadAuction(connection, gameId.trim());
+            Contract savedContract = this.loadContract(connection, gameId.trim());
 
             /*
              * Reconstruct the controller
