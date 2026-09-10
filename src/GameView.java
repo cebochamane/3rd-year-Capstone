@@ -294,9 +294,7 @@ public class GameView {
     }
 
     /**
-     * GenAi hepled here.
-     * Displays a completed trick for a short time
-     * before refreshing the table for the next trick.
+     * Displays a completed trick before refreshing the table for the next trick.
      *
      * @param trick the completed trick
      */
@@ -305,26 +303,66 @@ public class GameView {
         if (trick == null) {
             return;
         }
-        initialiseWindow();
+
+        this.initialiseWindow();
 
         /*
-         * Display all four cards from the completed trick.
+         * Refresh the hands first so that the fourth played card is removed from its
+         * player's displayed hand.
+         */
+        this.updateGameplayDisplay();
+
+        /*
+         * updateGameplayDisplay() normally displays the new empty trick. Replace it
+         * with the completed trick so
+         * the user can inspect all four cards.
          */
         window.updateTrick(trick);
 
         /*
-         * Wait two seconds before displaying
-         * the next trick.
+         * Nobody may play while the completed trick is displayed.
          */
-        Timer timer = new Timer(2000, e -> {
-            updateGameplayDisplay();
-        });
+        window.updateCurrentPlayer(null);
 
         /*
-         * Only run the timer once.
+         * Trick thirteen has no next trick, so its button will display "Show Result".
          */
-        timer.setRepeats(false);
-        timer.start();
+        boolean finalTrick = trick.getTrickNo() == 13;
+        window.showNextTrickButton(finalTrick);
+    }
+
+    /**
+     * Continues the game after the user has inspected
+     * a completed trick.
+     */
+    public void nextTrickClicked() {
+
+        if (controller == null || controller.getGameplay() == null) {
+            return;
+        }
+
+        Gameplay gameplay = controller.getGameplay();
+
+        /*
+         * Remove the Next Trick button from the bottom panel.
+         */
+        window.hideNextTrickButton();
+
+        /*
+         * If trick thirteen was completed, there is no
+         * next trick. Display the final result instead.
+         */
+        if (gameplay.isFinished()) {
+            showMessage("Game complete!\n" + "Declarer tricks: " + gameplay.getDeclarerTricks()
+                    + "\nDefender tricks: " + gameplay.getDefenderTricks());
+            return;
+        }
+
+        /*
+         * Display the new empty trick and enable the cards belonging to the next
+         * leader.
+         */
+        updateGameplayDisplay();
     }
 
     /**
@@ -673,6 +711,18 @@ public class GameView {
          * and display them on the home page.
          */
         view.refreshUsers();
+    }
+
+    /**
+     * Called when the user clicks Save Game.
+     */
+    public void saveGameClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+
+        controller.saveGame();
     }
 
 }

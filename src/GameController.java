@@ -447,15 +447,8 @@ public class GameController {
             }
         }
 
-        /*
-         * Check whether all thirteen tricks have been played.
-         */
         if (gameplay.isFinished()) {
             phase = GamePhase.FINISHED;
-            if (view != null) {
-                view.showMessage("Game complete!\n" + "Declarer tricks: " + gameplay.getDeclarerTricks()
-                        + "\nDefender tricks: " + gameplay.getDefenderTricks());
-            }
         }
 
         return true;

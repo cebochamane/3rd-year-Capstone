@@ -38,6 +38,8 @@ public class GameWindow {
     private JPanel trickPanel;
     private JPanel headerPanel;
     private ContractMarkerPanel contractMarkerPanel;
+    private JButton saveGameButton;
+    private JButton nextTrickButton;
 
     /*
      * Separate panel responsible for the auction UI.
@@ -256,10 +258,25 @@ public class GameWindow {
         southHandPanel = new PlayerHandPanel(Position.SOUTH, false);
         actionPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 5));
         actionPanel.setOpaque(false);
+        saveGameButton = createActionButton("Save Game");
         swapCardsButton = createActionButton("Swap cards");
         claimButton = createActionButton("Claim");
+        nextTrickButton = createActionButton("Next Trick");
+
+        /*
+         * The button is only shown after a trick is completed.
+         */
+        nextTrickButton.setVisible(false);
         swapCardsButton.setEnabled(false);
 
+        nextTrickButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (view != null) {
+                    view.nextTrickClicked();
+                }
+            }
+        });
         swapCardsButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -269,9 +286,20 @@ public class GameWindow {
             }
         });
 
+        saveGameButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (view != null) {
+                    view.saveGameClicked();
+                }
+            }
+        });
+
         claimButton.setEnabled(false);
         actionPanel.add(quitGameButton);
         actionPanel.add(swapCardsButton);
+        actionPanel.add(saveGameButton);
+        actionPanel.add(nextTrickButton);
         actionPanel.add(claimButton);
         southHandPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 2, 5));
 
@@ -541,13 +569,25 @@ public class GameWindow {
     public void updateCurrentPlayer(Seat seat) {
 
         /*
-         * First reset every player label.
+         * Reset every player label.
          */
         northLabel.setForeground(Color.WHITE);
         eastLabel.setForeground(Color.WHITE);
         southLabel.setForeground(Color.WHITE);
         westLabel.setForeground(Color.WHITE);
 
+        /*
+         * Disable every hand first.
+         */
+        northHandPanel.setCardsEnabled(false);
+        eastHandPanel.setCardsEnabled(false);
+        southHandPanel.setCardsEnabled(false);
+        westHandPanel.setCardsEnabled(false);
+
+        /*
+         * A null seat means that nobody may play.
+         * This will be used while the completed trick remains visible.
+         */
         if (seat == null) {
             return;
         }
@@ -571,13 +611,44 @@ public class GameWindow {
         }
 
         /*
-         * Only cards belonging to the current
-         * player should be clickable.
+         * Enable only the current player's cards.
          */
         northHandPanel.setCardsEnabled(seat.getPosition() == Position.NORTH);
         eastHandPanel.setCardsEnabled(seat.getPosition() == Position.EAST);
         southHandPanel.setCardsEnabled(seat.getPosition() == Position.SOUTH);
         westHandPanel.setCardsEnabled(seat.getPosition() == Position.WEST);
+    }
+
+    /**
+     * Displays the button used to continue after a completed trick.
+     *
+     * @param finalTrick whether the completed trick is trick thirteen
+     */
+    public void showNextTrickButton(boolean finalTrick) {
+
+        /*
+         * After trick thirteen there is no next trick,
+         * so the button displays a different message.
+         */
+        if (finalTrick) {
+            nextTrickButton.setText("Show Result");
+        } else {
+            nextTrickButton.setText("Next Trick");
+        }
+
+        nextTrickButton.setVisible(true);
+
+        actionPanel.revalidate();
+        actionPanel.repaint();
+    }
+
+    /**
+     * Hides the Next Trick button.
+     */
+    public void hideNextTrickButton() {
+        nextTrickButton.setVisible(false);
+        actionPanel.revalidate();
+        actionPanel.repaint();
     }
 
     /**
@@ -760,6 +831,7 @@ public class GameWindow {
         JButton button = new JButton(text);
 
         button.setFont(new Font("Arial", Font.BOLD, 13));
+        button.setForeground(Color.WHITE);
         button.setBackground(FELT_GREEN);
         button.setFocusPainted(false);
 
