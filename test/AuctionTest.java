@@ -345,4 +345,63 @@ public class AuctionTest {
         assertEquals(new Seat(Position.NORTH), contract.getDeclarer());
     }
 
+    @Test
+    void contractBidderCannotDoubleOwnContract() {
+        Auction auction = new Auction();
+
+        Bid contractBid = new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS);
+
+        assertTrue(auction.addBid(contractBid));
+
+        Bid doubleByNorth = Bid.BidDouble(new Seat(Position.NORTH));
+
+        /*
+         * North cannot Double North's own contract.
+         */
+        assertFalse(auction.isValidBid(doubleByNorth));
+        assertFalse(auction.addBid(doubleByNorth));
+        assertEquals(1, auction.getBids().size());
+    }
+
+    @Test
+    void cannotDoubleAfterContractWasRedoubled() {
+        Auction auction = new Auction();
+
+        assertTrue(auction.addBid(new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS)));
+
+        assertTrue(auction.addBid(Bid.BidDouble(new Seat(Position.EAST))));
+
+        assertTrue(auction.addBid(Bid.BidRedouble(new Seat(Position.SOUTH))));
+
+        assertTrue(auction.addBid(
+                Bid.BidPass(new Seat(Position.WEST))));
+
+        /*
+         * The Pass is skipped when finding the most
+         * recent meaningful call, which is Redouble.
+         */
+        Bid invalidDouble = Bid.BidDouble(new Seat(Position.NORTH));
+
+        assertFalse(auction.isValidBid(invalidDouble));
+        assertFalse(auction.addBid(invalidDouble));
+    }
+
+    @Test
+    void redoubleIsLegalAfterInterveningPasses() {
+        Auction auction = new Auction();
+
+        assertTrue(auction.addBid(new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS)));
+        assertTrue(auction.addBid(Bid.BidDouble(new Seat(Position.EAST))));
+        assertTrue(auction.addBid(Bid.BidPass(new Seat(Position.SOUTH))));
+        assertTrue(auction.addBid(Bid.BidPass(new Seat(Position.WEST))));
+
+        /*
+         * North is on the contract side and may Redouble.
+         * The two Passes do not remove that right.
+         */
+        Bid redouble = Bid.BidRedouble(new Seat(Position.NORTH));
+        assertTrue(auction.isValidBid(redouble));
+        assertTrue(auction.addBid(redouble));
+    }
+
 }
