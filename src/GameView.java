@@ -13,6 +13,9 @@ public class GameView {
     private GameController controller;
     private int lastMenuChoice;
     private GameWindow window;
+    private final java.util.ArrayList<LearningNote> learningNotes = new java.util.ArrayList<>(); // In-memory store of
+                                                                                                 // notes for this
+                                                                                                 // session.
 
     /**
      * Connects this view to the game controller.
@@ -21,6 +24,10 @@ public class GameView {
      */
     public void setController(GameController controller) {
         this.controller = controller;
+    }
+
+    public GameController getController() {
+        return controller;
     }
 
     /**
@@ -393,6 +400,43 @@ public class GameView {
          */
         timer.setRepeats(false);
         timer.start();
+    }
+
+    // Called by the "Learning Notes" button in GameWindow.
+    public void showLearningNotes() {
+        if (learningNotes.isEmpty()) {
+            showMessage("No learning notes yet.");
+            return;
+        }
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < learningNotes.size(); i++) {
+            sb.append(i + 1).append(". ").append(learningNotes.get(i)).append("\n\n");
+        }
+        showMessage(sb.toString());
+    }
+
+    // This is to be called by a "Quick Note" button on Gameview
+    public void addQuickNote(NotePhase phase) {
+        String text = javax.swing.JOptionPane.showInputDialog(
+                window != null ? window.getMainFrame() : null,
+                "Add a " + phase.name().toLowerCase().replace('_', ' ') + " note:");
+
+        if (text == null || text.trim().isEmpty())
+            return;
+
+        LearningNote note = new LearningNote(phase);
+        note.setNoteText(text.trim());
+
+        if (controller != null && controller.getContract() != null) {
+            note.setContract(controller.getContract().getLevel() + " " + controller.getContract().getDenomination());
+        }
+
+        if (controller != null && controller.getGameplay() != null) {
+            note.setTrickNumber(controller.getGameplay().getTrickNo());
+
+        }
+        learningNotes.add(note);
+        showMessage("Note saved: " + note);
     }
 
     /**

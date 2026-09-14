@@ -8,7 +8,7 @@ import java.time.format.DateTimeFormatter;
 public class LearningNote {
 
     private LocalDateTime timestamp;
-    private String phase; // "BIDDING", "PRE_PLAY", "POST_PLAY", "PLAYING", "GENERAL"
+    private NotePhase phase;
     private String noteText;
     private String handAnalysis;
     private String contract;
@@ -28,14 +28,14 @@ public class LearningNote {
      */
     public LearningNote() {
         this.timestamp = LocalDateTime.now();
-        this.phase = "GENERAL";
+        this.phase = NotePhase.GENERAL;
         this.trickNumber = 0;
     }
 
     /**
      * Creates a learning note with specified phase.
      */
-    public LearningNote(String phase) {
+    public LearningNote(NotePhase phase) {
         this();
         this.phase = phase;
     }
@@ -49,11 +49,11 @@ public class LearningNote {
         this.timestamp = timestamp;
     }
 
-    public String getPhase() {
+    public NotePhase getPhase(NotePhase phase) {
         return phase;
     }
 
-    public void setPhase(String phase) {
+    public void setPhase(NotePhase phase) {
         this.phase = phase;
     }
 
