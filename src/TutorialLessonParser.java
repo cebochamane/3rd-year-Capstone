@@ -19,13 +19,29 @@ public final class TutorialLessonParser {
 
     private static final String HEADER = "Cards held: spades;hearts;diamonds;clubs";
 
+    /**
+     * Constructs a TutorialLessonParser instance, preventing external instantiation.
+     */
     private TutorialLessonParser() {
     }
 
+    /**
+     * Reads tutorial lessons from the file at the given path and parses them into a list of TutorialLesson objects.
+     * 
+     * @param path the file system path to the tutorial text file
+     * @return a list of parsed TutorialLesson instances
+     * @throws IOException if an I/O error occurs reading the file
+     */
     public static List<TutorialLesson> parse(Path path) throws IOException {
         return parse(Files.readString(path));
     }
 
+    /**
+     * Parses tutorial lessons from the given text string into a list of TutorialLesson objects.
+     * 
+     * @param text the tutorial text to parse
+     * @return a list of parsed TutorialLesson instances
+     */
     public static List<TutorialLesson> parse(String text) {
         if (text == null || text.isBlank()) {
             throw new IllegalArgumentException("A tutorial file cannot be empty.");
@@ -64,6 +80,13 @@ public final class TutorialLessonParser {
         }
     }
 
+    /**
+     * Parses the four hands from the tutorial lines starting at the given line index.
+     * 
+     * @param lines array of tutorial text lines
+     * @param line the current line index to start parsing from
+     * @return a ParsedHands object containing the hands map and next line index
+     */
     private static ParsedHands parseHands(String[] lines, int line) {
         Map<Position, List<Card>> hands = new EnumMap<>(Position.class);
         for (int count = 0; count < Position.values().length; count++) {
@@ -90,6 +113,14 @@ public final class TutorialLessonParser {
         return new ParsedHands(hands, line);
     }
 
+    /**
+     * Parses a bid-and-play lesson section including dealer, vulnerability, auction, contract, and play from tutorial lines starting at the given line.
+     * 
+     * @param lines array of tutorial text lines
+     * @param line the current line index to start parsing from
+     * @param hands map of hands by position
+     * @return a ParseResult containing the parsed TutorialLesson and the next line index
+     */
     private static ParseResult parseBidAndPlay(String[] lines, int line,
             Map<Position, List<Card>> hands) {
         Seat dealer = new Seat(parseDealer(lines[line++], line));
@@ -104,6 +135,14 @@ public final class TutorialLessonParser {
         return parsePlay(lines, line, TutorialLessonType.BID_AND_PLAY, deal, contract, bids);
     }
 
+    /**
+     * Parses a play-only lesson section including contract and play from tutorial lines starting at the given line.
+     * 
+     * @param lines array of tutorial text lines
+     * @param line the current line index to start parsing from
+     * @param hands map of hands by position
+     * @return a ParseResult containing the parsed TutorialLesson and the next line index
+     */
     private static ParseResult parsePlayOnly(String[] lines, int line,
             Map<Position, List<Card>> hands) {
         Contract contract = parsePlayContract(lines[line], line + 1);
@@ -116,6 +155,17 @@ public final class TutorialLessonParser {
         return parsePlay(lines, line, TutorialLessonType.PLAY_ONLY, deal, contract, List.of());
     }
 
+    /**
+     * Parses the scripted play section of a tutorial lesson based on provided type, deal, contract, and auction bids, starting from the given line.
+     * 
+     * @param lines array of tutorial text lines
+     * @param line the current line index to start parsing from
+     * @param type the type of tutorial lesson (bid and play or play only)
+     * @param deal the deal associated with the lesson
+     * @param contract the contract of the lesson
+     * @param bids the list of auction bids
+     * @return a ParseResult containing the parsed TutorialLesson and the next line index
+     */
     private static ParseResult parsePlay(String[] lines, int line, TutorialLessonType type,
             Deal deal, Contract contract, List<Bid> bids) {
         List<TutorialAction> actions = new ArrayList<>();
@@ -170,6 +220,15 @@ public final class TutorialLessonParser {
         return new ParseResult(new TutorialLesson(type, deal, contract, actions, note), line + 1);
     }
 
+    /**
+     * Creates a Deal object from the given dealer seat, vulnerability, hands map, and line index for error reporting.
+     * 
+     * @param dealer the dealer seat
+     * @param vulnerability the vulnerability state
+     * @param hands map of hands by position
+     * @param line the line number for error messages
+     * @return a Deal representing the bridge hands and state
+     */
     private static Deal createDeal(Seat dealer, Vulnerability vulnerability,
             Map<Position, List<Card>> hands, int line) {
         try {
@@ -179,6 +238,12 @@ public final class TutorialLessonParser {
         }
     }
 
+    /**
+     * Creates a deep copy of the hands contained in the given Deal, mapping positions to Hand objects.
+     * 
+     * @param deal the Deal whose hands to copy
+     * @return a map from positions to independent Hand objects copied from the deal
+     */
     private static Map<Position, Hand> copyHands(Deal deal) {
         Map<Position, Hand> copies = new EnumMap<>(Position.class);
         for (Position position : Position.values()) {
@@ -187,11 +252,24 @@ public final class TutorialLessonParser {
         return copies;
     }
 
+    /**
+     * Determines the lead suit of the given trick by inspecting the first played card.
+     * 
+     * @param trick the Trick object to examine
+     * @return the Suit led in the trick, or null if no card led
+     */
     private static Suit leadSuit(Trick trick) {
         Card leadCard = trick.getPlays().get(trick.getLeader());
         return leadCard == null ? null : leadCard.getSuit();
     }
 
+    /**
+     * Parses a single hand's suit holdings from a semicolon-separated string representing spades, hearts, diamonds, and clubs.
+     * 
+     * @param text the hand text to parse
+     * @param line the line number for error reporting
+     * @return a list of Card objects representing the parsed hand
+     */
     private static List<Card> parseHand(String text, int line) {
         String[] suits = text.trim().split(";", -1);
         if (suits.length != 4) {
@@ -212,6 +290,13 @@ public final class TutorialLessonParser {
         return cards;
     }
 
+    /**
+     * Parses the four comma-separated card codes for a trick into a list of Card objects.
+     * 
+     * @param text the trick line text to parse
+     * @param line the line number for error reporting
+     * @return a list of four Card objects representing the trick's plays
+     */
     private static List<Card> parseTrick(String text, int line) {
         String[] codes = text.split(",", -1);
         if (codes.length != Position.values().length) {
@@ -226,8 +311,7 @@ public final class TutorialLessonParser {
 
     /**
      * Checks follow-suit legality by card value rather than object identity.
-     * Tutorial cards are parsed separately from the cards stored in the deal,
-     * so List.contains(card) cannot be used here.
+     * Tutorial cards are parsed separately from the cards stored in the deal, so List.contains(card) cannot be used here.
      */
     private static boolean isLegalPlay(Hand hand, Card card, Suit leadSuit) {
         return leadSuit == null
@@ -235,6 +319,13 @@ public final class TutorialLessonParser {
                 || card.getSuit() == leadSuit;
     }
 
+    /**
+     * Parses a two-character card code into a Card object.
+     * 
+     * @param code the two-character card code (rank and suit)
+     * @param line the line number for error reporting
+     * @return a Card corresponding to the code
+     */
     private static Card parseCard(String code, int line) {
         if (code.length() != 2) {
             throw error(line, "Invalid card code '" + code + "'. Use forms such as AS, TD or 7C.");
@@ -242,6 +333,13 @@ public final class TutorialLessonParser {
         return new Card(parseSuitCode(code.charAt(1), line), parseRank(code.charAt(0), line));
     }
 
+    /**
+     * Parses a play contract line starting with 'PLAY' into a Contract for the South declarer position.
+     * 
+     * @param text the play contract line text
+     * @param line the line number for error reporting
+     * @return a Contract object representing the parsed contract for South
+     */
     private static Contract parsePlayContract(String text, int line) {
         String value = text.trim().toUpperCase(Locale.ROOT);
         if (!value.startsWith("PLAY ")) {
@@ -252,6 +350,14 @@ public final class TutorialLessonParser {
         return new Contract(parsed.level, parsed.denomination, new Seat(Position.SOUTH), false, false);
     }
 
+    /**
+     * Parses a semicolon-separated auction string ending with a '.' into a list of Bid objects starting from the given dealer seat.
+     * 
+     * @param text the auction string to parse
+     * @param dealer the seat of the dealer starting the auction
+     * @param line the line number for error reporting
+     * @return a list of Bid objects representing the auction
+     */
     private static List<Bid> parseAuction(String text, Seat dealer, int line) {
         String[] tokens = text.trim().substring(0, text.trim().length() - 1).split(";", -1);
         List<Bid> bids = new ArrayList<>();
@@ -273,6 +379,13 @@ public final class TutorialLessonParser {
         return bids;
     }
 
+    /**
+     * Constructs the final Contract from a list of auction bids, identifying the final bid and declarer, and any doubling.
+     * 
+     * @param bids the list of auction bids
+     * @param line the line number for error reporting
+     * @return the final Contract derived from the auction bids
+     */
     private static Contract createContract(List<Bid> bids, int line) {
         Bid finalBid = null;
         int finalIndex = -1;
@@ -309,6 +422,13 @@ public final class TutorialLessonParser {
         return new Contract(finalBid.getLevel(), finalBid.getDenomination(), declarer, doubled, redoubled);
     }
 
+    /**
+     * Parses a contract string such as '3NT' or '2H' into its level and suit denomination components.
+     * 
+     * @param text the contract text to parse
+     * @param line the line number for error reporting
+     * @return a ParsedContract holding the level and suit denomination
+     */
     private static ParsedContract parseContractText(String text, int line) {
         String value = text.trim().toUpperCase(Locale.ROOT);
         if (value.length() < 2 || value.length() > 3 || value.charAt(0) < '1' || value.charAt(0) > '7') {
@@ -326,6 +446,13 @@ public final class TutorialLessonParser {
         return new ParsedContract(value.charAt(0) - '0', suit);
     }
 
+    /**
+     * Parses a dealer line formatted like 'D: S' into a Position representing the dealer.
+     * 
+     * @param text the dealer line text
+     * @param line the line number for error reporting
+     * @return the Position of the dealer
+     */
     private static Position parseDealer(String text, int line) {
         String value = text.trim().toUpperCase(Locale.ROOT);
         if (!value.startsWith("D:")) {
@@ -334,6 +461,13 @@ public final class TutorialLessonParser {
         return parsePosition(value.substring(2).trim(), line);
     }
 
+    /**
+     * Parses a vulnerability line into the corresponding Vulnerability enum value.
+     * 
+     * @param text the vulnerability line text
+     * @param line the line number for error reporting
+     * @return the Vulnerability value parsed
+     */
     private static Vulnerability parseVulnerability(String text, int line) {
         String value = text.trim().toUpperCase(Locale.ROOT);
         return switch (value) {
@@ -345,6 +479,13 @@ public final class TutorialLessonParser {
         };
     }
 
+    /**
+     * Parses a single-character string into its corresponding Position enum value.
+     * 
+     * @param value the position string to parse (e.g., 'N')
+     * @param line the line number for error reporting
+     * @return the Position corresponding to the input
+     */
     private static Position parsePosition(String value, int line) {
         return switch (value.trim().toUpperCase(Locale.ROOT)) {
             case "N" -> Position.NORTH;
@@ -355,6 +496,13 @@ public final class TutorialLessonParser {
         };
     }
 
+    /**
+     * Parses a character code into the corresponding Suit enum value.
+     * 
+     * @param code a single character suit code
+     * @param line the line number for error reporting
+     * @return the Suit represented by the code
+     */
     private static Suit parseSuitCode(char code, int line) {
         return switch (Character.toUpperCase(code)) {
             case 'C' -> Suit.CLUBS;
@@ -365,6 +513,13 @@ public final class TutorialLessonParser {
         };
     }
 
+    /**
+     * Parses a character code into the corresponding Rank enum value, using 'T' for ten.
+     * 
+     * @param code a single character rank code
+     * @param line the line number for error reporting
+     * @return the Rank represented by the code
+     */
     private static Rank parseRank(char code, int line) {
         return switch (Character.toUpperCase(code)) {
             case '2' -> Rank.TWO;
@@ -384,6 +539,13 @@ public final class TutorialLessonParser {
         };
     }
 
+    /**
+     * Advances the line index past any blank lines in the given array starting at the specified line.
+     * 
+     * @param lines array of tutorial text lines
+     * @param line the current line index
+     * @return the index of the first non-blank line at or after the input line
+     */
     private static int skipBlankLines(String[] lines, int line) {
         while (line < lines.length && lines[line].isBlank()) {
             line++;
@@ -391,10 +553,24 @@ public final class TutorialLessonParser {
         return line;
     }
 
+    /**
+     * Checks if the input text starts with the given prefix, ignoring case and leading/trailing whitespace.
+     * 
+     * @param text the text to check
+     * @param prefix the prefix to look for
+     * @return true if the text starts with the prefix; false otherwise
+     */
     private static boolean startsWith(String text, String prefix) {
         return text.trim().toUpperCase(Locale.ROOT).startsWith(prefix.toUpperCase(Locale.ROOT));
     }
 
+    /**
+     * Constructs an IllegalArgumentException with a formatted message including the line number.
+     * 
+     * @param line the line number where the error occurred
+     * @param message the error message
+     * @return an IllegalArgumentException containing the error details
+     */
     private static IllegalArgumentException error(int line, String message) {
         return new IllegalArgumentException("Tutorial lesson line " + line + ": " + message);
     }
@@ -403,6 +579,12 @@ public final class TutorialLessonParser {
         private final Map<Position, List<Card>> hands;
         private final int nextLine;
 
+        /**
+         * Constructs a ParsedHands object containing the map of hands and the next line index after parsing hands.
+         * 
+         * @param hands a map from Position to list of Cards representing parsed hands
+         * @param nextLine the line index after parsing the hands
+         */
         private ParsedHands(Map<Position, List<Card>> hands, int nextLine) {
             this.hands = hands;
             this.nextLine = nextLine;
@@ -413,6 +595,12 @@ public final class TutorialLessonParser {
         private final int level;
         private final Suit denomination;
 
+        /**
+         * Constructs a ParsedContract consisting of the contract level and suit denomination.
+         * 
+         * @param level the contract level (1-7)
+         * @param denomination the suit denomination (including NT)
+         */
         private ParsedContract(int level, Suit denomination) {
             this.level = level;
             this.denomination = denomination;
@@ -423,6 +611,12 @@ public final class TutorialLessonParser {
         private final TutorialLesson lesson;
         private final int nextLine;
 
+        /**
+         * Constructs a ParseResult pairing a parsed TutorialLesson and the next line index to continue parsing.
+         * 
+         * @param lesson the TutorialLesson parsed from the input
+         * @param nextLine the next line index to continue parsing after this lesson
+         */
         private ParseResult(TutorialLesson lesson, int nextLine) {
             this.lesson = lesson;
             this.nextLine = nextLine;
