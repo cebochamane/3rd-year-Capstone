@@ -143,7 +143,7 @@ public final class TutorialLessonParser {
                     throw error(line + 1, player + " is scripted to play " + card
                             + " but does not hold that remaining card.");
                 }
-                if (!playerHand.getLegalCards(leadSuit(trick), contract.getDenomination()).contains(card)) {
+                if (!isLegalPlay(playerHand, card, leadSuit(trick))) {
                     throw error(line + 1, player + " must follow suit and cannot play " + card + ".");
                 }
                 trick.addPlay(player, card);
@@ -222,6 +222,17 @@ public final class TutorialLessonParser {
             cards.add(parseCard(code.trim(), line));
         }
         return cards;
+    }
+
+    /**
+     * Checks follow-suit legality by card value rather than object identity.
+     * Tutorial cards are parsed separately from the cards stored in the deal,
+     * so List.contains(card) cannot be used here.
+     */
+    private static boolean isLegalPlay(Hand hand, Card card, Suit leadSuit) {
+        return leadSuit == null
+                || !hand.contains(leadSuit)
+                || card.getSuit() == leadSuit;
     }
 
     private static Card parseCard(String code, int line) {

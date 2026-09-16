@@ -112,7 +112,7 @@ public final class TutorialSession {
         if (!sameCard(expected.getCard(), card)) {
             return reject("That is not the lesson card. Play " + expected.getCard() + ".");
         }
-        if (!gameplay.playCard(new Seat(Position.SOUTH), expected.getCard())) {
+        if (!playScriptedCard(new Seat(Position.SOUTH), expected.getCard())) {
             throw new IllegalStateException("The lesson's scripted South card is not legal: "
                     + expected.getCard() + ".");
         }
@@ -121,6 +121,31 @@ public final class TutorialSession {
         feedback = "Correct card.";
         advanceComputerActions();
         return true;
+    }
+
+    /**
+     * Finds the matching card instance in Gameplay's remaining hand before
+     * asking Gameplay to play it. Gameplay currently checks legal-card lists
+     * using object identity, while tutorial actions store equivalent card values
+     * parsed separately from the deal.
+     */
+    private boolean playScriptedCard(Seat seat, Card expectedCard) {
+        if (gameplay == null || seat == null || expectedCard == null) {
+            return false;
+        }
+
+        Hand hand = gameplay.getRemainingHand(seat);
+        if (hand == null) {
+            return false;
+        }
+
+        for (Card heldCard : hand.getCards()) {
+            if (sameCard(heldCard, expectedCard)) {
+                return gameplay.playCard(seat, heldCard);
+            }
+        }
+
+        return false;
     }
 
     private void advanceComputerActions() {
@@ -154,7 +179,7 @@ public final class TutorialSession {
             if (isSouth(expected)) {
                 return;
             }
-            if (!gameplay.playCard(expected.getSeat(), expected.getCard())) {
+            if (!playScriptedCard(expected.getSeat(), expected.getCard())) {
                 throw new IllegalStateException("The lesson's scripted card is not legal for "
                         + expected.getSeat() + ": " + expected.getCard() + ".");
             }

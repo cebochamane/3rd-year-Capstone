@@ -15,6 +15,7 @@ public final class TutorialLesson {
         if (type == null || deal == null || contract == null || actions == null) {
             throw new IllegalArgumentException("A tutorial lesson needs its type, deal, contract and actions.");
         }
+        
         this.type = type;
         this.deal = deal;
         this.contract = contract;
