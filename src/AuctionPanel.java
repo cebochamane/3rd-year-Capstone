@@ -3,6 +3,7 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.GridLayout;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -39,12 +40,12 @@ public class AuctionPanel extends JPanel {
 
         createTitle();
         createCurrentBidderLabel();
-        createHistoryPanel();
         createSpecialBidButtons();
         createLevelButtons();
         createSuitButtons();
         createSelectedBidLabel();
         createMakeBidButton();
+        createHistoryPanel();
     }
 
     /**
@@ -82,7 +83,7 @@ public class AuctionPanel extends JPanel {
      */
     private void createHistoryPanel() {
         historyPanel = new JPanel();
-        historyPanel.setLayout(new BoxLayout(historyPanel, BoxLayout.Y_AXIS));
+        historyPanel.setLayout(new GridLayout(0, 4, 2, 2));
         historyPanel.setOpaque(false);
         add(historyPanel);
     }
@@ -334,10 +335,31 @@ public class AuctionPanel extends JPanel {
         selectedBidLabel.setText("Selected: -");
         historyPanel.removeAll();
 
-        for (Bid bid : auction.getBids()) {
-            JLabel bidLabel = new JLabel(bid.getBidder() + ": " + bid);
-            bidLabel.setForeground(Color.WHITE);
+        String[] headings = { "NORTH", "EAST", "SOUTH", "WEST" };
+        for (String heading : headings) {
+            JLabel headingLabel = new JLabel(heading, SwingConstants.CENTER);
+            headingLabel.setForeground(GOLD_ACCENT);
+            headingLabel.setFont(BUTTON_FONT);
+            headingLabel.setBorder(BorderFactory.createLineBorder(GOLD_ACCENT));
+            headingLabel.setAlignmentX(CENTER_ALIGNMENT);
+            historyPanel.add(headingLabel);
+        }
 
+        for (Bid bid : auction.getBids()) {
+            String bidText;
+            if (bid.isPass()) {
+                bidText = "Pass";
+            } else if (bid.isDouble()) {
+                bidText = "Double";
+            } else if (bid.isRedouble()) {
+                bidText = "Redouble";
+            } else {
+                bidText = bid.getLevel() + getSuitText(bid.getDenomination());
+            }
+
+            JLabel bidLabel = new JLabel(bidText, SwingConstants.CENTER);
+            bidLabel.setForeground(Color.WHITE);
+            bidLabel.setBorder(BorderFactory.createLineBorder(GOLD_ACCENT));
             bidLabel.setAlignmentX(CENTER_ALIGNMENT);
             historyPanel.add(bidLabel);
         }

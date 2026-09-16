@@ -1,7 +1,15 @@
 
-import java.util.List;
 import javax.swing.JOptionPane;
+import javax.swing.SwingUtilities;
 import javax.swing.Timer;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import javax.swing.JDialog;
+import java.awt.event.ComponentAdapter;
+import java.awt.event.ComponentEvent;
+import javax.swing.SwingUtilities;
 
 /**
  * GameView handles communication between the GameController
@@ -11,8 +19,10 @@ import javax.swing.Timer;
 public class GameView {
 
     private GameController controller;
-    private int lastMenuChoice;
     private GameWindow window;
+    private boolean swapMode;
+    private Seat firstSwapSeat;
+    private Card firstSwapCard;
 
     /**
      * Connects this view to the game controller.
@@ -22,23 +32,6 @@ public class GameView {
     public void setController(GameController controller) {
         this.controller = controller;
     }
-
-    /**
-     * Displays the main game menu.
-     *
-     * public void showMenu() {
-     * String[] options = { "Start New Game", "Load Game", "Exit" };
-     * lastMenuChoice = JOptionPane.showOptionDialog(
-     * null,
-     * "Choose an option:",
-     * "Main Menu",
-     * JOptionPane.DEFAULT_OPTION,
-     * JOptionPane.INFORMATION_MESSAGE,
-     * null,
-     * options,
-     * options[0]);
-     * }
-     */
 
     /**
      * Displays the current deal in the GameWindow.
@@ -57,12 +50,8 @@ public class GameView {
         // Update dealer information.
         window.updateInfo(deal.getDealer());
 
-        // Display all four hands.
-        for (Position position : Position.values()) {
-            Seat seat = new Seat(position);
-            Hand hand = deal.getHand(seat);
-            window.updateHand(position, hand); // update the GUI.
-        }
+        Seat currentBidder = controller.getCurrentBidder();
+        this.updateBiddingHands(deal, currentBidder);
     }
 
     /**
@@ -81,10 +70,12 @@ public class GameView {
         if (controller == null || controller.getCurrentDeal() == null) {
             return;
         }
+        Deal deal = controller.getCurrentDeal();
+        Seat currentBidder = controller.getCurrentBidder();
 
-        window.updateAuction(auction, controller.getCurrentDeal().getDealer(), controller.getCurrentBidder()); // Diplay
-                                                                                                               // in the
-                                                                                                               // window.
+        updateBiddingHands(deal, currentBidder);
+        window.updateAuction(auction, deal.getDealer(), currentBidder);
+        window.setSwapCardsEnabled(controller.canSwapCards());
     }
 
     /**
@@ -100,11 +91,7 @@ public class GameView {
 
         initialiseWindow();
 
-        /*
-         * Show the declarer in the main game window.
-         * No contract popup is displayed.
-         */
-        window.updateDeclarer(contract.getDeclarer());
+        window.updateContract(contract);
     }
 
     /**
@@ -127,24 +114,10 @@ public class GameView {
         initialiseWindow();
 
         /*
-         * Give the GameWindow access to the
-         * current Gameplay object.
-         */
-        window.setGameplay(gameplay);
-
-        /*
          * Display the cards.
          * The cards themselves are clickable.
          */
         updateGameplayDisplay();
-    }
-
-    /**
-     * GameController calls showGameplay(), so this method
-     * simply starts/refreshes the gameplay display.
-     */
-    public void showGameplay() {
-        startGameplay();
     }
 
     /**
@@ -154,13 +127,10 @@ public class GameView {
         if (controller == null || controller.getGameplay() == null) {
             return;
         }
-        initialiseWindow();
+        this.initialiseWindow();
         Gameplay gameplay = controller.getGameplay();
-        /*
-         * Make sure the GameWindow knows which
-         * Gameplay object is active.
-         */
-        window.setGameplay(gameplay);
+
+        Seat currentPlayer = gameplay.getCurrentPlayer();
 
         /*
          * Update all four hands.
@@ -169,7 +139,12 @@ public class GameView {
         for (Position position : Position.values()) {
             Seat seat = new Seat(position);
             Hand hand = gameplay.getRemainingHand(seat);
-            window.updateHand(position, hand);
+
+            if (gameplay.isHandVisible(seat)) {
+                window.updateHand(position, hand);
+            } else {
+                window.updateHiddenHand(position, hand.getCards().size());
+            }
         }
 
         /*
@@ -182,44 +157,7 @@ public class GameView {
         /*
          * Highlight whose turn it is.
          */
-        window.updateCurrentPlayer(getCurrentPlayer());
-    }
-
-    /**
-     * Returns the seat whose turn it currently is.
-     * 
-     * @return the current player's seat
-     */
-    private Seat getCurrentPlayer() {
-
-        if (controller == null || controller.getGameplay() == null) {
-            return null;
-        }
-
-        Gameplay gameplay = controller.getGameplay();
-
-        Trick trick = gameplay.getCurrentTrick();
-
-        if (trick == null) {
-            return gameplay.getCurrentLeader();
-        }
-
-        /*
-         * The leader plays first.
-         */
-        Seat current = trick.getLeader();
-
-        /*
-         * Move clockwise once for every card
-         * already played in the trick.
-         */
-        int numberOfPlays = trick.getPlays().size();
-
-        for (int i = 0; i < numberOfPlays; i++) {
-            current = current.next();
-        }
-
-        return current;
+        window.updateCurrentPlayer(currentPlayer);
     }
 
     /**
@@ -236,43 +174,14 @@ public class GameView {
             return;
         }
         /*
-         * Send the card to the controller.
-         * The controller decides whether the card can actually be played.
-         * If the card is not legal, nothing is played and no popup is shown.
+         * During swapping mode, clicking a card selects it for swapping instead of
+         * attempting to attempting to play.
          */
-        controller.playCard(seat, card);
-    }
-
-    /**
-     * Displays the cards that have been played
-     * in a trick.
-     *
-     * Kept for compatibility with the existing program.
-     *
-     * @param trickNo number of the trick
-     * @param trick   cards played in the trick
-     */
-    public void showTrick(int trickNo, List<Card> trick) {
-
-        if (trick == null) {
-            showMessage("No trick available.");
+        if (swapMode) {
+            handleSwapCardSelection(seat, card);
             return;
         }
-
-        initialiseWindow();
-
-        /*
-         * GameWindow works with the actual Trick
-         * object because it needs to know which
-         * Seat played each card.
-         */
-        if (controller != null && controller.getGameplay() != null) {
-
-            Trick currentTrick = controller.getGameplay().getCurrentTrick();
-            window.updateTrick(currentTrick);
-        } else {
-            window.clearTrickPanel();
-        }
+        controller.playCard(seat, card);
     }
 
     /**
@@ -280,21 +189,55 @@ public class GameView {
      *
      * @param message message to display
      */
+    // chat gpt helped to center the pop up message.
     public void showMessage(String message) {
         if (message == null) {
             message = "No message to display.";
         }
-        initialiseWindow();
-        JOptionPane.showMessageDialog(window.getMainFrame(), message, "BridgeTut", JOptionPane.INFORMATION_MESSAGE);
-    }
 
-    /**
-     * Gets the user's choice from the main menu.
-     *
-     * @return selected menu option
-     */
-    public int getMenuChoice() {
-        return lastMenuChoice;
+        this.initialiseWindow();
+        JOptionPane optionPane = new JOptionPane(message, JOptionPane.INFORMATION_MESSAGE);
+        JDialog dialog = optionPane.createDialog(window.getMainFrame(), "BridgeTut");
+
+        /*
+         * Ensure the dialog has its final width and height before calculating its
+         * position.
+         */
+        dialog.pack();
+
+        /*
+         * Centre it before displaying it.
+         */
+        int x = window.getMainFrame().getX() + (window.getMainFrame().getWidth() - dialog.getWidth()) / 2;
+
+        int y = window.getMainFrame().getY() + (window.getMainFrame().getHeight() - dialog.getHeight()) / 2;
+
+        dialog.setLocation(x, y);
+
+        /*
+         * WSL's window manager may reposition the dialog while
+         * showing it. Centre it again after it becomes visible.
+         */
+        dialog.addComponentListener(new ComponentAdapter() {
+            @Override
+            public void componentShown(ComponentEvent event) {
+                SwingUtilities.invokeLater(new Runnable() {
+                    @Override
+                    public void run() {
+                        int centredX = window.getMainFrame().getX()
+                                + (window.getMainFrame().getWidth() - dialog.getWidth()) / 2;
+
+                        int centredY = window.getMainFrame().getY()
+                                + (window.getMainFrame().getHeight() - dialog.getHeight()) / 2;
+
+                        dialog.setLocation(centredX, centredY);
+                    }
+                });
+            }
+        });
+
+        dialog.setVisible(true);
+        dialog.dispose();
     }
 
     /**
@@ -342,17 +285,6 @@ public class GameView {
     }
 
     /**
-     * Updates the currently highlighted player.
-     * 
-     * @param seat current player
-     */
-    public void updateCurrentPlayer(Seat seat) {
-        if (window != null) {
-            window.updateCurrentPlayer(seat);
-        }
-    }
-
-    /**
      * Returns the current GameWindow.
      * 
      * @return the game window
@@ -362,9 +294,7 @@ public class GameView {
     }
 
     /**
-     * GenAi hepled here.
-     * Displays a completed trick for a short time
-     * before refreshing the table for the next trick.
+     * Displays a completed trick before refreshing the table for the next trick.
      *
      * @param trick the completed trick
      */
@@ -373,26 +303,377 @@ public class GameView {
         if (trick == null) {
             return;
         }
-        initialiseWindow();
+
+        this.initialiseWindow();
 
         /*
-         * Display all four cards from the completed trick.
+         * Refresh the hands first so that the fourth played card is removed from its
+         * player's displayed hand.
+         */
+        this.updateGameplayDisplay();
+
+        /*
+         * updateGameplayDisplay() normally displays the new empty trick. Replace it
+         * with the completed trick so
+         * the user can inspect all four cards.
          */
         window.updateTrick(trick);
 
         /*
-         * Wait two seconds before displaying
-         * the next trick.
+         * Nobody may play while the completed trick is displayed.
          */
-        Timer timer = new Timer(2000, e -> {
-            updateGameplayDisplay();
-        });
+        window.updateCurrentPlayer(null);
 
         /*
-         * Only run the timer once.
+         * Trick thirteen has no next trick, so its button will display "Show Result".
          */
-        timer.setRepeats(false);
-        timer.start();
+        boolean finalTrick = trick.getTrickNo() == 13;
+        window.showNextTrickButton(finalTrick);
+    }
+
+    /**
+     * Continues the game after the user has inspected
+     * a completed trick.
+     */
+    public void nextTrickClicked() {
+
+        if (controller == null || controller.getGameplay() == null) {
+            return;
+        }
+
+        Gameplay gameplay = controller.getGameplay();
+
+        /*
+         * Remove the Next Trick button from the bottom panel.
+         */
+        window.hideNextTrickButton();
+
+        /*
+         * If trick thirteen was completed, there is no
+         * next trick. Display the final result instead.
+         */
+        if (gameplay.isFinished()) {
+            showMessage("Game complete!\n" + "Declarer tricks: " + gameplay.getDeclarerTricks()
+                    + "\nDefender tricks: " + gameplay.getDefenderTricks());
+            return;
+        }
+
+        /*
+         * Display the new empty trick and enable the cards belonging to the next
+         * leader.
+         */
+        updateGameplayDisplay();
+    }
+
+    /**
+     * Called when the user clicks New Game from the home page.
+     */
+    public void newGameClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+        initialiseWindow();
+
+        /*
+         * Replace the home page with the game table.
+         */
+        window.showGameTable();
+
+        /**
+         * Create the deal and begin the auction.
+         */
+        controller.startNewGame();
+    }
+
+    /**
+     * Called when the user selects Quit Game.
+     */
+    public void quitGameClicked() {
+        if (controller == null) {
+            return;
+        }
+        initialiseWindow();
+        int choice = JOptionPane.showConfirmDialog(window.getMainFrame(),
+                "Are you sure you want to quit the current game?\n" + "Unsaved progress will be lost.",
+                "Quit Game", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (choice == JOptionPane.YES_OPTION) {
+            controller.quitGame();
+            window.showHomePage();
+        }
+    }
+
+    /**
+     * Start card-swapping mode.
+     * All four hands are temporarily shown so that the user can select two cards.
+     */
+    public void swapCardsClicked() {
+        if (controller == null || !controller.canSwapCards()) {
+            showMessage("Cards can only be swapped before the first bid.");
+            return;
+        }
+        initialiseWindow();
+        swapMode = true;
+        firstSwapCard = null;
+        firstSwapSeat = null;
+
+        Deal deal = controller.getCurrentDeal();
+
+        /*
+         * Temporarily reveal all four hands
+         */
+        for (Position position : Position.values()) {
+            Seat seat = new Seat(position);
+            Hand hand = deal.getHand(seat);
+            window.updateHand(position, hand);
+        }
+        window.setAllHandsEnabled(true);
+        showMessage("Select a card from the first player.");
+    }
+
+    /**
+     * Shows the current bidder's hand and hides the other hands.
+     *
+     * @param deal          current deal
+     * @param currentBidder player whose turn it is to bid
+     */
+    private void updateBiddingHands(Deal deal, Seat currentBidder) {
+        if (deal == null || currentBidder == null) {
+            return;
+        }
+
+        for (Position position : Position.values()) {
+            Seat seat = new Seat(position);
+            Hand hand = deal.getHand(seat);
+
+            if (hand == null) {
+                continue;
+            }
+
+            if (seat.equals(currentBidder)) {
+                window.updateHand(position, hand);
+            } else {
+                window.updateHiddenHand(position, hand.getCards().size());
+            }
+        }
+    }
+
+    /**
+     * Handles a card clicked while card-swappind mode is active.
+     * 
+     * @param seat owner of the selected card
+     * @param card selected card
+     */
+    private void handleSwapCardSelection(Seat seat, Card card) {
+        /*
+         * The first click records the first card.
+         */
+        if (firstSwapCard == null) {
+            firstSwapSeat = seat;
+            firstSwapCard = card;
+
+            showMessage("First card selected:" + card + " from" + seat + ".\nSelect a card from a different player.");
+            return;
+        }
+
+        int choice = JOptionPane.showConfirmDialog(window.getMainFrame(),
+                "Swap " + firstSwapCard + " from " + firstSwapSeat + "\nwith " + card + " from " +
+                        seat + "?",
+                "Confirm Card Swap", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+        if (choice == JOptionPane.YES_OPTION) {
+            boolean swapped = controller.swapCards(firstSwapSeat, firstSwapCard, seat, card);
+
+            swapMode = false;
+            firstSwapSeat = null;
+            firstSwapCard = null;
+            showAuction(controller.getAuction());
+
+            /*
+             * Restore normal bidding visibility.
+             */
+            showAuction(controller.getAuction());
+            if (swapped) {
+                showMessage("The cards were swapped successfully.");
+            } else {
+                showMessage("The cards could not be swapped.");
+            }
+        } else {
+            /*
+             * Cancel this swap and return to normal bidding.
+             */
+            swapMode = false;
+            firstSwapCard = null;
+            firstSwapCard = null;
+            showAuction(controller.getAuction());
+        }
+    }
+
+    /**
+     * Dispaly a game that has been loaded from storage.
+     */
+    public void showLoadedGame() {
+        if (controller == null || controller.getCurrentDeal() == null) {
+            this.showMessage("There is no loaded game to display.");
+            return;
+        }
+        this.initialiseWindow();
+        window.showGameTable();
+
+        Deal deal = controller.getCurrentDeal();
+        GamePhase phase = controller.getPhase();
+
+        // Update dealer information
+        window.updateInfo(deal.getDealer());
+
+        /*
+         * An unfinished auction must display the auction and the hand of the current
+         * bidder.
+         */
+        if (phase == GamePhase.BIDDING) {
+            this.showAuction(controller.getAuction());
+            return;
+        }
+
+        /*
+         * A game in the playing or finished phase must display the contract, remaining
+         * hands and tricks.
+         */
+
+        if (phase == GamePhase.PLAYING || phase == GamePhase.FINISHED) {
+            this.showContract(controller.getContract());
+            this.updateGameplayDisplay();
+            return;
+        }
+
+        /*
+         * A passed out deal has no contract or gameplay.
+         * Show the original hands because the deal is over.
+         */
+        if (phase == GamePhase.PASSED_OUT) {
+            for (Position position : Position.values()) {
+                Seat seat = new Seat(position);
+                Hand hand = deal.getHand(seat);
+
+                window.updateHand(position, hand);
+            }
+            this.showMessage("This deal was passed out.");
+            return;
+        }
+    }
+
+    /**
+     * Called when the user clicks Load Game.
+     */
+    public void loadGameClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+
+        this.initialiseWindow();
+
+        try {
+            ArrayList<SavedGame> savedGames = controller.getSavedGames();
+
+            if (savedGames.isEmpty()) {
+                showMessage("This profile has no saved games.");
+                return;
+            }
+
+            /*
+             * Display the saved games in a selection dialog.
+             */
+            SavedGame selectedGame = (SavedGame) JOptionPane.showInputDialog(window.getMainFrame(),
+                    "Select a game to load:",
+                    "Load Game", JOptionPane.PLAIN_MESSAGE, null, savedGames.toArray(), savedGames.get(0));
+
+            /*
+             * A null result means the user clicked Cancel or closed the dialog.
+             */
+            if (selectedGame == null) {
+                return;
+            }
+
+            controller.loadGame(selectedGame.getGameId());
+
+        } catch (IllegalStateException exception) {
+            showMessage("Saved games could not be retrieved.\n" + exception.getMessage());
+        }
+    }
+
+    /**
+     * Reloads the available user profiles from storage.
+     */
+    public void refreshUsers() {
+        if (controller == null) {
+            return;
+        }
+
+        this.initialiseWindow();
+        window.updateUsers(controller.getUsers());
+
+        /*
+         * Keep the current user selected after refreshing the combo box.
+         */
+        User currentUser = controller.getCurrentUser();
+
+        if (currentUser != null) {
+            window.selectUser(currentUser);
+        }
+    }
+
+    /**
+     * Called when the Create Profile button is clicked.
+     */
+    public void createUserClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+
+        this.initialiseWindow();
+        String username = JOptionPane.showInputDialog(window.getMainFrame(), "Enter the new profile name:",
+                "Create Profile", JOptionPane.PLAIN_MESSAGE);
+
+        /*
+         * showInputDialog returns null when Cancel is clicked.
+         */
+        if (username == null) {
+            return;
+        }
+
+        try {
+            User createdUser = controller.createUser(username);
+
+            /*
+             * Reload the profile list so that the new user
+             * appears in the combo box.
+             */
+            window.updateUsers(controller.getUsers());
+
+            /*
+             * Automatically select the newly created user.
+             */
+            window.selectUser(createdUser);
+
+            this.showMessage("Profile created for " + createdUser.getUsername() + ".");
+
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            this.showMessage("The profile could not be created.\n" + exception.getMessage());
+        }
+    }
+
+    /**
+     * Called when a profile is selected on the home page.
+     *
+     * @param user selected user
+     */
+    public void userSelected(User user) {
+        if (controller == null || user == null) {
+            return;
+        }
+        controller.setCurrentUser(user);
     }
 
     /**
@@ -401,9 +682,47 @@ public class GameView {
     public static void main(String[] args) {
         GameView view = new GameView();
         GameController controller = new GameController();
+
         view.setController(controller);
         controller.setView(view);
+
+        try {
+            /*
+             * Create a permanent BridgeTut data directory
+             * inside the current operating-system user's home directory.
+             */
+            Path dataDirectory = Path.of(System.getProperty("user.home"), ".bridgetut");
+            Files.createDirectories(dataDirectory);
+            Path databasePath = dataDirectory.resolve("bridgetut.db");
+
+            Storage storage = new Storage(databasePath.toString());
+
+            controller.setStorage(storage);
+
+        } catch (IOException | IllegalStateException exception) {
+            view.showMessage("BridgeTut could not open its database.\n" + exception.getMessage());
+        }
+
         view.initialiseWindow();
-        controller.startNewGame();
+        view.getWindow().showHomePage();
+
+        /*
+         * Read the existing profiles from SQLite
+         * and display them on the home page.
+         */
+        view.refreshUsers();
     }
+
+    /**
+     * Called when the user clicks Save Game.
+     */
+    public void saveGameClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+
+        controller.saveGame();
+    }
+
 }
