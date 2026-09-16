@@ -40,7 +40,8 @@ public class LearningNote {
         this.phase = phase;
     }
 
-    // Getters and Setters
+    // ===== Getters and Setters =====
+
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
@@ -49,7 +50,7 @@ public class LearningNote {
         this.timestamp = timestamp;
     }
 
-    public NotePhase getPhase(NotePhase phase) {
+    public NotePhase getPhase() {
         return phase;
     }
 
@@ -122,7 +123,6 @@ public class LearningNote {
         if (contract != null && !contract.isEmpty()) {
             sb.append(" Contract: ").append(contract);
         }
-        // Only add newline and note if there is content
         if (handAnalysis != null && !handAnalysis.isEmpty()) {
             sb.append("\n  Analysis: ").append(handAnalysis);
         }
@@ -143,7 +143,6 @@ public class LearningNote {
         java.util.ArrayList<String> found = new java.util.ArrayList<>();
         String lowerText = noteText.toLowerCase();
 
-        // Split by non-word characters to get whole words only
         String[] words = lowerText.split("[^a-zA-Z-]+");
 
         for (String keyword : KEYWORDS) {
