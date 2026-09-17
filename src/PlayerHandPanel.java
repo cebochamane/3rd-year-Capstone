@@ -239,23 +239,25 @@ public class PlayerHandPanel extends JPanel {
      * @return cards in alternating-suit order
      */
     private ArrayList<Card> getAlternatingCards(Hand hand) {
-        ArrayList<Card> alternatingCards = new ArrayList<>();
 
+        ArrayList<Card> orderedCards = new ArrayList<>();
         EnumMap<Suit, ArrayList<Card>> cardsBySuit = new EnumMap<>(Suit.class);
+
         /*
-         * Alternating black and red suits.
+         * Display suits in this order: Spades, hearts, Clubs, Diamonds.
          */
+
         Suit[] suitOrder = { Suit.SPADES, Suit.HEARTS, Suit.CLUBS, Suit.DIAMONDS };
 
         /*
-         * Create an empty list for every play-card suit.
+         * Create an empty list for every playing-card suit.
          */
         for (Suit suit : suitOrder) {
             cardsBySuit.put(suit, new ArrayList<>());
         }
         /*
          * Place each card into its list.
-         * The existing rank order insede each suit is preserved.
+         * The existing rank order inside each suit is preserved.
          */
         for (Card card : hand.getCards()) {
             ArrayList<Card> suitCards = cardsBySuit.get(card.getSuit());
@@ -263,31 +265,16 @@ public class PlayerHandPanel extends JPanel {
                 suitCards.add(card);
             }
         }
+
         /*
-         * Find the largest number of cards held in any one suit
+         * Add all cards of one suit before miving to the next suit.
+         * From the map we take all cards of the hand and put the in order
+         * on the same list
          */
-        int longestSuit = 0;
         for (Suit suit : suitOrder) {
-            int suitSize = cardsBySuit.get(suit).size();
-
-            if (suitSize > longestSuit) {
-                longestSuit = suitSize;
-            }
+            orderedCards.addAll(cardsBySuit.get(suit));
         }
-        /*
-         * Take card 0 from every suit, then card 1 from every suit, and continue until
-         * the
-         * longest suit has been exhausted.
-         */
-        for (int cardIndex = 0; cardIndex < longestSuit; cardIndex++) {
-            for (Suit suit : suitOrder) {
-                ArrayList<Card> suitCards = cardsBySuit.get(suit);
 
-                if (cardIndex < suitCards.size()) {
-                    alternatingCards.add(suitCards.get((cardIndex)));
-                }
-            }
-        }
-        return alternatingCards;
+        return orderedCards;
     }
 }
