@@ -27,6 +27,12 @@ public class GameView {
     private Seat firstSwapSeat;
     private Card firstSwapCard;
 
+    // Tutorial
+    private TutorialCatalog tutorialCatalog;
+    private TutorialEntry activeTutorial;
+    private TutorialSession tutorialSession;
+    private boolean tutorialCompletionShown;
+
     /**
      * Connects this view to the game controller.
      * 
@@ -180,6 +186,18 @@ public class GameView {
             showMessage("Controller has not been connected.");
             return;
         }
+
+        if (tutorialSession != null) {
+            if (seat.getPosition() != Position.SOUTH
+                    || !tutorialSession.playSouthCard(card)) {
+                showMessage(tutorialSession.getFeedback());
+                return;
+            }
+
+            renderTutorialSession();
+            return;
+        }
+
         /*
          * During swapping mode, clicking a card selects it for swapping instead of
          * attempting to attempting to play.
@@ -261,6 +279,16 @@ public class GameView {
         }
 
         if (bid == null) {
+            return;
+        }
+
+        if (tutorialSession != null) {
+            if (!tutorialSession.submitSouthBid(bid)) {
+                showMessage(tutorialSession.getFeedback());
+                return;
+            }
+
+            renderTutorialSession();
             return;
         }
 
@@ -376,6 +404,11 @@ public class GameView {
      * Called when the user clicks New Game from the home page.
      */
     public void newGameClicked() {
+        // Clearing tutorial state
+        activeTutorial = null;
+        tutorialSession = null;
+        tutorialCompletionShown = false;
+
         if (controller == null) {
             showMessage("Controller has not been connected.");
             return;
@@ -573,6 +606,11 @@ public class GameView {
      * Called when the user clicks Load Game.
      */
     public void loadGameClicked() {
+        // Clearing tutorial state
+        activeTutorial = null;
+        tutorialSession = null;
+        tutorialCompletionShown = false;
+
         if (controller == null) {
             showMessage("Controller has not been connected.");
             return;
@@ -761,12 +799,154 @@ public class GameView {
      * Called when the user clicks Save Game.
      */
     public void saveGameClicked() {
-        if (controller == null) {
-            showMessage("Controller has not been connected.");
+        try {
+            if (tutorialSession != null) {
+                String tutorialId = controller.saveTutorial(activeTutorial);
+                showMessage("Tutorial saved. Loading it will restart this lesson.\nID: " + tutorialId);
+            } else {
+                controller.saveGame();
+            }
+        } catch (IllegalStateException exception) {
+            showMessage(exception.getMessage());
+        }
+    }
+
+    public void loadTutorialClicked() {
+        if (controller == null || controller.getCurrentUser() == null) {
+            showMessage("Please select a profile before loading a tutorial.");
             return;
         }
 
-        controller.saveGame();
+        try {
+            tutorialCatalog = TutorialCatalog.load(Path.of("tutorials"));
+
+            String[] options = { "Start tutorial/practice deal", "Restart saved tutorial" };
+
+            int option = JOptionPane.showOptionDialog(
+                    window.getMainFrame(),
+                    "Choose a tutorial option:",
+                    "Load Tutorial",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    options,
+                    options[0]);
+
+            if (option == 0) {
+                TutorialEntry selected = (TutorialEntry) JOptionPane.showInputDialog(
+                        window.getMainFrame(),
+                        "Choose a tutorial or practice deal:",
+                        "Load Tutorial",
+                        JOptionPane.PLAIN_MESSAGE,
+                        null,
+                        tutorialCatalog.getEntries().toArray(),
+                        tutorialCatalog.getEntries().isEmpty() ? null : tutorialCatalog.getEntries().get(0));
+
+                if (selected != null) {
+                    startTutorialEntry(selected);
+                }
+            } else if (option == 1) {
+                loadSavedTutorial();
+            }
+        } catch (IOException | IllegalArgumentException exception) {
+            showMessage("Tutorials could not be loaded.\n" + exception.getMessage());
+        }
     }
 
+    private void loadSavedTutorial() throws IOException {
+        ArrayList<SavedTutorial> saved = controller.getSavedTutorials();
+
+        if (saved.isEmpty()) {
+            showMessage("This profile has no saved tutorials.");
+            return;
+        }
+
+        SavedTutorial selected = (SavedTutorial) JOptionPane.showInputDialog(
+                window.getMainFrame(),
+                "Choose a saved tutorial to restart:",
+                "Saved Tutorials",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                saved.toArray(),
+                saved.get(0));
+
+        if (selected == null) {
+            return;
+        }
+
+        TutorialEntry entry = tutorialCatalog.findScripted(
+                selected.getSourceFile(), selected.getLessonIndex());
+
+        if (entry == null) {
+            showMessage("That tutorial source file or lesson is no longer available.");
+            return;
+        }
+
+        startTutorialEntry(entry);
+    }
+
+    private void startTutorialEntry(TutorialEntry entry) throws IOException {
+        controller.quitGame();
+        window.showGameTable();
+
+        if (entry.isScriptedTutorial()) {
+            activeTutorial = entry;
+            tutorialSession = new TutorialSession(entry.getLesson());
+            tutorialCompletionShown = false;
+            renderTutorialSession();
+            return;
+        }
+
+        activeTutorial = null;
+        tutorialSession = null;
+        controller.startLoadedDeal(HtmlDealParser.parse(entry.getSource()));
+    }
+
+    private void renderTutorialSession() {
+        Deal deal = tutorialSession.getLesson().getDeal();
+        window.updateInfo(deal.getDealer());
+        window.setSwapCardsEnabled(false);
+
+        if (tutorialSession.getPhase() == TutorialPhase.BIDDING) {
+            Seat expected = tutorialSession.getExpectedSeat();
+
+            for (Position position : Position.values()) {
+                Seat seat = new Seat(position);
+                Hand hand = deal.getHand(seat);
+
+                if (seat.equals(expected)) {
+                    window.updateHand(position, hand);
+                } else {
+                    window.updateHiddenHand(position, hand.getCards().size());
+                }
+            }
+
+            window.updateAuction(tutorialSession.getAuction(), deal.getDealer(), expected);
+            return;
+        }
+
+        Gameplay gameplay = tutorialSession.getGameplay();
+        window.updateContract(tutorialSession.getLesson().getContract());
+
+        for (Position position : Position.values()) {
+            Seat seat = new Seat(position);
+            Hand hand = gameplay.getRemainingHand(seat);
+
+            if (gameplay.isHandVisible(seat)) {
+                window.updateHand(position, hand);
+            } else {
+                window.updateHiddenHand(position, hand.getCards().size());
+            }
+        }
+
+        window.updateTrick(gameplay.getCurrentTrick());
+        window.updateCurrentPlayer(tutorialSession.isComplete()
+                ? null
+                : tutorialSession.getExpectedSeat());
+
+        if (tutorialSession.isComplete() && !tutorialCompletionShown) {
+            tutorialCompletionShown = true;
+            showMessage(tutorialSession.getFeedback());
+        }
+    }
 }

@@ -596,4 +596,32 @@ public class GameController {
         boolean check = currentDeal.swapCards(firstSeat, firstCard, secondSeat, secondCard);
         return check;
     }
+
+    /**
+     * Saves a tutorial entry associated with the current user into storage.
+     * 
+     * @param tutorial the tutorial entry to save
+     * @return an identifier for the saved tutorial
+     */
+    public String saveTutorial(TutorialEntry tutorial) {
+        if (storage == null) {
+            throw new IllegalStateException("Storage has not been connected.");
+        }
+        if (currentUser == null) {
+            throw new IllegalStateException("Please select a user before saving.");
+        }
+        return storage.saveTutorial(currentUser, tutorial);
+    }
+
+    /**
+     * Retrieves the saved tutorials for the current user from storage.
+     * 
+     * @return a list of saved tutorials, or an empty list if storage or user is unavailable
+     */
+    public ArrayList<SavedTutorial> getSavedTutorials() {
+        if (storage == null || currentUser == null) {
+            return new ArrayList<>();
+        }
+        return storage.getSavedTutorials(currentUser);
+    }
 }

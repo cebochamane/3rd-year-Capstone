@@ -167,6 +167,10 @@ public class GameWindow {
         tablePanel = new JPanel(new BorderLayout()) {
             // subclass of JPanel for custom drawing.
             @Override
+            /**
+             * Custom paints the table panel with a green oval representing the bridge table.
+             * @param g the Graphics object used for painting
+             */
             protected void paintComponent(Graphics g) {
                 super.paintComponent(g);
                 Graphics2D g2d = (Graphics2D) g;
@@ -457,6 +461,12 @@ public class GameWindow {
             @Override
             public void actionPerformed(ActionEvent e) {
                 mainFrame.dispose();
+            }
+        });
+
+        homePanel.setLoadTutorialAction(event -> {
+            if (view != null) {
+                view.loadTutorialClicked();
             }
         });
 
@@ -828,6 +838,12 @@ public class GameWindow {
         contractMarkerPanel.updateContract(contract);
     }
 
+    /**
+     * Creates and returns a styled JButton with specified text for use in the UI.
+     * 
+     * @param text the button text
+     * @return a configured JButton with specified text
+     */
     private JButton createActionButton(String text) {
         JButton button = new JButton(text);
 
@@ -860,6 +876,7 @@ public class GameWindow {
         northHandPanel.setCardsEnabled(enabled);
         eastHandPanel.setCardsEnabled(enabled);
         southHandPanel.setCardsEnabled(enabled);
+        westHandPanel.setCardsEnabled(enabled);
     }
 
     // ===== Learning Notes buttons (AI-assisted) =====

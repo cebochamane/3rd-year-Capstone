@@ -8,6 +8,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Loads the two plain-text tutorial formats supplied for BridgeTut.
@@ -33,7 +38,27 @@ public final class TutorialLessonParser {
      * @throws IOException if an I/O error occurs reading the file
      */
     public static List<TutorialLesson> parse(Path path) throws IOException {
-        return parse(Files.readString(path));
+        return parse(readText(path));
+    }
+
+    /**
+     * Reads all bytes from the given file path and decodes them into a String, trying UTF-8 first and falling back to Windows-1252 on decoding errors.
+     * @param path the file system path to read text from
+     * @return the decoded text contents of the file
+     * @throws IOException if an I/O error occurs reading the file
+     */
+    public static String readText(Path path) throws IOException {
+        byte[] bytes = Files.readAllBytes(path);
+
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes))
+                    .toString();
+        } catch (CharacterCodingException exception) {
+            return new String(bytes, Charset.forName("windows-1252"));
+        }
     }
 
     /**

@@ -44,7 +44,7 @@ public class Storage {
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys = ON");
         }
-        return DriverManager.getConnection(databaseUrl);
+        return connection;
     }
 
     /**
@@ -88,6 +88,15 @@ public class Storage {
         String createScoresTable = "CREATE TABLE IF NOT EXISTS scores ("
                 + "game_id TEXT PRIMARY KEY, " + "score_ns INTEGER NOT NULL, " + "score_ew INTEGER NOT NULL, "
                 + "FOREIGN KEY (game_id) REFERENCES games(game_id) " + "ON DELETE CASCADE" + ")";
+
+        String createTutorialSessionsTable = "CREATE TABLE IF NOT EXISTS tutorial_sessions ("
+            + "tutorial_id TEXT PRIMARY KEY, "
+            + "user_id TEXT NOT NULL, "
+            + "source_file TEXT NOT NULL, "
+            + "lesson_index INTEGER NOT NULL CHECK (lesson_index > 0), "
+            + "saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+            + "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE"
+            + ")";
 
         try (Connection connection = openConnection();
                 Statement statement = connection.createStatement()) {
@@ -801,5 +810,77 @@ public class Storage {
         }
 
         return Deal.fromHands(dealer, vulnerability, suppliedHands);
+    }
+
+    /**
+     * Saves a scripted tutorial entry progress for the specified user and returns the tutorial ID.
+     * 
+     * @param user user saving the tutorial
+     * @param tutorial scripted tutorial entry to save
+     * @return the saved tutorial ID
+     */
+    public String saveTutorial(User user, TutorialEntry tutorial) {
+        if (user == null) {
+            throw new IllegalArgumentException("A user is required to save a tutorial.");
+        }
+        if (tutorial == null || !tutorial.isScriptedTutorial()) {
+            throw new IllegalArgumentException("Only scripted tutorials can be saved as tutorials.");
+        }
+
+        String tutorialId = UUID.randomUUID().toString();
+
+        String insert = "INSERT INTO tutorial_sessions "
+                + "(tutorial_id, user_id, source_file, lesson_index) VALUES (?, ?, ?, ?)";
+
+        try (Connection connection = openConnection();
+                PreparedStatement statement = connection.prepareStatement(insert)) {
+
+            statement.setString(1, tutorialId);
+            statement.setString(2, user.getUserId());
+            statement.setString(3, tutorial.getSourceFileName());
+            statement.setInt(4, tutorial.getLessonIndex());
+            statement.executeUpdate();
+
+            return tutorialId;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not save the tutorial.", exception);
+        }
+    }
+
+    /**
+     * Returns a list of all saved tutorials for the specified user ordered by save date descending.
+     * 
+     * @param user user whose tutorials to retrieve
+     * @return list of saved tutorials
+     */
+    public ArrayList<SavedTutorial> getSavedTutorials(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("A user is required.");
+        }
+
+        String select = "SELECT tutorial_id, source_file, lesson_index, saved_at "
+                + "FROM tutorial_sessions WHERE user_id = ? ORDER BY saved_at DESC";
+
+        ArrayList<SavedTutorial> tutorials = new ArrayList<>();
+
+        try (Connection connection = openConnection();
+                PreparedStatement statement = connection.prepareStatement(select)) {
+
+            statement.setString(1, user.getUserId());
+
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next()) {
+                    tutorials.add(new SavedTutorial(
+                            results.getString("tutorial_id"),
+                            results.getString("source_file"),
+                            results.getInt("lesson_index"),
+                            results.getString("saved_at")));
+                }
+            }
+
+            return tutorials;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not retrieve saved tutorials.", exception);
+        }
     }
 }
