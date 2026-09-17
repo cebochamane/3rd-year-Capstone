@@ -1,4 +1,6 @@
 import java.util.ArrayList;
+import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * The GameController class manages the game logic and state for a Bridge game.
@@ -58,9 +60,25 @@ public class GameController {
             throw new IllegalStateException("Storage has not been connected.");
         }
 
-        User user = storage.createUser(username);
-        this.currentUser = user;
-        return user;
+        try {
+            TutorialCatalog catalog = TutorialCatalog.load(Path.of("tutorials"));
+
+            ArrayList<TutorialEntry> scriptedTutorials = new ArrayList<>();
+
+            for (TutorialEntry entry : catalog.getEntries()) {
+                if (entry.isScriptedTutorial()) {
+                    scriptedTutorials.add(entry);
+                }
+            }
+
+            User user = storage.createUser(username, scriptedTutorials);
+            this.currentUser = user;
+            return user;
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "The profile could not be created because tutorials could not be read.",
+                    exception);
+        }
     }
 
     /**

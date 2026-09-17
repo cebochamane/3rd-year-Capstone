@@ -715,7 +715,10 @@ public class GameView {
              */
             window.selectUser(createdUser);
 
-            this.showMessage("Profile created for " + createdUser.getUsername() + ".");
+            int tutorialCount = controller.getSavedTutorials().size();
+
+            this.showMessage("Profile created for " + createdUser.getUsername() + ".\n"
+                    + tutorialCount + " tutorial(s) are ready in Load Tutorial.");
 
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.showMessage("The profile could not be created.\n" + exception.getMessage());
@@ -843,7 +846,7 @@ public class GameView {
         try {
             tutorialCatalog = TutorialCatalog.load(Path.of("tutorials"));
 
-            String[] options = { "Start tutorial/practice deal", "Restart saved tutorial" };
+            String[] options = { "Browse tutorial/practice files", "My Tutorials" };
 
             int option = JOptionPane.showOptionDialog(
                     window.getMainFrame(),
@@ -891,7 +894,7 @@ public class GameView {
 
         SavedTutorial selected = (SavedTutorial) JOptionPane.showInputDialog(
                 window.getMainFrame(),
-                "Choose a saved tutorial to restart:",
+                "Choose a tutorial to start:",
                 "Saved Tutorials",
                 JOptionPane.PLAIN_MESSAGE,
                 null,

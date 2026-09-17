@@ -107,6 +107,7 @@ public class Storage {
             statement.execute(createContractsTable);
             statement.execute(createCardPlaysTable);
             statement.execute(createScoresTable);
+            statement.execute(createTutorialSessionsTable);
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not initialise the BridgeTut database.", exception);
         }
@@ -598,34 +599,91 @@ public class Storage {
     }
 
     /**
-     * Create and stores a new local user profile
+     * Creates a new user with the specified username and no tutorials.
      * 
-     * @param username visible profile name
-     * @return the newly created user.
+     * @param username the username for the new user
+     * @return the created user
      */
     public User createUser(String username) {
+        return createUser(username, List.of());
+    }
+
+    /**
+     * Creates a new user with the specified username and assigns the given tutorials.
+     * 
+     * @param username the username for the new user
+     * @param tutorials list of tutorial entries to assign
+     * @return the created user
+     */
+    public User createUser(String username, List<TutorialEntry> tutorials) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("The username cannot be null or blank.");
         }
+
         String cleanUsername = username.trim();
         String userId = UUID.randomUUID().toString();
 
-        String insertUser = "INSERT INTO users (user_id, username) " + "VALUES (?, ?)";
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
 
-        try (Connection connection = openConnection();
-                PreparedStatement statement = connection.prepareStatement(insertUser)) {
-            statement.setString(1, userId);
-            statement.setString(2, cleanUsername);
-            int rowsInserted = statement.executeUpdate();
-            if (rowsInserted != 1) {
-                throw new IllegalStateException("The profile was not created");
+            try {
+                String insertUser = "INSERT INTO users (user_id, username) VALUES (?, ?)";
+
+                try (PreparedStatement statement = connection.prepareStatement(insertUser)) {
+                    statement.setString(1, userId);
+                    statement.setString(2, cleanUsername);
+                    statement.executeUpdate();
+                }
+
+                User user = new User(userId, cleanUsername);
+                assignTutorials(connection, user, tutorials);
+
+                connection.commit();
+                return user;
+            } catch (SQLException exception) {
+                connection.rollback();
+                throw new IllegalStateException(
+                        "Could not create the user profile and tutorials.", exception);
             }
-            return new User(userId, cleanUsername);
         } catch (SQLException exception) {
-            throw new IllegalStateException("Could not create the user profile. " + "The username may already exist.",
-                    exception);
+            throw new IllegalStateException(
+                    "Could not create the user profile. The username may already exist.", exception);
         }
     }
+
+    /**
+     * Assigns the specified tutorials to the given user in the database using the provided connection.
+     * 
+     * @param connection database connection for transaction
+     * @param user user to assign tutorials to
+     * @param tutorials list of tutorial entries to assign
+     * @throws SQLException if tutorials cannot be inserted
+     */
+    private void assignTutorials(Connection connection, User user, List<TutorialEntry> tutorials) throws SQLException {
+
+        if (tutorials == null) {
+            return;
+        }
+
+        String insertTutorial = "INSERT INTO tutorial_sessions "
+                + "(tutorial_id, user_id, source_file, lesson_index) VALUES (?, ?, ?, ?)";
+
+        try (PreparedStatement statement = connection.prepareStatement(insertTutorial)) {
+            for (TutorialEntry tutorial : tutorials) {
+                if (tutorial == null || !tutorial.isScriptedTutorial()) {
+                    continue;
+                }
+
+                statement.setString(1, UUID.randomUUID().toString());
+                statement.setString(2, user.getUserId());
+                statement.setString(3, tutorial.getSourceFileName());
+                statement.setInt(4, tutorial.getLessonIndex());
+                statement.addBatch();
+            }
+
+            statement.executeBatch();
+        }
+}
 
     /**
      * Loads all local user profiles from the database.

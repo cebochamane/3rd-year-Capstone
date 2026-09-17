@@ -187,4 +187,24 @@ public class StorageTest {
         assertEquals(1, user2Games.size());
         assertEquals(user2GameId, user2Games.get(0).getGameId());
     }
+
+    @Test
+    void createsUserWithAssignedTutorials() {
+        Path databasePath = temporaryDirectory.resolve("tutorial-user.db");
+        Storage storage = new Storage(databasePath.toString());
+
+        TutorialEntry first = TutorialEntry.scripted(
+                Path.of("first.txt"), 1, null);
+
+        TutorialEntry second = TutorialEntry.scripted(
+                Path.of("second.txt"), 2, null);
+
+        User user = storage.createUser(
+                "Cyril",
+                java.util.List.of(first, second));
+
+        ArrayList<SavedTutorial> tutorials = storage.getSavedTutorials(user);
+
+        assertEquals(2, tutorials.size());
+    }
 }
