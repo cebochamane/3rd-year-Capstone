@@ -137,6 +137,11 @@ public class GameView {
         this.initialiseWindow();
         Gameplay gameplay = controller.getGameplay();
 
+        /*
+         * Claim is available while the game is still played.
+         */
+        window.setClaimEnabled(!gameplay.isFinished());
+
         Seat currentPlayer = gameplay.getCurrentPlayer();
 
         /*
@@ -408,6 +413,43 @@ public class GameView {
         if (choice == JOptionPane.YES_OPTION) {
             controller.quitGame();
             window.showHomePage();
+        }
+    }
+
+    /**
+     * Attempts to claim all remaining tricks.
+     */
+    public void claimClicked() {
+
+        if (controller == null || controller.getGameplay() == null) {
+            return;
+        }
+
+        initialiseWindow();
+        /*
+         * Ask the user to confirm before attempting the claim.
+         */
+        int choice = JOptionPane.showConfirmDialog(window.getMainFrame(), "Claim all remaining tricks?",
+                "Claim", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
+
+        if (choice != JOptionPane.YES_OPTION) {
+            return;
+        }
+
+        /*
+         * Ask the controller to process the claim.
+         */
+        boolean claimed = controller.claim();
+
+        if (claimed) {
+
+            Gameplay gameplay = controller.getGameplay();
+
+            showMessage("Claim accepted.\n Declarer tricks: " + gameplay.getDeclarerTricks()
+                    + "\nDefender tricks: " + gameplay.getDefenderTricks());
+
+        } else {
+            showMessage("Claim rejected.\n The claiming side could not win all remaining tricks.");
         }
     }
 

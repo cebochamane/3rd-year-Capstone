@@ -455,6 +455,48 @@ public class GameController {
     }
 
     /**
+     * Attempts to claim all remaining tricks for the
+     * player whose turn it currently is.
+     *
+     * @return true if the claim is valid and accepted,
+     *         otherwise false
+     */
+    public boolean claim() {
+
+        /*
+         * A claim can only be made during gameplay.
+         */
+        if (phase != GamePhase.PLAYING || gameplay == null) {
+            return false;
+        }
+
+        /*
+         * The player whose turn it is makes the claim.
+         */
+        Seat claimant = gameplay.getCurrentPlayer();
+
+        if (claimant == null) {
+            return false;
+        }
+
+        /*
+         * Ask Gameplay to validate and process the claim.
+         */
+        boolean claimed = this.gameplay.claim(claimant);
+
+        if (!claimed) {
+            return false;
+        }
+
+        /*
+         * A successful claim ends the game.
+         */
+        phase = GamePhase.FINISHED;
+
+        return true;
+    }
+
+    /**
      * Undoes the most recent game action when possible.
      *
      * Undo is not implemented yet.

@@ -471,6 +471,16 @@ public class GameWindow {
                 }
             }
         });
+
+        claimButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent event) {
+                if (view != null) {
+                    view.claimClicked();
+                }
+            }
+        });
+
     }
 
     /**
@@ -480,6 +490,15 @@ public class GameWindow {
      */
     public void updateUsers(ArrayList<User> users) {
         homePanel.setUsers(users);
+    }
+
+    /**
+     * Enables or disables the Claim button.
+     *
+     * @param enabled true to enable the button
+     */
+    public void setClaimEnabled(boolean enabled) {
+        claimButton.setEnabled(enabled);
     }
 
     /**
