@@ -1019,6 +1019,11 @@ public class GameView {
         }
     }
 
+    /**
+     * Returns whether it is South's turn in the current tutorial session.
+     * 
+     * @return true if it is South's turn; false otherwise
+     */
     private boolean isSouthTutorialTurn() {
         if (tutorialSession == null) {
             return false;
@@ -1030,6 +1035,9 @@ public class GameView {
                 && expected.getPosition() == Position.SOUTH;
     }
 
+    /**
+     * Schedules the next automatic tutorial step with a delay, updating the GUI accordingly.
+     */
     private void scheduleNextTutorialStep() {
         if (tutorialSession == null || tutorialSession.isComplete()) {
             return;
@@ -1070,6 +1078,9 @@ public class GameView {
         tutorialStepTimer.start();
     }
 
+    /**
+     * Cancels any delayed tutorial action currently scheduled.
+     */
     private void cancelTutorialDelay() {
         if (tutorialStepTimer != null) {
             tutorialStepTimer.stop();
