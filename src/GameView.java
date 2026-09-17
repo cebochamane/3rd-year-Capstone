@@ -27,11 +27,14 @@ public class GameView {
     private Seat firstSwapSeat;
     private Card firstSwapCard;
 
-    // Tutorial
+    // Tutorial fields
     private TutorialCatalog tutorialCatalog;
     private TutorialEntry activeTutorial;
     private TutorialSession tutorialSession;
     private boolean tutorialCompletionShown;
+    private static final int TUTORIAL_ACTION_DELAY_MS = 2000;
+    private Timer tutorialStepTimer;
+    private boolean tutorialActionDelayActive;
 
     /**
      * Connects this view to the game controller.
@@ -193,6 +196,11 @@ public class GameView {
         }
 
         if (tutorialSession != null) {
+            if (tutorialActionDelayActive) {
+                showMessage("Please wait for the next tutorial action.");
+                return;
+            }
+
             if (seat.getPosition() != Position.SOUTH
                     || !tutorialSession.playSouthCard(card)) {
                 showMessage(tutorialSession.getFeedback());
@@ -200,6 +208,7 @@ public class GameView {
             }
 
             renderTutorialSession();
+            scheduleNextTutorialStep();
             return;
         }
 
@@ -296,12 +305,18 @@ public class GameView {
         }
 
         if (tutorialSession != null) {
+            if (tutorialActionDelayActive) {
+                showMessage("Please wait for the next tutorial action.");
+                return;
+            }
+
             if (!tutorialSession.submitSouthBid(bid)) {
                 showMessage(tutorialSession.getFeedback());
                 return;
             }
 
             renderTutorialSession();
+            scheduleNextTutorialStep();
             return;
         }
 
@@ -417,6 +432,8 @@ public class GameView {
      * Called when the user clicks New Game from the home page.
      */
     public void newGameClicked() {
+        cancelTutorialDelay();
+
         // Clearing tutorial state
         activeTutorial = null;
         tutorialSession = null;
@@ -443,6 +460,8 @@ public class GameView {
      * Called when the user selects Quit Game.
      */
     public void quitGameClicked() {
+        cancelTutorialDelay();
+
         if (controller == null) {
             return;
         }
@@ -619,6 +638,8 @@ public class GameView {
      * Called when the user clicks Load Game.
      */
     public void loadGameClicked() {
+        cancelTutorialDelay();
+
         // Clearing tutorial state
         activeTutorial = null;
         tutorialSession = null;
@@ -928,9 +949,18 @@ public class GameView {
 
         if (entry.isScriptedTutorial()) {
             activeTutorial = entry;
-            tutorialSession = new TutorialSession(entry.getLesson());
+            cancelTutorialDelay();
+            tutorialSession = new TutorialSession(entry.getLesson(), false);
             tutorialCompletionShown = false;
             renderTutorialSession();
+
+            /*
+            * If West, North, or East must act first, wait two seconds
+            * before showing that action.
+            */
+            if (!isSouthTutorialTurn()) {
+                scheduleNextTutorialStep();
+            }
             return;
         }
 
@@ -980,13 +1010,72 @@ public class GameView {
         }
 
         window.updateTrick(gameplay.getCurrentTrick());
-        window.updateCurrentPlayer(tutorialSession.isComplete()
-                ? null
-                : tutorialSession.getExpectedSeat());
+        window.updateCurrentPlayer(
+            tutorialSession.isComplete() || tutorialActionDelayActive ? null : tutorialSession.getExpectedSeat());
 
         if (tutorialSession.isComplete() && !tutorialCompletionShown) {
             tutorialCompletionShown = true;
             showMessage(tutorialSession.getFeedback());
         }
+    }
+
+    private boolean isSouthTutorialTurn() {
+        if (tutorialSession == null) {
+            return false;
+        }
+
+        Seat expected = tutorialSession.getExpectedSeat();
+
+        return expected != null
+                && expected.getPosition() == Position.SOUTH;
+    }
+
+    private void scheduleNextTutorialStep() {
+        if (tutorialSession == null || tutorialSession.isComplete()) {
+            return;
+        }
+
+        tutorialActionDelayActive = true;
+        renderTutorialSession();
+
+        tutorialStepTimer = new Timer(TUTORIAL_ACTION_DELAY_MS, event -> {
+            tutorialStepTimer = null;
+            tutorialActionDelayActive = false;
+
+            try {
+                /*
+                * After the delay, enable South if it is South's turn.
+                */
+                if (isSouthTutorialTurn()) {
+                    renderTutorialSession();
+                    return;
+                }
+
+                boolean actionCompleted = tutorialSession.advanceOneComputerAction();
+                renderTutorialSession();
+
+                /*
+                * Every completed computer action gets another two-second pause
+                * before the following action.
+                */
+                if (actionCompleted && !tutorialSession.isComplete()) {
+                    scheduleNextTutorialStep();
+                }
+            } catch (IllegalStateException exception) {
+                showMessage(exception.getMessage());
+            }
+        });
+
+        tutorialStepTimer.setRepeats(false);
+        tutorialStepTimer.start();
+    }
+
+    private void cancelTutorialDelay() {
+        if (tutorialStepTimer != null) {
+            tutorialStepTimer.stop();
+            tutorialStepTimer = null;
+        }
+
+        tutorialActionDelayActive = false;
     }
 }

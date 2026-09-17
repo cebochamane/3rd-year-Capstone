@@ -16,6 +16,7 @@ public final class TutorialSession {
     private String feedback;
     private boolean claimed;
     private boolean conceded;
+    private final boolean automaticallyAdvanceComputerActions;
 
     /**
      * Initializes a new tutorial session using the specified tutorial lesson.
@@ -23,20 +24,29 @@ public final class TutorialSession {
      * @param lesson The tutorial lesson to run in this session.
      */
     public TutorialSession(TutorialLesson lesson) {
+        this(lesson, true);
+    }
+
+    public TutorialSession(TutorialLesson lesson, boolean automaticallyAdvanceComputerActions) {
         if (lesson == null) {
             throw new IllegalArgumentException("A tutorial lesson is required.");
         }
+
         this.lesson = lesson;
         this.auction = new Auction();
         this.completedActions = new ArrayList<>();
         this.phase = lesson.getType() == TutorialLessonType.BID_AND_PLAY
                 ? TutorialPhase.BIDDING : TutorialPhase.PLAYING;
         this.feedback = "";
+        this.automaticallyAdvanceComputerActions = automaticallyAdvanceComputerActions;
 
         if (phase == TutorialPhase.PLAYING) {
             startGameplay();
         }
-        advanceComputerActions();
+
+        if (automaticallyAdvanceComputerActions) {
+            advanceComputerActions();
+        }
     }
 
     /**
@@ -144,7 +154,11 @@ public final class TutorialSession {
 
         complete(expected);
         feedback = "Correct bid.";
-        advanceComputerActions();
+
+        if (automaticallyAdvanceComputerActions) {
+            advanceComputerActions();
+        }
+
         return true;
     }
 
@@ -164,7 +178,11 @@ public final class TutorialSession {
 
         complete(expected);
         feedback = "Correct card.";
-        advanceComputerActions();
+
+        if (automaticallyAdvanceComputerActions) {
+            advanceComputerActions();
+        }
+
         return true;
     }
 
@@ -198,42 +216,53 @@ public final class TutorialSession {
      * Progresses the lesson by executing automated actions played by computer opponents until South's turn or lesson end.
      */
     private void advanceComputerActions() {
-        while (!isComplete()) {
-            TutorialAction expected = nextAction();
-            if (expected == null) {
-                throw new IllegalStateException("The tutorial ended without Claim or Concede.");
-            }
-
-            if (expected.getType() == TutorialAction.Type.CLAIM) {
-                claimed = true;
-                phase = TutorialPhase.COMPLETE;
-                feedback = lesson.getNote();
-                return;
-            }
-            if (expected.getType() == TutorialAction.Type.CONCEDE) {
-                conceded = true;
-                phase = TutorialPhase.COMPLETE;
-                feedback = lesson.getNote();
-                return;
-            }
-
-            if (phase == TutorialPhase.BIDDING) {
-                if (isSouth(expected)) {
-                    return;
-                }
-                complete(expected);
-                continue;
-            }
-
-            if (isSouth(expected)) {
-                return;
-            }
-            if (!playScriptedCard(expected.getSeat(), expected.getCard())) {
-                throw new IllegalStateException("The lesson's scripted card is not legal for "
-                        + expected.getSeat() + ": " + expected.getCard() + ".");
-            }
-            complete(expected);
+        while (advanceOneComputerAction()) {
+            // Keep advancing only in the original automatic-session mode.
         }
+    }
+
+    public boolean advanceOneComputerAction() {
+        if (isComplete()) {
+            return false;
+        }
+
+        TutorialAction expected = nextAction();
+
+        if (expected == null) {
+            throw new IllegalStateException("The tutorial ended without Claim or Concede.");
+        }
+
+        if (expected.getType() == TutorialAction.Type.CLAIM) {
+            claimed = true;
+            phase = TutorialPhase.COMPLETE;
+            feedback = lesson.getNote();
+            return true;
+        }
+
+        if (expected.getType() == TutorialAction.Type.CONCEDE) {
+            conceded = true;
+            phase = TutorialPhase.COMPLETE;
+            feedback = lesson.getNote();
+            return true;
+        }
+
+        if (isSouth(expected)) {
+            return false;
+        }
+
+        if (phase == TutorialPhase.BIDDING) {
+            complete(expected);
+            return true;
+        }
+
+        if (!playScriptedCard(expected.getSeat(), expected.getCard())) {
+            throw new IllegalStateException(
+                    "The lesson's scripted card is not legal for "
+                            + expected.getSeat() + ": " + expected.getCard() + ".");
+        }
+
+        complete(expected);
+        return true;
     }
 
     /**
