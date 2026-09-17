@@ -42,6 +42,11 @@ public class GameView {
         this.controller = controller;
     }
 
+    /**
+     * Returns the current game controller connected to this view.
+     * 
+     * @return the current GameController instance
+     */
     public GameController getController() {
         return controller;
     }
@@ -245,9 +250,17 @@ public class GameView {
          */
         dialog.addComponentListener(new ComponentAdapter() {
             @Override
+            /**
+             * Handles component shown events, centering the message dialog when displayed.
+             * 
+             * @param event TODO
+             */
             public void componentShown(ComponentEvent event) {
                 SwingUtilities.invokeLater(new Runnable() {
                     @Override
+                    /**
+                     * Executes GUI-related updates asynchronously to center dialogs after display.
+                     */
                     public void run() {
                         int centredX = window.getMainFrame().getX()
                                 + (window.getMainFrame().getWidth() - dialog.getWidth()) / 2;
@@ -721,7 +734,10 @@ public class GameView {
         controller.setCurrentUser(user);
     }
 
-    // Called by the "Learning Notes" button in GameWindow.
+    /**
+     * Called by the "Learning Notes" button in GameWindow.
+     * Displays all saved learning notes or a message if none exist.
+     */
     public void showLearningNotes() {
         if (learningNotes.isEmpty()) {
             showMessage("No learning notes yet.");
@@ -734,7 +750,11 @@ public class GameView {
         showMessage(sb.toString());
     }
 
-    // This is to be called by a "Quick Note" button on Gameview
+    /**
+     * Called by a "Quick Note" button on Gameview
+     * Prompts the user to add a quick note for a specified phase and saves it with contextual information.
+     * @param phase the phase of the game for the note
+     */
     public void addQuickNote(NotePhase phase) {
         String text = javax.swing.JOptionPane.showInputDialog(
                 window != null ? window.getMainFrame() : null,
@@ -811,6 +831,9 @@ public class GameView {
         }
     }
 
+    /**
+     * Allows the user to load or restart a tutorial, handling selection dialogs and tutorial initialization.
+     */
     public void loadTutorialClicked() {
         if (controller == null || controller.getCurrentUser() == null) {
             showMessage("Please select a profile before loading a tutorial.");
@@ -853,6 +876,11 @@ public class GameView {
         }
     }
 
+    /**
+     * Loads a saved tutorial selected by the user and starts it, throwing IOException on failure.
+     * 
+     * @throws IOException if an I/O error occurs while loading tutorials or saved data
+     */
     private void loadSavedTutorial() throws IOException {
         ArrayList<SavedTutorial> saved = controller.getSavedTutorials();
 
@@ -885,6 +913,12 @@ public class GameView {
         startTutorialEntry(entry);
     }
 
+    /**
+     * Starts a tutorial or practice deal entry, quitting any active game and initializing the lesson.
+     * 
+     * @param entry the tutorial entry to start
+     * @throws IOException if an error occurs reading tutorial data
+     */
     private void startTutorialEntry(TutorialEntry entry) throws IOException {
         controller.quitGame();
         window.showGameTable();
@@ -902,6 +936,9 @@ public class GameView {
         controller.startLoadedDeal(HtmlDealParser.parse(entry.getSource()));
     }
 
+    /**
+     * Updates the GUI to reflect the current state of the tutorial session, including hands, auction, and feedback.
+     */
     private void renderTutorialSession() {
         Deal deal = tutorialSession.getLesson().getDeal();
         window.updateInfo(deal.getDealer());
