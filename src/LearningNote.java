@@ -8,7 +8,7 @@ import java.time.format.DateTimeFormatter;
 public class LearningNote {
 
     private LocalDateTime timestamp;
-    private String phase; // "BIDDING", "PRE_PLAY", "POST_PLAY", "PLAYING", "GENERAL"
+    private NotePhase phase;
     private String noteText;
     private String handAnalysis;
     private String contract;
@@ -28,19 +28,20 @@ public class LearningNote {
      */
     public LearningNote() {
         this.timestamp = LocalDateTime.now();
-        this.phase = "GENERAL";
+        this.phase = NotePhase.GENERAL;
         this.trickNumber = 0;
     }
 
     /**
      * Creates a learning note with specified phase.
      */
-    public LearningNote(String phase) {
+    public LearningNote(NotePhase phase) {
         this();
         this.phase = phase;
     }
 
-    // Getters and Setters
+    // ===== Getters and Setters =====
+
     public LocalDateTime getTimestamp() {
         return timestamp;
     }
@@ -49,11 +50,11 @@ public class LearningNote {
         this.timestamp = timestamp;
     }
 
-    public String getPhase() {
+    public NotePhase getPhase() {
         return phase;
     }
 
-    public void setPhase(String phase) {
+    public void setPhase(NotePhase phase) {
         this.phase = phase;
     }
 
@@ -122,7 +123,6 @@ public class LearningNote {
         if (contract != null && !contract.isEmpty()) {
             sb.append(" Contract: ").append(contract);
         }
-        // Only add newline and note if there is content
         if (handAnalysis != null && !handAnalysis.isEmpty()) {
             sb.append("\n  Analysis: ").append(handAnalysis);
         }
@@ -143,7 +143,6 @@ public class LearningNote {
         java.util.ArrayList<String> found = new java.util.ArrayList<>();
         String lowerText = noteText.toLowerCase();
 
-        // Split by non-word characters to get whole words only
         String[] words = lowerText.split("[^a-zA-Z-]+");
 
         for (String keyword : KEYWORDS) {

@@ -378,6 +378,7 @@ public class GameWindow {
          */
         mainFrame.setLocationRelativeTo(null);
         mainFrame.setVisible(true);
+            addLearningNotesButtons();
     }
 
     /**
@@ -859,5 +860,43 @@ public class GameWindow {
         northHandPanel.setCardsEnabled(enabled);
         eastHandPanel.setCardsEnabled(enabled);
         southHandPanel.setCardsEnabled(enabled);
+    }
+
+    // ===== Learning Notes buttons (AI-assisted) =====
+
+    /** Adds "Learning Notes" and "Quick Note" buttons to the header. */
+    public void addLearningNotesButtons() {
+        if (headerPanel == null)
+            return;
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 5));
+        buttonPanel.setOpaque(false);
+
+        JButton notesBtn = new JButton("Learning Notes");
+        notesBtn.setBackground(new Color(200, 180, 50));
+        notesBtn.setForeground(Color.BLACK);
+        notesBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        notesBtn.addActionListener(e -> {
+            if (view != null)
+                view.showLearningNotes();
+        });
+        buttonPanel.add(notesBtn);
+
+        JButton quickBtn = new JButton("Quick Note");
+        quickBtn.setBackground(new Color(100, 150, 200));
+        quickBtn.setForeground(Color.WHITE);
+        quickBtn.setFont(new Font("Arial", Font.BOLD, 12));
+        quickBtn.addActionListener(e -> {
+            if (view != null && view.getController() != null) {
+                NotePhase notePhase = NotePhase.fromGamePhase(
+                        view.getController().getPhase());
+                view.addQuickNote(notePhase);
+            }
+        });
+        buttonPanel.add(quickBtn);
+
+        headerPanel.add(buttonPanel);
+        headerPanel.revalidate();
+        headerPanel.repaint();
     }
 }

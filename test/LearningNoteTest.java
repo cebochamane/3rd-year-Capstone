@@ -5,24 +5,7 @@ import org.junit.jupiter.api.DisplayName;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-/**
- * AI-Generated Code Disclosure:
- * This test suite was generated with assistance from AI tools.
- * All 26 tests have been validated and are passing.
- * 
- * File: LearningNoteTest.java
- * Purpose: Unit tests for LearningNote class
- * Status: 26 tests, 0 failures
- * 
- * Test Coverage:
- * - Constructor tests (2)
- * - Getter/Setter tests (6)
- * - Keyword detection tests (8)
- * - toString tests (3)
- * - Collection tests (3)
- * - Timestamp tests (2)
- * - Edge cases (2)
- */
+
 /**
  * Unit tests for the Learning Note system.
  */
@@ -36,9 +19,9 @@ public class LearningNoteTest {
     @BeforeEach
     void setUp() {
         note = new LearningNote();
-        biddingNote = new LearningNote("BIDDING");
-        prePlayNote = new LearningNote("PRE_PLAY");
-        postPlayNote = new LearningNote("POST_PLAY");
+        biddingNote = new LearningNote(NotePhase.BIDDING);
+        prePlayNote = new LearningNote(NotePhase.PRE_PLAY);
+        postPlayNote = new LearningNote(NotePhase.POST_PLAY);
     }
 
     // ===== Constructor Tests =====
@@ -46,7 +29,7 @@ public class LearningNoteTest {
     @DisplayName("Default constructor creates note with current timestamp")
     void testDefaultConstructor() {
         assertNotNull(note.getTimestamp());
-        assertEquals("GENERAL", note.getPhase());
+        assertEquals(NotePhase.GENERAL, note.getPhase());
         assertEquals(0, note.getTrickNumber());
         assertNull(note.getNoteText());
         assertNull(note.getContract());
@@ -56,9 +39,9 @@ public class LearningNoteTest {
     @Test
     @DisplayName("Constructor with phase parameter works correctly")
     void testConstructorWithPhase() {
-        assertEquals("BIDDING", biddingNote.getPhase());
-        assertEquals("PRE_PLAY", prePlayNote.getPhase());
-        assertEquals("POST_PLAY", postPlayNote.getPhase());
+        assertEquals(NotePhase.BIDDING, biddingNote.getPhase());
+        assertEquals(NotePhase.PRE_PLAY, prePlayNote.getPhase());
+        assertEquals(NotePhase.POST_PLAY, postPlayNote.getPhase());
         assertNotNull(biddingNote.getTimestamp());
     }
 
@@ -245,9 +228,6 @@ public class LearningNoteTest {
     void testToStringTimestamp() {
         note.setNoteText("Test note");
         String result = note.toString();
-        // Check if the string contains a timestamp in format [HH:MM:SS]
-        // Using a simple check: starts with [ then has digits, colon, digits, colon,
-        // digits, then ]
         boolean hasTimestamp = result.contains("[") && result.contains("]");
         assertTrue(hasTimestamp, "Should contain timestamp but was: " + result);
     }
@@ -270,7 +250,7 @@ public class LearningNoteTest {
         notes.add(biddingNote);
 
         LearningNote retrieved = notes.get(0);
-        assertEquals("BIDDING", retrieved.getPhase());
+        assertEquals(NotePhase.BIDDING, retrieved.getPhase());
     }
 
     @Test
