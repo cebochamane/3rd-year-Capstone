@@ -7,9 +7,6 @@ import java.sql.ResultSet;
 import java.sql.Types;
 import java.util.ArrayList;
 import java.util.UUID;
-import java.sql.ResultSet;
-import java.util.ArrayList;
-import java.sql.Types;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +41,7 @@ public class Storage {
         try (Statement statement = connection.createStatement()) {
             statement.execute("PRAGMA foreign_keys = ON");
         }
-        return DriverManager.getConnection(databaseUrl);
+        return connection;
     }
 
     /**
