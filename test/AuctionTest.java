@@ -166,15 +166,17 @@ public class AuctionTest {
         assertFalse(auction.isValidBid(null));
     }
 
-    @Test // inValidBid()
+    @Test // ValidBid()
     void passOnEmpty() {
         Auction auction = new Auction();
         Bid pass = Bid.BidPass(new Seat(Position.WEST));
-        assertFalse(auction.isValidBid(pass));
-        assertEquals(0, auction.getBids().size());
+        assertTrue(auction.isValidBid(pass));
+        assertTrue(auction.addBid(pass));
+        assertEquals(1, auction.getBids().size());
+        assertFalse(auction.isComplete());
     }
 
-    @Test // isValidBid()
+    @Test
     void invalidPass() {
         Auction auction = new Auction();
 
@@ -183,7 +185,9 @@ public class AuctionTest {
         auction.addBid(Bid.BidPass(new Seat(Position.EAST)));
 
         Bid pass = Bid.BidPass(new Seat(Position.WEST));
-        assertFalse(auction.isValidBid(pass));
+        assertTrue(auction.addBid(pass));
+        assertTrue(auction.isComplete());
+        assertTrue(auction.isPassedOut());
 
     }
 
@@ -339,6 +343,65 @@ public class AuctionTest {
         assertEquals(5, contract.getLevel());
         assertEquals(Suit.CLUBS, contract.getDenomination());
         assertEquals(new Seat(Position.NORTH), contract.getDeclarer());
+    }
+
+    @Test
+    void contractBidderCannotDoubleOwnContract() {
+        Auction auction = new Auction();
+
+        Bid contractBid = new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS);
+
+        assertTrue(auction.addBid(contractBid));
+
+        Bid doubleByNorth = Bid.BidDouble(new Seat(Position.NORTH));
+
+        /*
+         * North cannot Double North's own contract.
+         */
+        assertFalse(auction.isValidBid(doubleByNorth));
+        assertFalse(auction.addBid(doubleByNorth));
+        assertEquals(1, auction.getBids().size());
+    }
+
+    @Test
+    void cannotDoubleAfterContractWasRedoubled() {
+        Auction auction = new Auction();
+
+        assertTrue(auction.addBid(new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS)));
+
+        assertTrue(auction.addBid(Bid.BidDouble(new Seat(Position.EAST))));
+
+        assertTrue(auction.addBid(Bid.BidRedouble(new Seat(Position.SOUTH))));
+
+        assertTrue(auction.addBid(
+                Bid.BidPass(new Seat(Position.WEST))));
+
+        /*
+         * The Pass is skipped when finding the most
+         * recent meaningful call, which is Redouble.
+         */
+        Bid invalidDouble = Bid.BidDouble(new Seat(Position.NORTH));
+
+        assertFalse(auction.isValidBid(invalidDouble));
+        assertFalse(auction.addBid(invalidDouble));
+    }
+
+    @Test
+    void redoubleIsLegalAfterInterveningPasses() {
+        Auction auction = new Auction();
+
+        assertTrue(auction.addBid(new Bid(new Seat(Position.NORTH), 2, Suit.CLUBS)));
+        assertTrue(auction.addBid(Bid.BidDouble(new Seat(Position.EAST))));
+        assertTrue(auction.addBid(Bid.BidPass(new Seat(Position.SOUTH))));
+        assertTrue(auction.addBid(Bid.BidPass(new Seat(Position.WEST))));
+
+        /*
+         * North is on the contract side and may Redouble.
+         * The two Passes do not remove that right.
+         */
+        Bid redouble = Bid.BidRedouble(new Seat(Position.NORTH));
+        assertTrue(auction.isValidBid(redouble));
+        assertTrue(auction.addBid(redouble));
     }
 
 }

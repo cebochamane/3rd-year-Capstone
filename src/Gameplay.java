@@ -323,4 +323,112 @@ public class Gameplay {
         }
         return remainingHands.get(seat.getPosition());
     }
+
+    /**
+     * Returns the player whose turn it currently is.
+     *
+     * @return the current player
+     */
+    public Seat getCurrentPlayer() {
+        Trick currentTrick = getCurrentTrick();
+
+        if (currentTrick == null) {
+            return currentLeader;
+        }
+
+        Seat currentPlayer = currentTrick.getLeader();
+        int numberOfPlays = currentTrick.getPlays().size();
+
+        for (int i = 0; i < numberOfPlays; i++) {
+            currentPlayer = currentPlayer.next();
+        }
+
+        return currentPlayer;
+    }
+
+    /**
+     * Returns the declarer's partner, who is the dummy.
+     *
+     * @return the dummy's seat
+     */
+    public Seat getDummy() {
+        if (contract == null || contract.getDeclarer() == null) {
+            return null;
+        }
+
+        Seat declarer = contract.getDeclarer();
+        return declarer.next().next();
+    }
+
+    /**
+     * Checks whether the dummy's hand should be visible.
+     * The dummy becomes visible after the opening lead.
+     *
+     * @return true if the dummy should be visible
+     */
+    public boolean isDummyVisible() {
+        if (contract == null) {
+            return false;
+        }
+
+        if (trickNo > 1) {
+            return true;
+        }
+
+        Trick currentTrick = getCurrentTrick();
+
+        return currentTrick != null && currentTrick.getPlays().size() > 0;
+    }
+
+    /**
+     * Checks whether a player's hand should currently be visible.
+     *
+     * @param seat the player whose hand is being checked
+     * @return true if the hand should be visible
+     */
+    public boolean isHandVisible(Seat seat) {
+        if (seat == null) {
+            return false;
+        }
+        Seat currentPlayer = getCurrentPlayer();
+
+        if (currentPlayer == null) {
+            return false;
+        }
+
+        /*
+         * The current player's hand is visible.
+         */
+        if (seat.equals(currentPlayer)) {
+            return true;
+        }
+
+        /*
+         * Before the opening lead, only the current
+         * player's hand is visible.
+         */
+        if (!isDummyVisible()) {
+            return false;
+        }
+
+        Seat dummy = getDummy();
+        if (dummy == null) {
+            return false;
+        }
+
+        /*
+         * After the opening lead, dummy stays visible.
+         */
+        if (seat.equals(dummy)) {
+            return true;
+        }
+
+        /*
+         * When dummy is playing, declarer's hand
+         * also remains visible.
+         */
+        Seat declarer = contract.getDeclarer();
+
+        return currentPlayer.equals(dummy) && seat.equals(declarer);
+    }
 }

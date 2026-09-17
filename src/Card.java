@@ -49,19 +49,25 @@ public class Card {
         boolean thisIsTrump = (trump != Suit.NT) && (this.suit == trump);
         boolean otherIsTrump = (trump != Suit.NT) && (other.suit == trump);
 
-        if (thisIsTrump && !otherIsTrump) return 1;
-        if (otherIsTrump && !thisIsTrump) return -1;
-        if (thisIsTrump && otherIsTrump) return this.rank.compareTo(other.rank);
+        if (thisIsTrump && !otherIsTrump)
+            return 1;
+        if (otherIsTrump && !thisIsTrump)
+            return -1;
+        if (thisIsTrump && otherIsTrump)
+            return this.rank.compareTo(other.rank);
 
         // Neither card is trump — only the lead suit is in contention
         boolean thisIsLead = (this.suit == leadSuit);
         boolean otherIsLead = (other.suit == leadSuit);
 
-        if (thisIsLead && !otherIsLead) return 1;
-        if (otherIsLead && !thisIsLead) return -1;
-        if (thisIsLead && otherIsLead) return this.rank.compareTo(other.rank);
+        if (thisIsLead && !otherIsLead)
+            return 1;
+        if (otherIsLead && !thisIsLead)
+            return -1;
+        if (thisIsLead && otherIsLead)
+            return this.rank.compareTo(other.rank);
 
-        return 0; // neither card can win the trick either way   
+        return 0; // neither card can win the trick either way
     }
 
     /**
@@ -74,5 +80,42 @@ public class Card {
     @Override
     public String toString() {
         return this.rank + " of " + this.suit;
+    }
+
+    @Override
+    public boolean equals(Object object) {
+        /*
+         * An object is always equal to itself.
+         */
+        if (this == object) {
+            return true;
+        }
+
+        /*
+         * A Card cannot equal something that is not a Card.
+         * This also handles null.
+         */
+        if (!(object instanceof Card)) {
+            return false;
+        }
+
+        /*
+         * Convert the general Object reference into a Card
+         * so that its suit and rank can be examined.
+         */
+        Card otherCard = (Card) object;
+
+        /*
+         * Two cards are equal when they have the same
+         * suit and rank.
+         */
+        return this.getSuit() == otherCard.getSuit() && this.getRank() == otherCard.getRank();
+    }
+
+    @Override
+    public int hashCode() {
+        int result = this.getSuit().hashCode();
+        result = 31 * result + this.getRank().hashCode();
+        return result;
     }
 }

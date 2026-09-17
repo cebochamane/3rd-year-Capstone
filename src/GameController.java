@@ -1,3 +1,4 @@
+import java.util.ArrayList;
 
 /**
  * The GameController class manages the game logic and state for a Bridge game.
@@ -13,6 +14,7 @@ public class GameController {
     private Auction auction;
     private Contract contract;
     private Gameplay gameplay;
+    private User currentUser;
 
     private GamePhase phase = GamePhase.MENU;
 
@@ -32,33 +34,112 @@ public class GameController {
     }
 
     /**
-     * Loads a previously saved game using its game ID.
+     * Ends the current game and returns to the main menu.
+     * 
+     */
+    public void quitGame() {
+        this.currentDeal = null;
+        this.auction = null;
+        this.contract = null;
+        this.gameplay = null;
+        this.phase = GamePhase.MENU;
+
+    }
+
+    /**
+     * Creates a new user and makes that user
+     * the current application user.
+     *
+     * @param username name entered by the user
+     * @return the created user
+     */
+    public User createUser(String username) {
+        if (storage == null) {
+            throw new IllegalStateException("Storage has not been connected.");
+        }
+
+        User user = storage.createUser(username);
+        this.currentUser = user;
+        return user;
+    }
+
+    /**
+     * Returns all users stored on this computer.
+     *
+     * @return the available users
+     */
+    public ArrayList<User> getUsers() {
+        if (storage == null) {
+            return new ArrayList<>();
+        }
+        return storage.getUsers();
+    }
+
+    /**
+     * Returns the saved games belonging to the current user.
+     *
+     * @return current user's saved games
+     */
+    public ArrayList<SavedGame> getSavedGames() {
+        if (storage == null || currentUser == null) {
+            return new ArrayList<>();
+        }
+
+        return storage.getSavedGames(currentUser);
+    }
+
+    /**
+     * Loads a game previously saved by user.
      *
      * @param gameId the ID of the game to load
      */
     public void loadGame(String gameId) {
 
-        /*
-         * Storage has not been implemented yet.
-         *
-         * We leave this method in place so that the controller
-         * interface remains compatible with the rest of the
-         * project.
-         */
         if (storage == null) {
-
             if (view != null) {
-                view.showMessage(
-                        "Storage has not been connected yet.");
+                view.showMessage("Storage has not been connected yet.");
             }
-
             return;
         }
 
-        /*
-         * Loading will be implemented once the Storage class
-         * is connected to the controller.
-         */
+        if (currentUser == null) {
+            if (view != null) {
+                view.showMessage("Please select a user before loading.");
+            }
+            return;
+        }
+        if (gameId == null || gameId.trim().isEmpty()) {
+            if (view != null) {
+                view.showMessage("Please select a saved game.");
+            }
+            return;
+        }
+        try {
+            /*
+             * Storage reconstructs a temporary controller containing the saved game state.
+             */
+            GameController loadedController = storage.loadGame(currentUser, gameId);
+
+            /*
+             * Copy the loaded game state into this controller.
+             * We do not replace this controller because it is already connected to the
+             * GameView and Storage.
+             */
+            this.currentDeal = loadedController.getCurrentDeal();
+            this.auction = loadedController.getAuction();
+            this.contract = loadedController.getContract();
+            this.gameplay = loadedController.getGameplay();
+            this.phase = loadedController.getPhase();
+            this.currentBidder = loadedController.getCurrentBidder();
+
+            if (view != null) {
+                view.showLoadedGame();
+            }
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            if (view != null) {
+                view.showMessage("The game could not be loaded.\n" + exception.getMessage());
+            }
+        }
     }
 
     /**
@@ -72,17 +153,43 @@ public class GameController {
         if (storage == null) {
 
             if (view != null) {
-                view.showMessage(
-                        "Storage has not been connected yet.");
+                view.showMessage("Storage has not been connected yet.");
             }
-
             return;
         }
-
         /*
-         * Saving will be implemented once the Storage class
-         * is connected to the controller.
+         * Data base must track the user before saving
          */
+
+        if (currentUser == null) {
+            if (view != null) {
+                view.showMessage("Please select a user before saving.");
+            }
+            return;
+        }
+        /*
+         * There is nothing to save if a game has not started
+         */
+        if (currentDeal == null) {
+            if (view != null) {
+                view.showMessage("There is no current game to save");
+            }
+            return;
+        }
+        try {
+            /*
+             * 'this' is the current GameController object.
+             * Storage reads its deal, auction, contract, gameplay and phase.
+             */
+            String gameId = storage.saveGame(currentUser, this);
+            if (view != null) {
+                view.showMessage("Game saved successfully.\n" + "Game ID:" + gameId);
+            }
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            if (view != null) {
+                view.showMessage("The game could not be saved.\n" + exception.getMessage());
+            }
+        }
     }
 
     /**
@@ -91,18 +198,14 @@ public class GameController {
      * @param dealer        the dealer
      * @param vulnerability the vulnerability
      */
-    public void startRandomDeal(
-            Seat dealer,
-            Vulnerability vulnerability) {
+    public void startRandomDeal(Seat dealer, Vulnerability vulnerability) {
 
         if (dealer == null) {
-            throw new IllegalArgumentException(
-                    "Dealer cannot be null.");
+            throw new IllegalArgumentException("Dealer cannot be null.");
         }
 
         if (vulnerability == null) {
-            throw new IllegalArgumentException(
-                    "Vulnerability cannot be null.");
+            throw new IllegalArgumentException("Vulnerability cannot be null.");
         }
 
         Deal deal = new Deal(dealer, vulnerability);
@@ -119,10 +222,8 @@ public class GameController {
     public void startLoadedDeal(Deal deal) {
 
         if (!isCompleteDeal(deal)) {
-            throw new IllegalArgumentException(
-                    "A loaded deal must contain four hands of 13 cards.");
+            throw new IllegalArgumentException("A loaded deal must contain four hands of 13 cards.");
         }
-
         this.currentDeal = deal;
 
         /*
@@ -141,9 +242,7 @@ public class GameController {
     public void startAuction() {
 
         if (currentDeal == null) {
-
-            throw new IllegalStateException(
-                    "Cannot start auction without a deal.");
+            throw new IllegalStateException("Cannot start auction without a deal.");
         }
 
         /*
@@ -167,6 +266,28 @@ public class GameController {
     }
 
     /**
+     * Selects the user currently using the applicaton.
+     * Saved games created by this controller will belong.
+     * 
+     * @param user the selected user
+     */
+    public void setCurrentUser(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("The user cannot be null");
+        }
+        this.currentUser = user;
+    }
+
+    /**
+     * Returns the user currently using the application.
+     * 
+     * @return the current user, or null if none has been selected
+     */
+    public User getCurrentUser() {
+        return this.currentUser;
+    }
+
+    /**
      * Submits a bid made by a player to the current auction.
      *
      * @param bid the bid being submitted
@@ -174,18 +295,15 @@ public class GameController {
     public void submitBid(Bid bid) {
 
         if (phase != GamePhase.BIDDING) {
-            throw new IllegalStateException(
-                    "Cannot submit bid when not in bidding phase.");
+            throw new IllegalStateException("Cannot submit bid when not in bidding phase.");
         }
 
         if (bid == null) {
-            throw new IllegalArgumentException(
-                    "Bid cannot be null.");
+            throw new IllegalArgumentException("Bid cannot be null.");
         }
 
         if (currentBidder == null) {
-            throw new IllegalStateException(
-                    "There is currently no bidder.");
+            throw new IllegalStateException("There is currently no bidder.");
         }
 
         /*
@@ -203,7 +321,6 @@ public class GameController {
         boolean added = auction.addBid(bid);
 
         if (!added) {
-
             throw new IllegalArgumentException("The bid is not valid according to the auction rules.");
         }
 
@@ -212,12 +329,12 @@ public class GameController {
          */
         if (auction.isComplete()) {
             phase = GamePhase.AUCTION_COMPLETE;
+            currentBidder = null;
 
             /*
              * Create the contract if there was a final bid.
              */
-            if (auction.getFinalBid() != null) {
-
+            if (!auction.isPassedOut()) {
                 this.contract = auction.createContract();
                 if (view != null) {
                     view.showAuction(auction);
@@ -230,6 +347,7 @@ public class GameController {
                 startPlay(contract);
 
             } else {
+                phase = GamePhase.PASSED_OUT;
                 if (view != null) {
                     view.showAuction(auction);
                     view.showMessage("The auction has ended without a contract.");
@@ -329,16 +447,8 @@ public class GameController {
             }
         }
 
-        /*
-         * Check whether all thirteen tricks have been played.
-         */
         if (gameplay.isFinished()) {
             phase = GamePhase.FINISHED;
-            if (view != null) {
-                view.showMessage("Game complete!\n" + "Declarer tricks: "
-                        + gameplay.getDeclarerTricks() + "\nDefender tricks: "
-                        + gameplay.getDefenderTricks());
-            }
         }
 
         return true;
@@ -456,5 +566,34 @@ public class GameController {
      */
     public void setStorage(Storage storage) {
         this.storage = storage;
+    }
+
+    /**
+     * Checks whether cards may currently be swapped.
+     * Cards may be swapped repeatedly, but only before the first bid has been made.
+     * 
+     * @return true if swapping is currently allowed.
+     */
+    public boolean canSwapCards() {
+        boolean check = phase == GamePhase.BIDDING && currentDeal != null && auction != null
+                && auction.getBids().isEmpty();
+        return check;
+
+    }
+
+    /**
+     * Swaps two cards belonging to two different players.
+     * 
+     * @param firstSeat  owner of the first card.
+     * @param firstCard  first selected card
+     * @param secondSeat owner of the second card.
+     * @param secondCard second selected card
+     */
+    public boolean swapCards(Seat firstSeat, Card firstCard, Seat secondSeat, Card secondCard) {
+        if (!canSwapCards()) {
+            return false;
+        }
+        boolean check = currentDeal.swapCards(firstSeat, firstCard, secondSeat, secondCard);
+        return check;
     }
 }
