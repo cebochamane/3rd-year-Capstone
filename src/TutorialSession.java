@@ -176,8 +176,8 @@ public final class TutorialSession {
                     + expected.getCard() + ".");
         }
 
-        complete(expected);
         feedback = "Correct card.";
+        complete(expected);
 
         if (automaticallyAdvanceComputerActions) {
             advanceComputerActions();
@@ -229,7 +229,7 @@ public final class TutorialSession {
         TutorialAction expected = nextAction();
 
         if (expected == null) {
-            throw new IllegalStateException("The tutorial ended without Claim or Concede.");
+            throw new IllegalStateException("The tutorial ended before 13 tricks were completed " + "and without Claim or Concede.");
         }
 
         if (expected.getType() == TutorialAction.Type.CLAIM) {
@@ -285,6 +285,13 @@ public final class TutorialSession {
                 startGameplay();
             }
         }
+
+        // Finish naturally when all cards have been played and there are no remaining scripted actions.
+        if (phase == TutorialPhase.PLAYING && gameplay != null 
+                && gameplay.isFinished() && nextAction() == null) {
+            phase = TutorialPhase.COMPLETE;
+            feedback = lesson.getNote();
+        }
     }
 
     /**
@@ -308,8 +315,7 @@ public final class TutorialSession {
 
         while (!auction.isComplete()) {
             if (!auction.addBid(Bid.BidPass(bidder))) {
-                throw new IllegalStateException(
-                        "Could not complete the tutorial auction with closing passes.");
+                throw new IllegalStateException("Could not complete the tutorial auction with closing passes.");
             }
             bidder = bidder.next();
         }
@@ -351,7 +357,7 @@ public final class TutorialSession {
      */
     private boolean isSouth(TutorialAction action) {
         return action != null && action.getSeat() != null
-                && action.getSeat().getPosition() == Position.SOUTH;
+            && action.getSeat().getPosition() == Position.SOUTH;
     }
 
     /**

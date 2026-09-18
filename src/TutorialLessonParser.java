@@ -210,9 +210,14 @@ public final class TutorialLessonParser {
 
             if (value.equalsIgnoreCase("Claim") || value.equalsIgnoreCase("Concede")) {
                 actions.add(value.equalsIgnoreCase("Claim")
-                        ? TutorialAction.claim()
-                        : TutorialAction.concede());
+                         ? TutorialAction.claim() : TutorialAction.concede());
                 line++;
+                break;
+            }
+
+            // All 13 tricks have been validated.
+            // A Claim or Concede marker is optional after a complete hand.
+            if (gameplay.isFinished()) {
                 break;
             }
 
@@ -238,13 +243,17 @@ public final class TutorialLessonParser {
             line++;
         }
 
-        if (actions.isEmpty() || (actions.get(actions.size() - 1).getType() != TutorialAction.Type.CLAIM
-                && actions.get(actions.size() - 1).getType() != TutorialAction.Type.CONCEDE)) {
-            throw error(line + 1, "Every lesson must end with Claim or Concede.");
+        boolean hasEndingMarker = !actions.isEmpty()
+                && (actions.get(actions.size() - 1).getType() == TutorialAction.Type.CLAIM
+                || actions.get(actions.size() - 1).getType() == TutorialAction.Type.CONCEDE);
+
+        if (!gameplay.isFinished() && !hasEndingMarker) {
+            throw error(line + 1,
+                    "A lesson must contain 13 complete tricks or end with Claim or Concede.");
         }
 
         if (line >= lines.length || !startsWith(lines[line], "NOTE:")) {
-            throw error(line + 1, "Claim or Concede must be followed by NOTE:.");
+            throw error(line + 1,"The completed play, Claim or Concede must be followed by NOTE:.");
         }
 
         String note = lines[line].trim().substring("NOTE:".length()).trim();
