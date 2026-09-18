@@ -169,7 +169,7 @@ public class GameView {
         /*
          * Highlight whose turn it is.
          */
-        window.updateCurrentPlayer(currentPlayer);
+        window.updateCurrentPlayer(gameplay.isFinished() ? null : currentPlayer);
     }
 
     /**
@@ -360,13 +360,8 @@ public class GameView {
          */
         window.hideNextTrickButton();
 
-        /*
-         * If trick thirteen was completed, there is no
-         * next trick. Display the final result instead.
-         */
         if (gameplay.isFinished()) {
-            showMessage("Game complete!\n" + "Declarer tricks: " + gameplay.getDeclarerTricks()
-                    + "\nDefender tricks: " + gameplay.getDefenderTricks());
+            showFinalScore("Game complete!");
             return;
         }
 
@@ -442,14 +437,12 @@ public class GameView {
         boolean claimed = controller.claim();
 
         if (claimed) {
-
-            Gameplay gameplay = controller.getGameplay();
-
-            showMessage("Claim accepted.\n Declarer tricks: " + gameplay.getDeclarerTricks()
-                    + "\nDefender tricks: " + gameplay.getDefenderTricks());
-
+            updateGameplayDisplay();
+            showFinalScore("Claim accepted.");
         } else {
-            showMessage("Claim rejected.\n The claiming side could not win all remaining tricks.");
+            showMessage(
+                    "Claim rejected.\n"
+                    + "The claiming side could not win all remaining tricks.");
         }
     }
 
@@ -590,8 +583,12 @@ public class GameView {
          */
 
         if (phase == GamePhase.PLAYING || phase == GamePhase.FINISHED) {
-            this.showContract(controller.getContract());
-            this.updateGameplayDisplay();
+            showContract(controller.getContract());
+            updateGameplayDisplay();
+
+            if (phase == GamePhase.FINISHED) {
+                showFinalScore("Completed saved game");
+            }
             return;
         }
 
@@ -760,6 +757,83 @@ public class GameView {
         }
         learningNotes.add(note);
         showMessage("Note saved: " + note);
+    }
+
+    /**
+     * Formats the result for either a normal game or a tutorial.
+     */
+    private String formatScore(Score score) {
+        Contract contract = score.getContract();
+
+        String doubling = contract.isRedoubled() ? " XX" : contract.isDoubled() ? " X" : "";
+
+        int difference = score.getDeclarerTricks() - contract.getRequiredTricks();
+
+        String outcome;
+        if (difference == 0) {
+            outcome = "Made exactly";
+        } else if (difference > 0) {
+            outcome = "Made with " + difference + " overtrick(s)";
+        } else {
+            outcome = "Down " + (-difference) + " trick(s)";
+        }
+
+        StringBuilder text = new StringBuilder();
+
+        text.append("Contract: ")
+            .append(contract.getLevel()).append(" ")
+            .append(contract.getDenomination())
+            .append(doubling)
+            .append("\nDeclarer: ").append(contract.getDeclarer())
+            .append("\nDeclarer's side vulnerable: ")
+            .append(score.isDeclarerVulnerable() ? "Yes" : "No")
+            .append("\n\n").append(outcome)
+            .append("\nDeclarer-side tricks: ")
+            .append(score.getDeclarerTricks())
+            .append("\nDefender-side tricks: ")
+            .append(score.getDefenderTricks())
+            .append("\n");
+
+        if (score.isMade()) {
+            text.append("\nContract trick points: ")
+                .append(score.getTrickScore())
+                .append("\nOvertrick points: ")
+                .append(score.getOvertrickScore())
+                .append("\nGame / part-score bonus: ")
+                .append(score.getGameOrPartScoreBonus())
+                .append("\nSlam bonus: ")
+                .append(score.getSlamBonus())
+                .append("\nDouble / redouble bonus: ")
+                .append(score.getInsultBonus());
+        } else {
+            text.append("\nUndertrick penalty awarded to defenders: ")
+                .append(score.getUndertrickPenalty());
+        }
+
+        text.append("\n\nPoints awarded this deal")
+                .append("\nNorth–South: ").append(score.getScoreNS())
+                .append("\nEast–West: ").append(score.getScoreEW());
+
+        return text.toString();
+    }
+
+    /**
+     * Displays a completed normal game's result.
+     */
+    private void showFinalScore(String heading) {
+        try {
+            Score score = controller.getScore();
+
+            initialiseWindow();
+            window.hideNextTrickButton();
+            window.setClaimEnabled(false);
+            window.updateCurrentPlayer(null);
+
+            showMessage(heading + "\n\n" + formatScore(score));
+        } catch (IllegalArgumentException | IllegalStateException exception) {
+            showMessage("The score could not be calculated.\n"
+                    + exception.getMessage());
+        }
     }
 
     /**

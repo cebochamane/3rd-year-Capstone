@@ -433,6 +433,10 @@ public class GameController {
             return false;
         }
 
+        if (gameplay.isFinished()) {
+            phase = GamePhase.FINISHED;
+        }
+
         /*
          * Refresh the GUI.
          */
@@ -445,10 +449,6 @@ public class GameController {
             } else {
                 view.updateGameplayDisplay();
             }
-        }
-
-        if (gameplay.isFinished()) {
-            phase = GamePhase.FINISHED;
         }
 
         return true;
@@ -637,5 +637,14 @@ public class GameController {
         }
         boolean check = currentDeal.swapCards(firstSeat, firstCard, secondSeat, secondCard);
         return check;
+    }
+
+    public Score getScore() {
+        if (phase != GamePhase.FINISHED) {
+            throw new IllegalStateException(
+                    "There is no completed game to score.");
+        }
+
+        return Score.fromCompletedGame(currentDeal, gameplay);
     }
 }
