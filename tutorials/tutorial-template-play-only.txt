@@ -1,0 +1,10 @@
+Cards held: spades;hearts;diamonds;clubs
+N: AKQJT98765432;-;-;-
+S: -;AKQJT98765432;-;-
+E: -;-;AKQJT98765432;-
+W: -;-;-;AKQJT98765432
+PLAY 1NT
+AC,AS,AD,AH
+Claim
+NOTE: South follows the scripted line and can then read the teaching point.
+

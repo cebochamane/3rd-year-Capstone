@@ -27,6 +27,18 @@ public class GameView {
     private Seat firstSwapSeat;
     private Card firstSwapCard;
 
+    // Tutorial fields
+    private TutorialCatalog tutorialCatalog;
+    private TutorialEntry activeTutorial;
+    private TutorialSession tutorialSession;
+    private boolean tutorialCompletionShown;
+    private static final int TUTORIAL_ACTION_DELAY_MS = 2000;
+    private Timer tutorialStepTimer;
+    private boolean tutorialActionDelayActive;
+    private Trick completedTutorialTrick;
+    private boolean waitingForTutorialNextTrick;
+    private LearningNote tutorialLearningNote;
+
     /**
      * Connects this view to the game controller.
      * 
@@ -36,6 +48,11 @@ public class GameView {
         this.controller = controller;
     }
 
+    /**
+     * Returns the current game controller connected to this view.
+     * 
+     * @return the current GameController instance
+     */
     public GameController getController() {
         return controller;
     }
@@ -185,6 +202,31 @@ public class GameView {
             showMessage("Controller has not been connected.");
             return;
         }
+
+        if (tutorialSession != null) {
+            if (tutorialActionDelayActive) {
+                showMessage("Please wait for the next tutorial action.");
+                return;
+            }
+
+            Trick trickBeforePlay = tutorialSession.getGameplay().getCurrentTrick();
+
+            if (seat.getPosition() != Position.SOUTH
+                    || !tutorialSession.playSouthCard(card)) {
+                showMessage(tutorialSession.getFeedback());
+                return;
+            }
+
+            if (trickBeforePlay != null && trickBeforePlay.isComplete()) {
+                pauseAfterCompletedTutorialTrick(trickBeforePlay);
+            } else {
+                renderTutorialSession();
+                scheduleNextTutorialStep();
+            }
+
+            return;
+        }
+
         /*
          * During swapping mode, clicking a card selects it for swapping instead of
          * attempting to attempting to play.
@@ -202,6 +244,10 @@ public class GameView {
      * @param message message to display
      */
     // chat gpt helped to center the pop up message.
+    /**
+     * Displays a centered informational message dialog to the user.
+     * @param message message to display
+     */
     public void showMessage(String message) {
         if (message == null) {
             message = "No message to display.";
@@ -232,9 +278,17 @@ public class GameView {
          */
         dialog.addComponentListener(new ComponentAdapter() {
             @Override
+            /**
+             * Handles component shown events, centering the message dialog when displayed.
+             * 
+             * @param event TODO
+             */
             public void componentShown(ComponentEvent event) {
                 SwingUtilities.invokeLater(new Runnable() {
                     @Override
+                    /**
+                     * Executes GUI-related updates asynchronously to center dialogs after display.
+                     */
                     public void run() {
                         int centredX = window.getMainFrame().getX()
                                 + (window.getMainFrame().getWidth() - dialog.getWidth()) / 2;
@@ -266,6 +320,22 @@ public class GameView {
         }
 
         if (bid == null) {
+            return;
+        }
+
+        if (tutorialSession != null) {
+            if (tutorialActionDelayActive) {
+                showMessage("Please wait for the next tutorial action.");
+                return;
+            }
+
+            if (!tutorialSession.submitSouthBid(bid)) {
+                showMessage(tutorialSession.getFeedback());
+                return;
+            }
+
+            renderTutorialSession();
+            scheduleNextTutorialStep();
             return;
         }
 
@@ -349,6 +419,11 @@ public class GameView {
      */
     public void nextTrickClicked() {
 
+        if (tutorialSession != null) {
+            nextTutorialTrickClicked();
+            return;
+        }
+
         if (controller == null || controller.getGameplay() == null) {
             return;
         }
@@ -378,9 +453,65 @@ public class GameView {
     }
 
     /**
+     * Pauses the tutorial session after a trick has been completed to wait for user to proceed to the next trick.
+     * 
+     * @param trick the completed tutorial trick
+     */
+    private void pauseAfterCompletedTutorialTrick(Trick trick) {
+        completedTutorialTrick = trick;
+        waitingForTutorialNextTrick = true;
+        renderTutorialSession();
+    }
+
+    /**
+     * Advances the tutorial to the next trick after the user has inspected a completed trick.
+     */
+    private void nextTutorialTrickClicked() {
+        if (tutorialSession == null || !waitingForTutorialNextTrick) {
+            return;
+        }
+
+        waitingForTutorialNextTrick = false;
+        completedTutorialTrick = null;
+        window.hideNextTrickButton();
+
+        renderTutorialSession();
+
+        if (!tutorialSession.isComplete() && !isSouthTutorialTurn()) {
+            scheduleNextTutorialStep();
+        }
+    }
+
+    /**
+     * Creates a learning note from the provided tutorial lesson, including contract details if applicable.
+     * 
+     * @param lesson the tutorial lesson to create a note from
+     * @return a LearningNote instance containing the lesson's note and contract
+     */
+    private LearningNote createTutorialLearningNote(TutorialLesson lesson) {
+        LearningNote note = new LearningNote(NotePhase.GENERAL);
+        note.setNoteText(lesson.getNote());
+
+        Contract contract = lesson.getContract();
+        if (contract != null) {
+            note.setContract(contract.getLevel() + " " + contract.getDenomination());
+        }
+
+        return note;
+    }
+
+    /**
      * Called when the user clicks New Game from the home page.
      */
     public void newGameClicked() {
+        cancelTutorialDelay();
+
+        // Clearing tutorial state
+        tutorialLearningNote = null;
+        activeTutorial = null;
+        tutorialSession = null;
+        tutorialCompletionShown = false;
+
         if (controller == null) {
             showMessage("Controller has not been connected.");
             return;
@@ -402,6 +533,8 @@ public class GameView {
      * Called when the user selects Quit Game.
      */
     public void quitGameClicked() {
+        cancelTutorialDelay();
+
         if (controller == null) {
             return;
         }
@@ -412,6 +545,7 @@ public class GameView {
 
         if (choice == JOptionPane.YES_OPTION) {
             controller.quitGame();
+            tutorialLearningNote = null;
             window.showHomePage();
         }
     }
@@ -615,6 +749,14 @@ public class GameView {
      * Called when the user clicks Load Game.
      */
     public void loadGameClicked() {
+        cancelTutorialDelay();
+
+        // Clearing tutorial state
+        tutorialLearningNote = null;
+        activeTutorial = null;
+        tutorialSession = null;
+        tutorialCompletionShown = false;
+
         if (controller == null) {
             showMessage("Controller has not been connected.");
             return;
@@ -706,7 +848,10 @@ public class GameView {
              */
             window.selectUser(createdUser);
 
-            this.showMessage("Profile created for " + createdUser.getUsername() + ".");
+            int tutorialCount = controller.getSavedTutorials().size();
+
+            this.showMessage("Profile created for " + createdUser.getUsername() + ".\n"
+                    + tutorialCount + " tutorial(s) are ready in Load Tutorial.");
 
         } catch (IllegalArgumentException | IllegalStateException exception) {
             this.showMessage("The profile could not be created.\n" + exception.getMessage());
@@ -722,23 +867,59 @@ public class GameView {
         if (controller == null || user == null) {
             return;
         }
+
         controller.setCurrentUser(user);
+
+        try {
+            int addedTutorials = controller.syncTutorials();
+
+            if (addedTutorials > 0) {
+                showMessage(addedTutorials
+                        + " newly available tutorial(s) were added to this profile.");
+            }
+        } catch (IllegalStateException exception) {
+            showMessage("Tutorials could not be synchronised.\n" + exception.getMessage());
+        }
     }
 
-    // Called by the "Learning Notes" button in GameWindow.
+    /**
+     * Called by the "Learning Notes" button in GameWindow.
+     * Displays all saved learning notes or a message if none exist.
+     */
     public void showLearningNotes() {
-        if (learningNotes.isEmpty()) {
+        ArrayList<LearningNote> notesToShow = new ArrayList<>();
+
+        /*
+        * When a scripted tutorial is active, show its teaching note first.
+        */
+        if (tutorialLearningNote != null) {
+            notesToShow.add(tutorialLearningNote);
+        }
+
+        /*
+        * Then include any quick notes the user has created in this session.
+        */
+        notesToShow.addAll(learningNotes);
+
+        if (notesToShow.isEmpty()) {
             showMessage("No learning notes yet.");
             return;
         }
+
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < learningNotes.size(); i++) {
-            sb.append(i + 1).append(". ").append(learningNotes.get(i)).append("\n\n");
+
+        for (int i = 0; i < notesToShow.size(); i++) {
+            sb.append(i + 1).append(". ").append(notesToShow.get(i)).append("\n\n");
         }
+
         showMessage(sb.toString());
     }
-
-    // This is to be called by a "Quick Note" button on Gameview
+    
+    /**
+     * Called by a "Quick Note" button on Gameview
+     * Prompts the user to add a quick note for a specified phase and saves it with contextual information.
+     * @param phase the phase of the game for the note
+     */
     public void addQuickNote(NotePhase phase) {
         String text = javax.swing.JOptionPane.showInputDialog(
                 window != null ? window.getMainFrame() : null,
@@ -803,12 +984,285 @@ public class GameView {
      * Called when the user clicks Save Game.
      */
     public void saveGameClicked() {
-        if (controller == null) {
-            showMessage("Controller has not been connected.");
+        try {
+            if (tutorialSession != null) {
+                String tutorialId = controller.saveTutorial(activeTutorial);
+                showMessage("Tutorial saved. Loading it will restart this lesson.\nID: " + tutorialId);
+            } else {
+                controller.saveGame();
+            }
+        } catch (IllegalStateException exception) {
+            showMessage(exception.getMessage());
+        }
+    }
+
+    /**
+     * Allows the user to load or restart a tutorial, handling selection dialogs and tutorial initialization.
+     */
+    public void loadTutorialClicked() {
+        if (controller == null || controller.getCurrentUser() == null) {
+            showMessage("Please select a profile before loading a tutorial.");
             return;
         }
 
-        controller.saveGame();
+        try {
+            tutorialCatalog = TutorialCatalog.load(Path.of("tutorials"));
+
+            String[] options = { "Browse tutorial/practice files", "My Tutorials" };
+
+            int option = JOptionPane.showOptionDialog(
+                    window.getMainFrame(),
+                    "Choose a tutorial option:",
+                    "Load Tutorial",
+                    JOptionPane.DEFAULT_OPTION,
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    options,
+                    options[0]);
+
+            if (option == 0) {
+                TutorialEntry selected = (TutorialEntry) JOptionPane.showInputDialog(
+                        window.getMainFrame(),
+                        "Choose a tutorial or practice deal:",
+                        "Load Tutorial",
+                        JOptionPane.PLAIN_MESSAGE,
+                        null,
+                        tutorialCatalog.getEntries().toArray(),
+                        tutorialCatalog.getEntries().isEmpty() ? null : tutorialCatalog.getEntries().get(0));
+
+                if (selected != null) {
+                    startTutorialEntry(selected);
+                }
+            } else if (option == 1) {
+                loadSavedTutorial();
+            }
+        } catch (IOException | IllegalArgumentException exception) {
+            showMessage("Tutorials could not be loaded.\n" + exception.getMessage());
+        }
     }
 
+    /**
+     * Loads a saved tutorial selected by the user and starts it, throwing IOException on failure.
+     * 
+     * @throws IOException if an I/O error occurs while loading tutorials or saved data
+     */
+    private void loadSavedTutorial() throws IOException {
+        ArrayList<SavedTutorial> saved = controller.getSavedTutorials();
+
+        if (saved.isEmpty()) {
+            showMessage("This profile has no saved tutorials.");
+            return;
+        }
+
+        SavedTutorial selected = (SavedTutorial) JOptionPane.showInputDialog(
+                window.getMainFrame(),
+                "Choose a tutorial to start:",
+                "Saved Tutorials",
+                JOptionPane.PLAIN_MESSAGE,
+                null,
+                saved.toArray(),
+                saved.get(0));
+
+        if (selected == null) {
+            return;
+        }
+
+        TutorialEntry entry = tutorialCatalog.findScripted(
+                selected.getSourceFile(), selected.getLessonIndex());
+
+        if (entry == null) {
+            showMessage("That tutorial source file or lesson is no longer available.");
+            return;
+        }
+
+        startTutorialEntry(entry);
+    }
+
+    /**
+     * Starts a tutorial or practice deal entry, quitting any active game and initializing the lesson.
+     * 
+     * @param entry the tutorial entry to start
+     * @throws IOException if an error occurs reading tutorial data
+     */
+    private void startTutorialEntry(TutorialEntry entry) throws IOException {
+        controller.quitGame();
+        window.showGameTable();
+
+        if (entry.isScriptedTutorial()) {
+            tutorialLearningNote = createTutorialLearningNote(entry.getLesson());
+            completedTutorialTrick = null;
+            waitingForTutorialNextTrick = false;
+            window.hideNextTrickButton();
+            activeTutorial = entry;
+            cancelTutorialDelay();
+            tutorialSession = new TutorialSession(entry.getLesson(), false);
+            tutorialCompletionShown = false;
+            renderTutorialSession();
+
+            /*
+            * If West, North, or East must act first, wait two seconds
+            * before showing that action.
+            */
+            if (!isSouthTutorialTurn()) {
+                scheduleNextTutorialStep();
+            }
+            return;
+        }
+
+        activeTutorial = null;
+        tutorialSession = null;
+        tutorialLearningNote = null;
+        completedTutorialTrick = null;
+        waitingForTutorialNextTrick = false;
+        controller.startLoadedDeal(HtmlDealParser.parse(entry.getSource()));
+    }
+
+    /**
+     * Updates the GUI to reflect the current state of the tutorial session, including hands, auction, and feedback.
+     */
+    private void renderTutorialSession() {
+        Deal deal = tutorialSession.getLesson().getDeal();
+        window.updateInfo(deal.getDealer());
+        window.setSwapCardsEnabled(false);
+
+        if (tutorialSession.getPhase() == TutorialPhase.BIDDING) {
+            Seat expected = tutorialSession.getExpectedSeat();
+
+            for (Position position : Position.values()) {
+                Seat seat = new Seat(position);
+                Hand hand = deal.getHand(seat);
+
+                if (seat.equals(expected)) {
+                    window.updateHand(position, hand);
+                } else {
+                    window.updateHiddenHand(position, hand.getCards().size());
+                }
+            }
+
+            window.updateAuction(tutorialSession.getAuction(), deal.getDealer(), expected);
+            return;
+        }
+
+        Gameplay gameplay = tutorialSession.getGameplay();
+        window.updateContract(tutorialSession.getLesson().getContract());
+
+        for (Position position : Position.values()) {
+            Seat seat = new Seat(position);
+            Hand hand = gameplay.getRemainingHand(seat);
+
+            if (gameplay.isHandVisible(seat)) {
+                window.updateHand(position, hand);
+            } else {
+                window.updateHiddenHand(position, hand.getCards().size());
+            }
+        }
+
+        if (waitingForTutorialNextTrick && completedTutorialTrick != null) {
+            window.updateTrick(completedTutorialTrick);
+            window.updateCurrentPlayer(null);
+            window.showNextTrickButton(completedTutorialTrick.getTrickNo() == 13);
+            return;
+        }
+
+        window.hideNextTrickButton();
+        window.updateTrick(gameplay.getCurrentTrick());
+        window.updateCurrentPlayer(
+            tutorialSession.isComplete() || tutorialActionDelayActive ? null : tutorialSession.getExpectedSeat());
+
+        if (tutorialSession.isComplete() && !tutorialCompletionShown) {
+            tutorialCompletionShown = true;
+            showMessage(tutorialSession.getFeedback());
+        }
+    }
+
+    /**
+     * Returns whether it is South's turn in the current tutorial session.
+     * 
+     * @return true if it is South's turn; false otherwise
+     */
+    private boolean isSouthTutorialTurn() {
+        if (tutorialSession == null) {
+            return false;
+        }
+
+        Seat expected = tutorialSession.getExpectedSeat();
+
+        return expected != null
+                && expected.getPosition() == Position.SOUTH;
+    }
+
+    /**
+     * Schedules the next automatic tutorial step with a delay, updating the GUI accordingly.
+     */
+    private void scheduleNextTutorialStep() {
+        if (tutorialSession == null || tutorialSession.isComplete()) {
+            return;
+        }
+
+        /*
+        * South is the learner. Do not delay a learner's card-play turn.
+        */
+        if (tutorialSession.getPhase() == TutorialPhase.PLAYING
+                && isSouthTutorialTurn()) {
+            tutorialActionDelayActive = false;
+            renderTutorialSession();
+            return;
+        }
+
+        tutorialActionDelayActive = true;
+        renderTutorialSession();
+
+        tutorialStepTimer = new Timer(TUTORIAL_ACTION_DELAY_MS, event -> {
+            tutorialStepTimer = null;
+            tutorialActionDelayActive = false;
+
+            try {
+                /*
+                * After the delay, enable South if it is South's turn.
+                */
+                if (isSouthTutorialTurn()) {
+                    renderTutorialSession();
+                    return;
+                }
+
+                Trick trickBeforeAction = tutorialSession.getPhase() == TutorialPhase.PLAYING
+                    ? tutorialSession.getGameplay().getCurrentTrick()
+                    : null;
+
+                boolean actionCompleted = tutorialSession.advanceOneComputerAction();
+
+                if (actionCompleted && trickBeforeAction != null && trickBeforeAction.isComplete()) {
+                    pauseAfterCompletedTutorialTrick(trickBeforeAction);
+                    return;
+                }
+
+                renderTutorialSession();
+
+                /*
+                * Every completed computer action gets another two-second pause
+                * before the following action.
+                */
+                if (actionCompleted && !tutorialSession.isComplete()) {
+                    scheduleNextTutorialStep();
+                }
+            } catch (IllegalStateException exception) {
+                showMessage(exception.getMessage());
+            }
+        });
+
+        tutorialStepTimer.setRepeats(false);
+        tutorialStepTimer.start();
+    }
+
+    /**
+     * Cancels any delayed tutorial action currently scheduled.
+     */
+    private void cancelTutorialDelay() {
+        if (tutorialStepTimer != null) {
+            tutorialStepTimer.stop();
+            tutorialStepTimer = null;
+        }
+
+        tutorialActionDelayActive = false;
+    }
 }

@@ -18,6 +18,17 @@ class TutorialLessonParserTest {
     }
 
     @Test
+    void acceptsABidAndPlayLessonThatOmitsClosingPasses() {
+        String abbreviatedAuction = bidAndPlayLesson().replace("1NT;P;P;P.", "1NT.");
+
+        TutorialLesson lesson = TutorialLessonParser.parse(abbreviatedAuction).get(0);
+
+        assertEquals(Position.SOUTH, lesson.getContract().getDeclarer().getPosition());
+        assertEquals(1, lesson.getContract().getLevel());
+        assertEquals(Suit.NT, lesson.getContract().getDenomination());
+    }
+
+    @Test
     void parsesAPlayOnlyLessonWithSouthAsDeclarer() {
         TutorialLesson lesson = TutorialLessonParser.parse(playOnlyLesson()).get(0);
 

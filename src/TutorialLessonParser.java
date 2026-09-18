@@ -8,6 +8,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Loads the two plain-text tutorial formats supplied for BridgeTut.
@@ -33,7 +38,29 @@ public final class TutorialLessonParser {
      * @throws IOException if an I/O error occurs reading the file
      */
     public static List<TutorialLesson> parse(Path path) throws IOException {
-        return parse(Files.readString(path));
+        return parse(readText(path));
+    }
+
+    /**
+     * Reads all bytes from the given file path and decodes them into a String, trying UTF-8 first and falling back to
+     * Windows-1252 on decoding errors.
+     * 
+     * @param path the file system path to read text from
+     * @return the decoded text contents of the file
+     * @throws IOException if an I/O error occurs reading the file
+     */
+    public static String readText(Path path) throws IOException {
+        byte[] bytes = Files.readAllBytes(path);
+
+        try {
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes))
+                    .toString();
+        } catch (CharacterCodingException exception) {
+            return new String(bytes, Charset.forName("windows-1252"));
+        }
     }
 
     /**
@@ -143,8 +170,7 @@ public final class TutorialLessonParser {
      * @param hands map of hands by position
      * @return a ParseResult containing the parsed TutorialLesson and the next line index
      */
-    private static ParseResult parsePlayOnly(String[] lines, int line,
-            Map<Position, List<Card>> hands) {
+    private static ParseResult parsePlayOnly(String[] lines, int line, Map<Position, List<Card>> hands) {
         Contract contract = parsePlayContract(lines[line], line + 1);
         line++;
 
@@ -169,54 +195,72 @@ public final class TutorialLessonParser {
     private static ParseResult parsePlay(String[] lines, int line, TutorialLessonType type,
             Deal deal, Contract contract, List<Bid> bids) {
         List<TutorialAction> actions = new ArrayList<>();
-        Map<Position, Hand> remainingHands = copyHands(deal);
+
         for (Bid bid : bids) {
             actions.add(TutorialAction.bid(bid));
         }
 
-        Seat leader = contract.getDeclarer().next();
+        /*
+        * Use the same gameplay rules as a normal game.
+        */
+        Gameplay gameplay = new Gameplay(deal, contract);
+
         while (line < lines.length) {
             String value = lines[line].trim();
+
             if (value.equalsIgnoreCase("Claim") || value.equalsIgnoreCase("Concede")) {
                 actions.add(value.equalsIgnoreCase("Claim")
-                        ? TutorialAction.claim() : TutorialAction.concede());
+                         ? TutorialAction.claim() : TutorialAction.concede());
                 line++;
                 break;
             }
 
-            List<Card> cards = parseTrick(value, line + 1);
-            Trick trick = new Trick(actions.size() + 1, leader);
-            Seat player = leader;
-            for (Card card : cards) {
-                Hand playerHand = remainingHands.get(player.getPosition());
-                if (!playerHand.contains(card)) {
-                    throw error(line + 1, player + " is scripted to play " + card
-                            + " but does not hold that remaining card.");
-                }
-                if (!isLegalPlay(playerHand, card, leadSuit(trick))) {
-                    throw error(line + 1, player + " must follow suit and cannot play " + card + ".");
-                }
-                trick.addPlay(player, card);
-                actions.add(TutorialAction.card(player, card));
-                playerHand.removeCard(card);
-                player = player.next();
+            // All 13 tricks have been validated.
+            // A Claim or Concede marker is optional after a complete hand.
+            if (gameplay.isFinished()) {
+                break;
             }
-            leader = trick.getWinner(contract.getDenomination());
+
+            List<Card> cards = parseTrick(value, line + 1);
+
+            for (Card card : cards) {
+                Seat player = gameplay.getCurrentPlayer();
+                Hand hand = gameplay.getRemainingHand(player);
+
+                if (hand == null || !hand.contains(card)) {
+                    throw error(line + 1,
+                            player + " is scripted to play " + card
+                                    + " but does not hold that remaining card.");
+                }
+
+                if (!gameplay.playCard(player, card)) {
+                    throw error(line + 1, player + " cannot legally play " + card + ".");
+                }
+
+                actions.add(TutorialAction.card(player, card));
+            }
+
             line++;
         }
 
-        if (actions.isEmpty() || (actions.get(actions.size() - 1).getType() != TutorialAction.Type.CLAIM
-                && actions.get(actions.size() - 1).getType() != TutorialAction.Type.CONCEDE)) {
-            throw error(line + 1, "Every lesson must end with Claim or Concede.");
+        boolean hasEndingMarker = !actions.isEmpty()
+                && (actions.get(actions.size() - 1).getType() == TutorialAction.Type.CLAIM
+                || actions.get(actions.size() - 1).getType() == TutorialAction.Type.CONCEDE);
+
+        if (!gameplay.isFinished() && !hasEndingMarker) {
+            throw error(line + 1,
+                    "A lesson must contain 13 complete tricks or end with Claim or Concede.");
         }
 
         if (line >= lines.length || !startsWith(lines[line], "NOTE:")) {
-            throw error(line + 1, "Claim or Concede must be followed by NOTE:.");
+            throw error(line + 1,"The completed play, Claim or Concede must be followed by NOTE:.");
         }
+
         String note = lines[line].trim().substring("NOTE:".length()).trim();
         if (note.isEmpty()) {
             throw error(line + 1, "The lesson note cannot be empty.");
         }
+
         return new ParseResult(new TutorialLesson(type, deal, contract, actions, note), line + 1);
     }
 
@@ -236,31 +280,6 @@ public final class TutorialLessonParser {
         } catch (IllegalArgumentException exception) {
             throw error(line, exception.getMessage());
         }
-    }
-
-    /**
-     * Creates a deep copy of the hands contained in the given Deal, mapping positions to Hand objects.
-     * 
-     * @param deal the Deal whose hands to copy
-     * @return a map from positions to independent Hand objects copied from the deal
-     */
-    private static Map<Position, Hand> copyHands(Deal deal) {
-        Map<Position, Hand> copies = new EnumMap<>(Position.class);
-        for (Position position : Position.values()) {
-            copies.put(position, new Hand(new ArrayList<>(deal.getHand(new Seat(position)).getCards())));
-        }
-        return copies;
-    }
-
-    /**
-     * Determines the lead suit of the given trick by inspecting the first played card.
-     * 
-     * @param trick the Trick object to examine
-     * @return the Suit led in the trick, or null if no card led
-     */
-    private static Suit leadSuit(Trick trick) {
-        Card leadCard = trick.getPlays().get(trick.getLeader());
-        return leadCard == null ? null : leadCard.getSuit();
     }
 
     /**
@@ -307,16 +326,6 @@ public final class TutorialLessonParser {
             cards.add(parseCard(code.trim(), line));
         }
         return cards;
-    }
-
-    /**
-     * Checks follow-suit legality by card value rather than object identity.
-     * Tutorial cards are parsed separately from the cards stored in the deal, so List.contains(card) cannot be used here.
-     */
-    private static boolean isLegalPlay(Hand hand, Card card, Suit leadSuit) {
-        return leadSuit == null
-                || !hand.contains(leadSuit)
-                || card.getSuit() == leadSuit;
     }
 
     /**
@@ -387,39 +396,50 @@ public final class TutorialLessonParser {
      * @return the final Contract derived from the auction bids
      */
     private static Contract createContract(List<Bid> bids, int line) {
-        Bid finalBid = null;
-        int finalIndex = -1;
-        for (int index = 0; index < bids.size(); index++) {
-            Bid bid = bids.get(index);
-            if (!bid.isPass() && !bid.isDouble() && !bid.isRedouble()) {
-                finalBid = bid;
-                finalIndex = index;
+        Auction auction = new Auction();
+
+        for (Bid bid : bids) {
+            if (!auction.addBid(bid)) {
+                throw error(line, "The tutorial contains an illegal auction call: " + bid + ".");
             }
         }
-        if (finalBid == null) {
+
+        /*
+         * Tutorial files may omit the closing passes after the final contract.
+         * Treat those passes as an authoring shorthand, while still constructing
+         * the contract from a complete, legal auction.
+         */
+        if (!auction.isComplete()) {
+            addImplicitClosingPasses(auction, line);
+        }
+
+        if (auction.isPassedOut()) {
+            throw error(line, "A bid-and-play lesson cannot have a passed-out auction.");
+        }
+
+        return auction.createContract();
+    }
+
+    /**
+     * Completes an unfinished contract auction with the required passes.
+     * The passes are not added to the scripted actions; TutorialSession adds
+     * them to its displayed auction when bidding finishes.
+     */
+    private static void addImplicitClosingPasses(Auction auction, int line) {
+        Bid finalBid = auction.getFinalBid();
+        if (finalBid == null || auction.getBids().isEmpty()) {
             throw error(line, "A bid-and-play lesson needs a final contract bid.");
         }
 
-        Seat declarer = finalBid.getBidder();
-        for (Bid bid : bids) {
-            if (!bid.isPass() && !bid.isDouble() && !bid.isRedouble()
-                    && bid.getDenomination() == finalBid.getDenomination()
-                    && bid.getBidder().isPartner(finalBid.getBidder())) {
-                declarer = bid.getBidder();
-                break;
-            }
-        }
+        Seat bidder = auction.getBids().get(auction.getBids().size() - 1)
+                .getBidder().next();
 
-        boolean doubled = false;
-        boolean redoubled = false;
-        for (int index = finalIndex + 1; index < bids.size(); index++) {
-            if (bids.get(index).isDouble()) {
-                doubled = true;
-            } else if (bids.get(index).isRedouble()) {
-                redoubled = true;
+        while (!auction.isComplete()) {
+            if (!auction.addBid(Bid.BidPass(bidder))) {
+                throw error(line, "Could not complete the auction with closing passes.");
             }
+            bidder = bidder.next();
         }
-        return new Contract(finalBid.getLevel(), finalBid.getDenomination(), declarer, doubled, redoubled);
     }
 
     /**

@@ -24,7 +24,11 @@ public class HomePanel extends JPanel {
     private JButton exitButton;
     private JComboBox<User> userComboBox;
     private JButton createUserButton;
+    private JButton tutorialButton;
 
+    /**
+     * Constructs the home panel with UI components and layout for the main menu.
+     */
     public HomePanel() {
         this.setLayout(new GridBagLayout());
         this.setBackground(BACKGROUND_GREEN);
@@ -61,6 +65,7 @@ public class HomePanel extends JPanel {
         menuPanel.add(createUserButton);
         newGameButton = createMenuButton("New Game");
         loadGameButton = createMenuButton("Load Game");
+        tutorialButton = createMenuButton("Load Tutorial");
         exitButton = createMenuButton("Exit");
 
         /*
@@ -71,6 +76,8 @@ public class HomePanel extends JPanel {
         menuPanel.add(newGameButton);
         menuPanel.add(Box.createVerticalStrut(12));
         menuPanel.add(loadGameButton);
+        menuPanel.add(Box.createVerticalStrut(12));
+        menuPanel.add(tutorialButton);
         menuPanel.add(Box.createVerticalStrut(12));
         menuPanel.add(exitButton);
         menuPanel.add(Box.createVerticalStrut(25));
@@ -94,6 +101,7 @@ public class HomePanel extends JPanel {
 
         newGameButton.setEnabled(hasUser);
         loadGameButton.setEnabled(hasUser);
+        tutorialButton.setEnabled(hasUser);
     }
 
     /**
@@ -182,6 +190,15 @@ public class HomePanel extends JPanel {
      */
     public void setLoadGameAction(ActionListener listener) {
         loadGameButton.addActionListener(listener);
+    }
+
+    /**
+     * Adds the specified action listener to the Load Tutorial button.
+     * 
+     * @param listener the ActionListener to be added to the tutorial button
+     */
+    public void setLoadTutorialAction(ActionListener listener) {
+        tutorialButton.addActionListener(listener);
     }
 
     /**

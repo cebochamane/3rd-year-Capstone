@@ -16,6 +16,7 @@ public final class TutorialSession {
     private String feedback;
     private boolean claimed;
     private boolean conceded;
+    private final boolean automaticallyAdvanceComputerActions;
 
     /**
      * Initializes a new tutorial session using the specified tutorial lesson.
@@ -23,20 +24,29 @@ public final class TutorialSession {
      * @param lesson The tutorial lesson to run in this session.
      */
     public TutorialSession(TutorialLesson lesson) {
+        this(lesson, true);
+    }
+
+    public TutorialSession(TutorialLesson lesson, boolean automaticallyAdvanceComputerActions) {
         if (lesson == null) {
             throw new IllegalArgumentException("A tutorial lesson is required.");
         }
+
         this.lesson = lesson;
         this.auction = new Auction();
         this.completedActions = new ArrayList<>();
         this.phase = lesson.getType() == TutorialLessonType.BID_AND_PLAY
                 ? TutorialPhase.BIDDING : TutorialPhase.PLAYING;
         this.feedback = "";
+        this.automaticallyAdvanceComputerActions = automaticallyAdvanceComputerActions;
 
         if (phase == TutorialPhase.PLAYING) {
             startGameplay();
         }
-        advanceComputerActions();
+
+        if (automaticallyAdvanceComputerActions) {
+            advanceComputerActions();
+        }
     }
 
     /**
@@ -144,7 +154,11 @@ public final class TutorialSession {
 
         complete(expected);
         feedback = "Correct bid.";
-        advanceComputerActions();
+
+        if (automaticallyAdvanceComputerActions) {
+            advanceComputerActions();
+        }
+
         return true;
     }
 
@@ -162,9 +176,13 @@ public final class TutorialSession {
                     + expected.getCard() + ".");
         }
 
-        complete(expected);
         feedback = "Correct card.";
-        advanceComputerActions();
+        complete(expected);
+
+        if (automaticallyAdvanceComputerActions) {
+            advanceComputerActions();
+        }
+
         return true;
     }
 
@@ -198,42 +216,53 @@ public final class TutorialSession {
      * Progresses the lesson by executing automated actions played by computer opponents until South's turn or lesson end.
      */
     private void advanceComputerActions() {
-        while (!isComplete()) {
-            TutorialAction expected = nextAction();
-            if (expected == null) {
-                throw new IllegalStateException("The tutorial ended without Claim or Concede.");
-            }
-
-            if (expected.getType() == TutorialAction.Type.CLAIM) {
-                claimed = true;
-                phase = TutorialPhase.COMPLETE;
-                feedback = lesson.getNote();
-                return;
-            }
-            if (expected.getType() == TutorialAction.Type.CONCEDE) {
-                conceded = true;
-                phase = TutorialPhase.COMPLETE;
-                feedback = lesson.getNote();
-                return;
-            }
-
-            if (phase == TutorialPhase.BIDDING) {
-                if (isSouth(expected)) {
-                    return;
-                }
-                complete(expected);
-                continue;
-            }
-
-            if (isSouth(expected)) {
-                return;
-            }
-            if (!playScriptedCard(expected.getSeat(), expected.getCard())) {
-                throw new IllegalStateException("The lesson's scripted card is not legal for "
-                        + expected.getSeat() + ": " + expected.getCard() + ".");
-            }
-            complete(expected);
+        while (advanceOneComputerAction()) {
+            // Keep advancing only in the original automatic-session mode.
         }
+    }
+
+    public boolean advanceOneComputerAction() {
+        if (isComplete()) {
+            return false;
+        }
+
+        TutorialAction expected = nextAction();
+
+        if (expected == null) {
+            throw new IllegalStateException("The tutorial ended before 13 tricks were completed " + "and without Claim or Concede.");
+        }
+
+        if (expected.getType() == TutorialAction.Type.CLAIM) {
+            claimed = true;
+            phase = TutorialPhase.COMPLETE;
+            feedback = lesson.getNote();
+            return true;
+        }
+
+        if (expected.getType() == TutorialAction.Type.CONCEDE) {
+            conceded = true;
+            phase = TutorialPhase.COMPLETE;
+            feedback = lesson.getNote();
+            return true;
+        }
+
+        if (isSouth(expected)) {
+            return false;
+        }
+
+        if (phase == TutorialPhase.BIDDING) {
+            complete(expected);
+            return true;
+        }
+
+        if (!playScriptedCard(expected.getSeat(), expected.getCard())) {
+            throw new IllegalStateException(
+                    "The lesson's scripted card is not legal for "
+                            + expected.getSeat() + ": " + expected.getCard() + ".");
+        }
+
+        complete(expected);
+        return true;
     }
 
     /**
@@ -246,10 +275,49 @@ public final class TutorialSession {
         nextActionIndex++;
 
         if (phase == TutorialPhase.BIDDING) {
-            auction.getBids().add(action.getBid());
+            if (!auction.addBid(action.getBid())) {
+                throw new IllegalStateException("The tutorial contains an illegal auction call: "
+                    + action.getBid() + ".");
+            }
+
             if (!hasRemainingBid()) {
+                addImplicitClosingPasses();
                 startGameplay();
             }
+        }
+
+        // Finish naturally when all cards have been played and there are no remaining scripted actions.
+        if (phase == TutorialPhase.PLAYING && gameplay != null 
+                && gameplay.isFinished() && nextAction() == null) {
+            phase = TutorialPhase.COMPLETE;
+            feedback = lesson.getNote();
+        }
+    }
+
+    /**
+     * Adds the omitted closing passes used by the tutorial-file shorthand.
+     * These calls complete the visible auction without asking the learner to
+     * enter passes that were not present in the tutorial script.
+     */
+    private void addImplicitClosingPasses() {
+        if (auction.isComplete()) {
+            return;
+        }
+
+        Bid finalBid = auction.getFinalBid();
+        if (finalBid == null || auction.getBids().isEmpty()) {
+            throw new IllegalStateException(
+                    "A bid-and-play tutorial needs a final contract bid.");
+        }
+
+        Seat bidder = auction.getBids().get(auction.getBids().size() - 1)
+                .getBidder().next();
+
+        while (!auction.isComplete()) {
+            if (!auction.addBid(Bid.BidPass(bidder))) {
+                throw new IllegalStateException("Could not complete the tutorial auction with closing passes.");
+            }
+            bidder = bidder.next();
         }
     }
 
@@ -289,7 +357,7 @@ public final class TutorialSession {
      */
     private boolean isSouth(TutorialAction action) {
         return action != null && action.getSeat() != null
-                && action.getSeat().getPosition() == Position.SOUTH;
+            && action.getSeat().getPosition() == Position.SOUTH;
     }
 
     /**

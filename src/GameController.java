@@ -1,4 +1,6 @@
 import java.util.ArrayList;
+import java.io.IOException;
+import java.nio.file.Path;
 
 /**
  * The GameController class manages the game logic and state for a Bridge game.
@@ -58,9 +60,53 @@ public class GameController {
             throw new IllegalStateException("Storage has not been connected.");
         }
 
-        User user = storage.createUser(username);
-        this.currentUser = user;
-        return user;
+        try {
+            TutorialCatalog catalog = TutorialCatalog.load(Path.of("tutorials"));
+
+            ArrayList<TutorialEntry> scriptedTutorials = new ArrayList<>();
+
+            for (TutorialEntry entry : catalog.getEntries()) {
+                if (entry.isScriptedTutorial()) {
+                    scriptedTutorials.add(entry);
+                }
+            }
+
+            User user = storage.createUser(username, scriptedTutorials);
+            this.currentUser = user;
+            return user;
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "The profile could not be created because tutorials could not be read.",
+                    exception);
+        }
+    }
+
+    public int syncTutorials() {
+        if (storage == null) {
+            throw new IllegalStateException("Storage has not been connected.");
+        }
+
+        if (currentUser == null) {
+            throw new IllegalStateException("Please select a user before synchronising tutorials.");
+        }
+
+        try {
+            TutorialCatalog catalog = TutorialCatalog.load(Path.of("tutorials"));
+
+            ArrayList<TutorialEntry> scriptedTutorials = new ArrayList<>();
+
+            for (TutorialEntry entry : catalog.getEntries()) {
+                if (entry.isScriptedTutorial()) {
+                    scriptedTutorials.add(entry);
+                }
+            }
+
+            return storage.syncTutorials(currentUser, scriptedTutorials);
+
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Tutorials could not be read for synchronisation.", exception);
+        }
     }
 
     /**
@@ -637,5 +683,33 @@ public class GameController {
         }
         boolean check = currentDeal.swapCards(firstSeat, firstCard, secondSeat, secondCard);
         return check;
+    }
+
+    /**
+     * Saves a tutorial entry associated with the current user into storage.
+     * 
+     * @param tutorial the tutorial entry to save
+     * @return an identifier for the saved tutorial
+     */
+    public String saveTutorial(TutorialEntry tutorial) {
+        if (storage == null) {
+            throw new IllegalStateException("Storage has not been connected.");
+        }
+        if (currentUser == null) {
+            throw new IllegalStateException("Please select a user before saving.");
+        }
+        return storage.saveTutorial(currentUser, tutorial);
+    }
+
+    /**
+     * Retrieves the saved tutorials for the current user from storage.
+     * 
+     * @return a list of saved tutorials, or an empty list if storage or user is unavailable
+     */
+    public ArrayList<SavedTutorial> getSavedTutorials() {
+        if (storage == null || currentUser == null) {
+            return new ArrayList<>();
+        }
+        return storage.getSavedTutorials(currentUser);
     }
 }
