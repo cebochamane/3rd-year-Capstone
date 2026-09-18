@@ -15,6 +15,7 @@ public class Gameplay {
     private int defenderTricks;
     private boolean finished;
     private Map<Position, Hand> remainingHands;
+    private Seat acceptedClaimant;
 
     /**
      * Creates a new gameplay session.
@@ -638,6 +639,76 @@ public class Gameplay {
         return declarer.next().next();
     }
 
+    public Seat getAcceptedClaimant() {
+        return acceptedClaimant;
+    }
+
+    /**
+     * Restores an already accepted claim after saved cards have been replayed.
+     *
+     * This validates the recorded outcome without re-running claim simulation.
+     * Unplayed cards and any partial trick remain as they were at the claim.
+     */
+    void restoreAcceptedClaim(
+            Seat claimant,
+            int finalDeclarerTricks,
+            int finalDefenderTricks) {
+
+        if (finished || acceptedClaimant != null) {
+            throw new IllegalStateException(
+                    "Cannot restore a claim into an already finished game.");
+        }
+
+        if (claimant == null || claimant.getPosition() == null) {
+            throw new IllegalStateException(
+                    "The saved claim has no valid claimant.");
+        }
+
+        if (!claimant.equals(getCurrentPlayer())) {
+            throw new IllegalStateException(
+                    "The saved claimant was not the player whose turn it was.");
+        }
+
+        if (finalDeclarerTricks < 0 || finalDeclarerTricks > 13
+                || finalDefenderTricks < 0 || finalDefenderTricks > 13
+                || finalDeclarerTricks + finalDefenderTricks != 13) {
+            throw new IllegalStateException(
+                    "Saved final trick totals must account for all 13 tricks.");
+        }
+
+        int completedTricks = declarerTricks + defenderTricks;
+
+        if (completedTricks < 0 || completedTricks >= 13) {
+            throw new IllegalStateException(
+                    "There are no remaining tricks to restore as claimed.");
+        }
+
+        int remainingTricks = 13 - completedTricks;
+
+        Seat declarer = contract.getDeclarer();
+        boolean claimantIsDeclarerSide =
+                claimant.equals(declarer) || claimant.isPartner(declarer);
+
+        int expectedDeclarerTricks = declarerTricks
+                + (claimantIsDeclarerSide ? remainingTricks : 0);
+
+        int expectedDefenderTricks = defenderTricks
+                + (claimantIsDeclarerSide ? 0 : remainingTricks);
+
+        if (finalDeclarerTricks != expectedDeclarerTricks
+                || finalDefenderTricks != expectedDefenderTricks) {
+            throw new IllegalStateException(
+                    "Saved claim totals contradict the tricks already won "
+                    + "or the claiming partnership.");
+        }
+
+        // Mutate only after every check succeeds.
+        declarerTricks = finalDeclarerTricks;
+        defenderTricks = finalDefenderTricks;
+        acceptedClaimant = claimant;
+        finished = true;
+    }
+
     /**
      * Checks whether the dummy's hand should be visible.
      * The dummy becomes visible after the opening lead.
@@ -752,8 +823,8 @@ public class Gameplay {
         /*
          * A successful claim ends the game.
          */
+        acceptedClaimant = claimant;
         finished = true;
-
         return true;
     }
 

@@ -497,6 +497,25 @@ public class GameController {
     }
 
     /**
+     * Used by storage when reconstructing an accepted claim.
+     */
+    void restoreAcceptedClaim(
+            Seat claimant,
+            int finalDeclarerTricks,
+            int finalDefenderTricks) {
+
+        if (phase != GamePhase.PLAYING || gameplay == null) {
+            throw new IllegalStateException(
+                    "A saved claim can only be restored during reconstructed play.");
+        }
+
+        gameplay.restoreAcceptedClaim(
+                claimant, finalDeclarerTricks, finalDefenderTricks);
+
+        phase = GamePhase.FINISHED;
+    }
+
+    /**
      * Undoes the most recent game action when possible.
      *
      * Undo is not implemented yet.
