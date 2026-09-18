@@ -10,6 +10,8 @@ import java.util.UUID;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Storage {
 
@@ -112,6 +114,15 @@ public class Storage {
                 + "        REFERENCES games(game_id)\n"
                 + "        ON DELETE CASCADE\n" + ");";
 
+        String createTutorialSessionsTable = "CREATE TABLE IF NOT EXISTS tutorial_sessions ("
+            + "tutorial_id TEXT PRIMARY KEY, "
+            + "user_id TEXT NOT NULL, "
+            + "source_file TEXT NOT NULL, "
+            + "lesson_index INTEGER NOT NULL CHECK (lesson_index > 0), "
+            + "saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, "
+            + "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE"
+            + ")";
+
         try (Connection connection = openConnection();
                 Statement statement = connection.createStatement()) {
             statement.execute(createUsersTable);
@@ -122,6 +133,7 @@ public class Storage {
             statement.execute(createCardPlaysTable);
             statement.execute(createScoresTable);
             statement.execute(createGameResultsTable);
+            statement.execute(createTutorialSessionsTable);
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not initialise the BridgeTut database.", exception);
         }
@@ -808,34 +820,91 @@ public class Storage {
         saveScore(connection, gameId, score);
     }
     /**
-     * Create and stores a new local user profile
+     * Creates a new user with the specified username and no tutorials.
      * 
-     * @param username visible profile name
-     * @return the newly created user.
+     * @param username the username for the new user
+     * @return the created user
      */
     public User createUser(String username) {
+        return createUser(username, List.of());
+    }
+
+    /**
+     * Creates a new user with the specified username and assigns the given tutorials.
+     * 
+     * @param username the username for the new user
+     * @param tutorials list of tutorial entries to assign
+     * @return the created user
+     */
+    public User createUser(String username, List<TutorialEntry> tutorials) {
         if (username == null || username.trim().isEmpty()) {
             throw new IllegalArgumentException("The username cannot be null or blank.");
         }
+
         String cleanUsername = username.trim();
         String userId = UUID.randomUUID().toString();
 
-        String insertUser = "INSERT INTO users (user_id, username) " + "VALUES (?, ?)";
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
 
-        try (Connection connection = openConnection();
-                PreparedStatement statement = connection.prepareStatement(insertUser)) {
-            statement.setString(1, userId);
-            statement.setString(2, cleanUsername);
-            int rowsInserted = statement.executeUpdate();
-            if (rowsInserted != 1) {
-                throw new IllegalStateException("The profile was not created");
+            try {
+                String insertUser = "INSERT INTO users (user_id, username) VALUES (?, ?)";
+
+                try (PreparedStatement statement = connection.prepareStatement(insertUser)) {
+                    statement.setString(1, userId);
+                    statement.setString(2, cleanUsername);
+                    statement.executeUpdate();
+                }
+
+                User user = new User(userId, cleanUsername);
+                assignTutorials(connection, user, tutorials);
+
+                connection.commit();
+                return user;
+            } catch (SQLException exception) {
+                connection.rollback();
+                throw new IllegalStateException(
+                        "Could not create the user profile and tutorials.", exception);
             }
-            return new User(userId, cleanUsername);
         } catch (SQLException exception) {
-            throw new IllegalStateException("Could not create the user profile. " + "The username may already exist.",
-                    exception);
+            throw new IllegalStateException(
+                    "Could not create the user profile. The username may already exist.", exception);
         }
     }
+
+    /**
+     * Assigns the specified tutorials to the given user in the database using the provided connection.
+     * 
+     * @param connection database connection for transaction
+     * @param user user to assign tutorials to
+     * @param tutorials list of tutorial entries to assign
+     * @throws SQLException if tutorials cannot be inserted
+     */
+    private void assignTutorials(Connection connection, User user, List<TutorialEntry> tutorials) throws SQLException {
+
+        if (tutorials == null) {
+            return;
+        }
+
+        String insertTutorial = "INSERT INTO tutorial_sessions "
+                + "(tutorial_id, user_id, source_file, lesson_index) VALUES (?, ?, ?, ?)";
+
+        try (PreparedStatement statement = connection.prepareStatement(insertTutorial)) {
+            for (TutorialEntry tutorial : tutorials) {
+                if (tutorial == null || !tutorial.isScriptedTutorial()) {
+                    continue;
+                }
+
+                statement.setString(1, UUID.randomUUID().toString());
+                statement.setString(2, user.getUserId());
+                statement.setString(3, tutorial.getSourceFileName());
+                statement.setInt(4, tutorial.getLessonIndex());
+                statement.addBatch();
+            }
+
+            statement.executeBatch();
+        }
+}
 
     /**
      * Loads all local user profiles from the database.
@@ -1020,5 +1089,159 @@ public class Storage {
         }
 
         return Deal.fromHands(dealer, vulnerability, suppliedHands);
+    }
+
+    /**
+     * Saves a scripted tutorial entry progress for the specified user and returns the tutorial ID.
+     * 
+     * @param user user saving the tutorial
+     * @param tutorial scripted tutorial entry to save
+     * @return the saved tutorial ID
+     */
+    public String saveTutorial(User user, TutorialEntry tutorial) {
+        if (user == null) {
+            throw new IllegalArgumentException("A user is required to save a tutorial.");
+        }
+        if (tutorial == null || !tutorial.isScriptedTutorial()) {
+            throw new IllegalArgumentException("Only scripted tutorials can be saved as tutorials.");
+        }
+
+        String tutorialId = UUID.randomUUID().toString();
+
+        String insert = "INSERT INTO tutorial_sessions "
+                + "(tutorial_id, user_id, source_file, lesson_index) VALUES (?, ?, ?, ?)";
+
+        try (Connection connection = openConnection();
+                PreparedStatement statement = connection.prepareStatement(insert)) {
+
+            statement.setString(1, tutorialId);
+            statement.setString(2, user.getUserId());
+            statement.setString(3, tutorial.getSourceFileName());
+            statement.setInt(4, tutorial.getLessonIndex());
+            statement.executeUpdate();
+
+            return tutorialId;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not save the tutorial.", exception);
+        }
+    }
+
+    /**
+     * Returns a list of all saved tutorials for the specified user ordered by save date descending.
+     * 
+     * @param user user whose tutorials to retrieve
+     * @return list of saved tutorials
+     */
+    public ArrayList<SavedTutorial> getSavedTutorials(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("A user is required.");
+        }
+
+        String select = "SELECT tutorial_id, source_file, lesson_index, saved_at "
+                + "FROM tutorial_sessions WHERE user_id = ? ORDER BY saved_at DESC";
+
+        ArrayList<SavedTutorial> tutorials = new ArrayList<>();
+
+        try (Connection connection = openConnection();
+                PreparedStatement statement = connection.prepareStatement(select)) {
+
+            statement.setString(1, user.getUserId());
+
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next()) {
+                    tutorials.add(new SavedTutorial(
+                            results.getString("tutorial_id"),
+                            results.getString("source_file"),
+                            results.getInt("lesson_index"),
+                            results.getString("saved_at")));
+                }
+            }
+
+            return tutorials;
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not retrieve saved tutorials.", exception);
+        }
+    }
+
+    public int syncTutorials(User user, List<TutorialEntry> tutorials) {
+        if (user == null) {
+            throw new IllegalArgumentException("A user is required.");
+        }
+
+        if (tutorials == null) {
+            return 0;
+        }
+
+        String selectExisting = "SELECT source_file, lesson_index "
+                + "FROM tutorial_sessions WHERE user_id = ?";
+
+        String insertTutorial = "INSERT INTO tutorial_sessions "
+                + "(tutorial_id, user_id, source_file, lesson_index) VALUES (?, ?, ?, ?)";
+
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+
+            try {
+                Set<String> existingTutorials = new HashSet<>();
+
+                try (PreparedStatement select = connection.prepareStatement(selectExisting)) {
+                    select.setString(1, user.getUserId());
+
+                    try (ResultSet results = select.executeQuery()) {
+                        while (results.next()) {
+                            existingTutorials.add(
+                                    tutorialKey(
+                                            results.getString("source_file"),
+                                            results.getInt("lesson_index")));
+                        }
+                    }
+                }
+
+                int addedCount = 0;
+
+                try (PreparedStatement insert = connection.prepareStatement(insertTutorial)) {
+                    for (TutorialEntry tutorial : tutorials) {
+                        if (tutorial == null || !tutorial.isScriptedTutorial()) {
+                            continue;
+                        }
+
+                        String sourceFile = tutorial.getSourceFileName();
+                        int lessonIndex = tutorial.getLessonIndex();
+                        String key = tutorialKey(sourceFile, lessonIndex);
+
+                        if (existingTutorials.contains(key)) {
+                            continue;
+                        }
+
+                        insert.setString(1, UUID.randomUUID().toString());
+                        insert.setString(2, user.getUserId());
+                        insert.setString(3, sourceFile);
+                        insert.setInt(4, lessonIndex);
+                        insert.addBatch();
+
+                        existingTutorials.add(key);
+                        addedCount++;
+                    }
+
+                    if (addedCount > 0) {
+                        insert.executeBatch();
+                    }
+                }
+
+                connection.commit();
+                return addedCount;
+
+            } catch (SQLException exception) {
+                connection.rollback();
+                throw new IllegalStateException("Could not synchronise the user's tutorials.", exception);
+            }
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not access the BridgeTut database.", exception);
+        }
+    }
+
+    private String tutorialKey(String sourceFile, int lessonIndex) {
+        return sourceFile + "\u0000" + lessonIndex;
     }
 }

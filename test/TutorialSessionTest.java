@@ -36,4 +36,20 @@ class TutorialSessionTest {
         assertTrue(session.playSouthCard(new Card(Suit.HEARTS, Rank.ACE)));
         assertTrue(session.isComplete());
     }
+
+    @Test
+    void omittedClosingPassesAreAddedWithoutRequiringSouthToEnterThem() {
+        String abbreviatedAuction = TutorialLessonParserTest.bidAndPlayLesson()
+                .replace("1NT;P;P;P.", "1NT.");
+        TutorialLesson lesson = TutorialLessonParser.parse(abbreviatedAuction).get(0);
+        TutorialSession session = new TutorialSession(lesson);
+
+        assertTrue(session.submitSouthBid(new Bid(new Seat(Position.SOUTH), 1, Suit.NT)));
+        assertEquals(TutorialPhase.PLAYING, session.getPhase());
+        assertTrue(session.getAuction().isComplete());
+        assertEquals(4, session.getAuction().getBids().size());
+        assertTrue(session.getAuction().getBids().get(1).isPass());
+        assertTrue(session.getAuction().getBids().get(2).isPass());
+        assertTrue(session.getAuction().getBids().get(3).isPass());
+    }
 }
