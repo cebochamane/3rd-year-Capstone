@@ -479,6 +479,10 @@ public class GameController {
             return false;
         }
 
+        if (gameplay.isFinished()) {
+            phase = GamePhase.FINISHED;
+        }
+
         /*
          * Refresh the GUI.
          */
@@ -491,10 +495,6 @@ public class GameController {
             } else {
                 view.updateGameplayDisplay();
             }
-        }
-
-        if (gameplay.isFinished()) {
-            phase = GamePhase.FINISHED;
         }
 
         return true;
@@ -540,6 +540,25 @@ public class GameController {
         phase = GamePhase.FINISHED;
 
         return true;
+    }
+
+    /**
+     * Used by storage when reconstructing an accepted claim.
+     */
+    void restoreAcceptedClaim(
+            Seat claimant,
+            int finalDeclarerTricks,
+            int finalDefenderTricks) {
+
+        if (phase != GamePhase.PLAYING || gameplay == null) {
+            throw new IllegalStateException(
+                    "A saved claim can only be restored during reconstructed play.");
+        }
+
+        gameplay.restoreAcceptedClaim(
+                claimant, finalDeclarerTricks, finalDefenderTricks);
+
+        phase = GamePhase.FINISHED;
     }
 
     /**
@@ -685,6 +704,15 @@ public class GameController {
         return check;
     }
 
+    public Score getScore() {
+        if (phase != GamePhase.FINISHED) {
+            throw new IllegalStateException(
+                    "There is no completed game to score.");
+        }
+
+        return Score.fromCompletedGame(currentDeal, gameplay);
+    }
+    
     /**
      * Saves a tutorial entry associated with the current user into storage.
      * 

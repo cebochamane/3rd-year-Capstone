@@ -88,6 +88,32 @@ public class Storage {
                 + "game_id TEXT PRIMARY KEY, " + "score_ns INTEGER NOT NULL, " + "score_ew INTEGER NOT NULL, "
                 + "FOREIGN KEY (game_id) REFERENCES games(game_id) " + "ON DELETE CASCADE" + ")";
 
+        String createGameResultsTable = "CREATE TABLE IF NOT EXISTS game_results (\n"
+                + "    game_id TEXT PRIMARY KEY,\n" 
+                + "    ending_type TEXT NOT NULL\n" 
+                + "        CHECK (ending_type IN ('PLAYED_OUT', 'CLAIM')),\n" 
+                + "    claimant TEXT\n"
+                + "        CHECK (claimant IN ('NORTH', 'EAST', 'SOUTH', 'WEST')),\n"
+                + "    played_cards INTEGER NOT NULL\n"
+                + "        CHECK (played_cards BETWEEN 0 AND 52),\n"
+                + "    declarer_tricks INTEGER NOT NULL\n"
+                + "        CHECK (declarer_tricks BETWEEN 0 AND 13),\n"
+                + "    defender_tricks INTEGER NOT NULL\n"
+                + "        CHECK (defender_tricks BETWEEN 0 AND 13),\n" + "\n"
+                + "    CHECK (declarer_tricks + defender_tricks = 13),\n" + "\n"
+                + "    CHECK (\n"
+                + "        (ending_type = 'PLAYED_OUT'\n"
+                + "            AND claimant IS NULL\n"
+                + "            AND played_cards = 52)\n"
+                + "        OR\n"
+                + "        (ending_type = 'CLAIM'\n"
+                + "            AND claimant IS NOT NULL\n"
+                + "            AND played_cards < 52)\n" 
+                + "    ),\n" + "\n"
+                + "    FOREIGN KEY (game_id)\n" 
+                + "        REFERENCES games(game_id)\n"
+                + "        ON DELETE CASCADE\n" + ");";
+
         String createTutorialSessionsTable = "CREATE TABLE IF NOT EXISTS tutorial_sessions ("
             + "tutorial_id TEXT PRIMARY KEY, "
             + "user_id TEXT NOT NULL, "
@@ -106,6 +132,7 @@ public class Storage {
             statement.execute(createContractsTable);
             statement.execute(createCardPlaysTable);
             statement.execute(createScoresTable);
+            statement.execute(createGameResultsTable);
             statement.execute(createTutorialSessionsTable);
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not initialise the BridgeTut database.", exception);
@@ -164,10 +191,11 @@ public class Storage {
                 }
                 this.saveContract(connection, gameId, controller.getContract());
                 this.saveGameplay(connection, gameId, controller.getGameplay());
+                this.saveCompletedResult(connection, gameId, controller);
                 connection.commit();
                 return gameId;
 
-            } catch (SQLException exception) {
+            } catch (SQLException | RuntimeException exception) {
                 try {
                     connection.rollback();// all or nothing.
                 } catch (SQLException rollbackException) {
@@ -177,6 +205,119 @@ public class Storage {
             }
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not access the BridgeTut database.", exception);
+        }
+    }
+
+    private boolean restoreSavedResult(Connection connection, String gameId, GameController controller,
+            GamePhase savedPhase) throws SQLException {
+
+        String sql = """
+                SELECT ending_type, claimant, played_cards,
+                    declarer_tricks, defender_tricks
+                FROM game_results
+                WHERE game_id = ?
+                """;
+
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, gameId);
+
+            try (ResultSet results = statement.executeQuery()) {
+                if (!results.next()) {
+                    return false;
+                }
+
+                if (savedPhase != GamePhase.FINISHED) {
+                    throw new IllegalStateException("An unfinished saved game has a completed-result record.");
+                }
+
+                Gameplay gameplay = controller.getGameplay();
+
+                if (gameplay == null) {
+                    throw new IllegalStateException("The saved result has no corresponding gameplay.");
+                }
+
+                String ending = results.getString("ending_type");
+                String claimantText = results.getString("claimant");
+                int playedCards = results.getInt("played_cards");
+                int declarerTricks = results.getInt("declarer_tricks");
+                int defenderTricks = results.getInt("defender_tricks");
+
+                if (playedCards != countPlayedCards(gameplay)) {
+                    throw new IllegalStateException("The saved result does not match the recorded card count.");
+                }
+
+                if (declarerTricks < 0 || declarerTricks > 13 || defenderTricks < 0 
+                        || defenderTricks > 13 || declarerTricks + defenderTricks != 13) {
+                    throw new IllegalStateException("The saved result has invalid final trick totals.");
+                }
+
+                if ("CLAIM".equals(ending)) {
+                    if (claimantText == null || playedCards < 0 || playedCards >= 52) {
+                        throw new IllegalStateException("The saved claim has invalid metadata.");
+                    }
+
+                    Position claimantPosition;
+
+                    try {
+                        claimantPosition = Position.valueOf(claimantText);
+                    } catch (IllegalArgumentException exception) {
+                        throw new IllegalStateException("The saved claimant is invalid.", exception);
+                    }
+
+                    controller.restoreAcceptedClaim(new Seat(claimantPosition), declarerTricks, defenderTricks);
+
+                } else if ("PLAYED_OUT".equals(ending)) {
+                    if (claimantText != null || playedCards != 52
+                            || !gameplay.isFinished() || gameplay.getDeclarerTricks() != declarerTricks
+                            || gameplay.getDefenderTricks() != defenderTricks) {
+                        throw new IllegalStateException("The saved played-out result disagrees with replay.");
+                    }
+
+                } else {
+                    throw new IllegalStateException("Unknown saved game ending: " + ending);
+                }
+
+                return true;
+            }
+        }
+    }
+
+    private void verifySavedScore(Connection connection, String gameId, GameController controller,
+            boolean required) throws SQLException {
+
+        String sql = """
+                SELECT score_ns, score_ew
+                FROM scores
+                WHERE game_id = ?
+                """;
+
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, gameId);
+
+            try (ResultSet results = statement.executeQuery()) {
+                if (!results.next()) {
+                    if (required) {
+                        throw new IllegalStateException("The completed result is missing its saved score.");
+                    }
+
+                    // Older saves did not persist scores.
+                    return;
+                }
+
+                if (controller.getPhase() != GamePhase.FINISHED) {
+                    throw new IllegalStateException("An unfinished game has a saved final score.");
+                }
+
+                Score calculated = controller.getScore();
+
+                if (results.getInt("score_ns") != calculated.getScoreNS()
+                        || results.getInt("score_ew") != calculated.getScoreEW()) {
+
+                    throw new IllegalStateException(
+                            "The saved score disagrees with the contract, "
+                            + "vulnerability and final trick totals.");
+                }
+            }
         }
     }
 
@@ -373,6 +514,18 @@ public class Storage {
              */
             this.replayCardPlays(connection, gameId.trim(), loadedController);
 
+            boolean hasSavedResult = restoreSavedResult(connection, gameId.trim(), loadedController, savedPhase);
+
+            if (!hasSavedResult
+                    && savedPhase == GamePhase.FINISHED
+                    && loadedController.getPhase() != GamePhase.FINISHED) {
+
+                throw new IllegalStateException(
+                        "This saved game is marked finished, but its recorded cards "
+                        + "do not complete the hand and it has no accepted-claim record. "
+                        + "Its final result cannot be restored reliably.");
+            }
+
             /*
              * Check the final reconstructed phase.
              */
@@ -389,6 +542,8 @@ public class Storage {
             if (loadedBidderPosition != savedBidderPosition) {
                 throw new IllegalStateException("The reconstructed current bidder does not match the saved bidder.");
             }
+
+            verifySavedScore(connection, gameId.trim(), loadedController, hasSavedResult);
 
             return loadedController;
 
@@ -588,15 +743,82 @@ public class Storage {
         }
     }
 
-    /**
-     * Saves the score for the completed game.
-     *
-     * @param score the score to save
-     */
-    public void saveScore(Score score) {
-        // TODO: implement
+    private void saveScore(Connection connection, String gameId, Score score) throws SQLException {
+
+        String sql = """
+                INSERT INTO scores (game_id, score_ns, score_ew)
+                VALUES (?, ?, ?)
+                """;
+
+        try (PreparedStatement statement =
+                connection.prepareStatement(sql)) {
+
+            statement.setString(1, gameId);
+            statement.setInt(2, score.getScoreNS());
+            statement.setInt(3, score.getScoreEW());
+            statement.executeUpdate();
+        }
     }
 
+    private int countPlayedCards(Gameplay gameplay) {
+        int count = 0;
+
+        if (gameplay != null) {
+            for (Trick trick : gameplay.getTricks()) {
+                count += trick.getPlays().size();
+            }
+        }
+
+        return count;
+    }
+
+    private void saveCompletedResult( Connection connection, String gameId, GameController controller) 
+            throws SQLException {
+
+        if (controller.getPhase() != GamePhase.FINISHED) {
+            return;
+        }
+
+        Gameplay gameplay = controller.getGameplay();
+
+        // Also validates that gameplay finished with 13 allocated tricks.
+        Score score = controller.getScore();
+        Seat claimant = gameplay.getAcceptedClaimant();
+        int playedCards = countPlayedCards(gameplay);
+
+        if (claimant == null && playedCards != 52) {
+            throw new IllegalStateException("A game without an accepted claim must finish all 52 cards.");
+        }
+
+        if (claimant != null && playedCards >= 52) {
+            throw new IllegalStateException("An accepted claim must occur before all cards are played.");
+        }
+
+        String sql = """
+                INSERT INTO game_results (
+                    game_id, ending_type, claimant, played_cards,
+                    declarer_tricks, defender_tricks
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """;
+
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, gameId);
+            statement.setString(2, claimant == null ? "PLAYED_OUT" : "CLAIM");
+
+            if (claimant == null) {
+                statement.setNull(3, Types.VARCHAR);
+            } else {
+                statement.setString(3, claimant.getPosition().name());
+            }
+
+            statement.setInt(4, playedCards);
+            statement.setInt(5, gameplay.getDeclarerTricks());
+            statement.setInt(6, gameplay.getDefenderTricks());
+            statement.executeUpdate();
+        }
+
+        saveScore(connection, gameId, score);
+    }
     /**
      * Creates a new user with the specified username and no tutorials.
      * 
