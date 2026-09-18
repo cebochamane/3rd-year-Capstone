@@ -1,0 +1,12 @@
+Cards held: spades;hearts;diamonds;clubs
+N: AKQJT98765432;-;-;-
+S: -;AKQJT98765432;-;-
+E: -;-;AKQJT98765432;-
+W: -;-;-;AKQJT98765432
+D: S
+BOTH VUL
+1NT;P;P;P.
+AC,AS,AD,AH
+Claim
+NOTE: South must make the scripted 1NT opening, then follow the scripted play.
+

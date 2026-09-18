@@ -35,6 +35,9 @@ public class GameView {
     private static final int TUTORIAL_ACTION_DELAY_MS = 2000;
     private Timer tutorialStepTimer;
     private boolean tutorialActionDelayActive;
+    private Trick completedTutorialTrick;
+    private boolean waitingForTutorialNextTrick;
+    private LearningNote tutorialLearningNote;
 
     /**
      * Connects this view to the game controller.
@@ -201,14 +204,21 @@ public class GameView {
                 return;
             }
 
+            Trick trickBeforePlay = tutorialSession.getGameplay().getCurrentTrick();
+
             if (seat.getPosition() != Position.SOUTH
                     || !tutorialSession.playSouthCard(card)) {
                 showMessage(tutorialSession.getFeedback());
                 return;
             }
 
-            renderTutorialSession();
-            scheduleNextTutorialStep();
+            if (trickBeforePlay != null && trickBeforePlay.isComplete()) {
+                pauseAfterCompletedTutorialTrick(trickBeforePlay);
+            } else {
+                renderTutorialSession();
+                scheduleNextTutorialStep();
+            }
+
             return;
         }
 
@@ -229,6 +239,10 @@ public class GameView {
      * @param message message to display
      */
     // chat gpt helped to center the pop up message.
+    /**
+     * Displays a centered informational message dialog to the user.
+     * @param message message to display
+     */
     public void showMessage(String message) {
         if (message == null) {
             message = "No message to display.";
@@ -400,6 +414,11 @@ public class GameView {
      */
     public void nextTrickClicked() {
 
+        if (tutorialSession != null) {
+            nextTutorialTrickClicked();
+            return;
+        }
+
         if (controller == null || controller.getGameplay() == null) {
             return;
         }
@@ -429,12 +448,61 @@ public class GameView {
     }
 
     /**
+     * Pauses the tutorial session after a trick has been completed to wait for user to proceed to the next trick.
+     * 
+     * @param trick the completed tutorial trick
+     */
+    private void pauseAfterCompletedTutorialTrick(Trick trick) {
+        completedTutorialTrick = trick;
+        waitingForTutorialNextTrick = true;
+        renderTutorialSession();
+    }
+
+    /**
+     * Advances the tutorial to the next trick after the user has inspected a completed trick.
+     */
+    private void nextTutorialTrickClicked() {
+        if (tutorialSession == null || !waitingForTutorialNextTrick) {
+            return;
+        }
+
+        waitingForTutorialNextTrick = false;
+        completedTutorialTrick = null;
+        window.hideNextTrickButton();
+
+        renderTutorialSession();
+
+        if (!tutorialSession.isComplete() && !isSouthTutorialTurn()) {
+            scheduleNextTutorialStep();
+        }
+    }
+
+    /**
+     * Creates a learning note from the provided tutorial lesson, including contract details if applicable.
+     * 
+     * @param lesson the tutorial lesson to create a note from
+     * @return a LearningNote instance containing the lesson's note and contract
+     */
+    private LearningNote createTutorialLearningNote(TutorialLesson lesson) {
+        LearningNote note = new LearningNote(NotePhase.GENERAL);
+        note.setNoteText(lesson.getNote());
+
+        Contract contract = lesson.getContract();
+        if (contract != null) {
+            note.setContract(contract.getLevel() + " " + contract.getDenomination());
+        }
+
+        return note;
+    }
+
+    /**
      * Called when the user clicks New Game from the home page.
      */
     public void newGameClicked() {
         cancelTutorialDelay();
 
         // Clearing tutorial state
+        tutorialLearningNote = null;
         activeTutorial = null;
         tutorialSession = null;
         tutorialCompletionShown = false;
@@ -472,6 +540,7 @@ public class GameView {
 
         if (choice == JOptionPane.YES_OPTION) {
             controller.quitGame();
+            tutorialLearningNote = null;
             window.showHomePage();
         }
     }
@@ -641,6 +710,7 @@ public class GameView {
         cancelTutorialDelay();
 
         // Clearing tutorial state
+        tutorialLearningNote = null;
         activeTutorial = null;
         tutorialSession = null;
         tutorialCompletionShown = false;
@@ -763,17 +833,34 @@ public class GameView {
      * Displays all saved learning notes or a message if none exist.
      */
     public void showLearningNotes() {
-        if (learningNotes.isEmpty()) {
+        ArrayList<LearningNote> notesToShow = new ArrayList<>();
+
+        /*
+        * When a scripted tutorial is active, show its teaching note first.
+        */
+        if (tutorialLearningNote != null) {
+            notesToShow.add(tutorialLearningNote);
+        }
+
+        /*
+        * Then include any quick notes the user has created in this session.
+        */
+        notesToShow.addAll(learningNotes);
+
+        if (notesToShow.isEmpty()) {
             showMessage("No learning notes yet.");
             return;
         }
+
         StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < learningNotes.size(); i++) {
-            sb.append(i + 1).append(". ").append(learningNotes.get(i)).append("\n\n");
+
+        for (int i = 0; i < notesToShow.size(); i++) {
+            sb.append(i + 1).append(". ").append(notesToShow.get(i)).append("\n\n");
         }
+
         showMessage(sb.toString());
     }
-
+    
     /**
      * Called by a "Quick Note" button on Gameview
      * Prompts the user to add a quick note for a specified phase and saves it with contextual information.
@@ -948,6 +1035,10 @@ public class GameView {
         window.showGameTable();
 
         if (entry.isScriptedTutorial()) {
+            tutorialLearningNote = createTutorialLearningNote(entry.getLesson());
+            completedTutorialTrick = null;
+            waitingForTutorialNextTrick = false;
+            window.hideNextTrickButton();
             activeTutorial = entry;
             cancelTutorialDelay();
             tutorialSession = new TutorialSession(entry.getLesson(), false);
@@ -966,6 +1057,9 @@ public class GameView {
 
         activeTutorial = null;
         tutorialSession = null;
+        tutorialLearningNote = null;
+        completedTutorialTrick = null;
+        waitingForTutorialNextTrick = false;
         controller.startLoadedDeal(HtmlDealParser.parse(entry.getSource()));
     }
 
@@ -1009,6 +1103,14 @@ public class GameView {
             }
         }
 
+        if (waitingForTutorialNextTrick && completedTutorialTrick != null) {
+            window.updateTrick(completedTutorialTrick);
+            window.updateCurrentPlayer(null);
+            window.showNextTrickButton(completedTutorialTrick.getTrickNo() == 13);
+            return;
+        }
+
+        window.hideNextTrickButton();
         window.updateTrick(gameplay.getCurrentTrick());
         window.updateCurrentPlayer(
             tutorialSession.isComplete() || tutorialActionDelayActive ? null : tutorialSession.getExpectedSeat());
@@ -1043,6 +1145,16 @@ public class GameView {
             return;
         }
 
+        /*
+        * South is the learner. Do not delay a learner's card-play turn.
+        */
+        if (tutorialSession.getPhase() == TutorialPhase.PLAYING
+                && isSouthTutorialTurn()) {
+            tutorialActionDelayActive = false;
+            renderTutorialSession();
+            return;
+        }
+
         tutorialActionDelayActive = true;
         renderTutorialSession();
 
@@ -1059,7 +1171,17 @@ public class GameView {
                     return;
                 }
 
+                Trick trickBeforeAction = tutorialSession.getPhase() == TutorialPhase.PLAYING
+                    ? tutorialSession.getGameplay().getCurrentTrick()
+                    : null;
+
                 boolean actionCompleted = tutorialSession.advanceOneComputerAction();
+
+                if (actionCompleted && trickBeforeAction != null && trickBeforeAction.isComplete()) {
+                    pauseAfterCompletedTutorialTrick(trickBeforeAction);
+                    return;
+                }
+
                 renderTutorialSession();
 
                 /*
