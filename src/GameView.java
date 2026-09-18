@@ -825,7 +825,19 @@ public class GameView {
         if (controller == null || user == null) {
             return;
         }
+
         controller.setCurrentUser(user);
+
+        try {
+            int addedTutorials = controller.syncTutorials();
+
+            if (addedTutorials > 0) {
+                showMessage(addedTutorials
+                        + " newly available tutorial(s) were added to this profile.");
+            }
+        } catch (IllegalStateException exception) {
+            showMessage("Tutorials could not be synchronised.\n" + exception.getMessage());
+        }
     }
 
     /**

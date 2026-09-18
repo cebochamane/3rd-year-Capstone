@@ -81,6 +81,34 @@ public class GameController {
         }
     }
 
+    public int syncTutorials() {
+        if (storage == null) {
+            throw new IllegalStateException("Storage has not been connected.");
+        }
+
+        if (currentUser == null) {
+            throw new IllegalStateException("Please select a user before synchronising tutorials.");
+        }
+
+        try {
+            TutorialCatalog catalog = TutorialCatalog.load(Path.of("tutorials"));
+
+            ArrayList<TutorialEntry> scriptedTutorials = new ArrayList<>();
+
+            for (TutorialEntry entry : catalog.getEntries()) {
+                if (entry.isScriptedTutorial()) {
+                    scriptedTutorials.add(entry);
+                }
+            }
+
+            return storage.syncTutorials(currentUser, scriptedTutorials);
+
+        } catch (IOException exception) {
+            throw new IllegalStateException(
+                    "Tutorials could not be read for synchronisation.", exception);
+        }
+    }
+
     /**
      * Returns all users stored on this computer.
      *

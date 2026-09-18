@@ -275,10 +275,43 @@ public final class TutorialSession {
         nextActionIndex++;
 
         if (phase == TutorialPhase.BIDDING) {
-            auction.getBids().add(action.getBid());
+            if (!auction.addBid(action.getBid())) {
+                throw new IllegalStateException("The tutorial contains an illegal auction call: "
+                    + action.getBid() + ".");
+            }
+
             if (!hasRemainingBid()) {
+                addImplicitClosingPasses();
                 startGameplay();
             }
+        }
+    }
+
+    /**
+     * Adds the omitted closing passes used by the tutorial-file shorthand.
+     * These calls complete the visible auction without asking the learner to
+     * enter passes that were not present in the tutorial script.
+     */
+    private void addImplicitClosingPasses() {
+        if (auction.isComplete()) {
+            return;
+        }
+
+        Bid finalBid = auction.getFinalBid();
+        if (finalBid == null || auction.getBids().isEmpty()) {
+            throw new IllegalStateException(
+                    "A bid-and-play tutorial needs a final contract bid.");
+        }
+
+        Seat bidder = auction.getBids().get(auction.getBids().size() - 1)
+                .getBidder().next();
+
+        while (!auction.isComplete()) {
+            if (!auction.addBid(Bid.BidPass(bidder))) {
+                throw new IllegalStateException(
+                        "Could not complete the tutorial auction with closing passes.");
+            }
+            bidder = bidder.next();
         }
     }
 

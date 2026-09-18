@@ -13,6 +13,8 @@ import java.sql.Types;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.HashSet;
+import java.util.Set;
 
 public class Storage {
 
@@ -940,5 +942,87 @@ public class Storage {
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not retrieve saved tutorials.", exception);
         }
+    }
+
+    public int syncTutorials(User user, List<TutorialEntry> tutorials) {
+        if (user == null) {
+            throw new IllegalArgumentException("A user is required.");
+        }
+
+        if (tutorials == null) {
+            return 0;
+        }
+
+        String selectExisting = "SELECT source_file, lesson_index "
+                + "FROM tutorial_sessions WHERE user_id = ?";
+
+        String insertTutorial = "INSERT INTO tutorial_sessions "
+                + "(tutorial_id, user_id, source_file, lesson_index) VALUES (?, ?, ?, ?)";
+
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+
+            try {
+                Set<String> existingTutorials = new HashSet<>();
+
+                try (PreparedStatement select = connection.prepareStatement(selectExisting)) {
+                    select.setString(1, user.getUserId());
+
+                    try (ResultSet results = select.executeQuery()) {
+                        while (results.next()) {
+                            existingTutorials.add(
+                                    tutorialKey(
+                                            results.getString("source_file"),
+                                            results.getInt("lesson_index")));
+                        }
+                    }
+                }
+
+                int addedCount = 0;
+
+                try (PreparedStatement insert = connection.prepareStatement(insertTutorial)) {
+                    for (TutorialEntry tutorial : tutorials) {
+                        if (tutorial == null || !tutorial.isScriptedTutorial()) {
+                            continue;
+                        }
+
+                        String sourceFile = tutorial.getSourceFileName();
+                        int lessonIndex = tutorial.getLessonIndex();
+                        String key = tutorialKey(sourceFile, lessonIndex);
+
+                        if (existingTutorials.contains(key)) {
+                            continue;
+                        }
+
+                        insert.setString(1, UUID.randomUUID().toString());
+                        insert.setString(2, user.getUserId());
+                        insert.setString(3, sourceFile);
+                        insert.setInt(4, lessonIndex);
+                        insert.addBatch();
+
+                        existingTutorials.add(key);
+                        addedCount++;
+                    }
+
+                    if (addedCount > 0) {
+                        insert.executeBatch();
+                    }
+                }
+
+                connection.commit();
+                return addedCount;
+
+            } catch (SQLException exception) {
+                connection.rollback();
+                throw new IllegalStateException("Could not synchronise the user's tutorials.", exception);
+            }
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not access the BridgeTut database.", exception);
+        }
+    }
+
+    private String tutorialKey(String sourceFile, int lessonIndex) {
+        return sourceFile + "\u0000" + lessonIndex;
     }
 }
