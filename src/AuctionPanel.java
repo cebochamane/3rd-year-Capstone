@@ -327,6 +327,11 @@ public class AuctionPanel extends JPanel {
         if (auction == null) {
             return;
         }
+
+        if (dealer == null || dealer.getPosition() == null) {
+            throw new IllegalArgumentException("A dealer is required to display the auction.");
+        }
+
         currentBidder = bidder;
         selectedLevel = 0;
         selectedSuit = null;
@@ -343,6 +348,17 @@ public class AuctionPanel extends JPanel {
             headingLabel.setBorder(BorderFactory.createLineBorder(GOLD_ACCENT));
             headingLabel.setAlignmentX(CENTER_ALIGNMENT);
             historyPanel.add(headingLabel);
+        }
+
+        int openingColumn = switch (dealer.getPosition()) {
+            case NORTH -> 0;
+            case EAST -> 1;
+            case SOUTH -> 2;
+            case WEST -> 3;
+        };
+
+        for (int column = 0; column < openingColumn; column++) {
+            historyPanel.add(new JLabel(""));
         }
 
         for (Bid bid : auction.getBids()) {
@@ -362,6 +378,13 @@ public class AuctionPanel extends JPanel {
             bidLabel.setBorder(BorderFactory.createLineBorder(GOLD_ACCENT));
             bidLabel.setAlignmentX(CENTER_ALIGNMENT);
             historyPanel.add(bidLabel);
+        }
+
+        int occupiedCells = openingColumn + auction.getBids().size();
+        int trailingCells = (4 - occupiedCells % 4) % 4;
+
+        for (int column = 0; column < trailingCells; column++) {
+            historyPanel.add(new JLabel(""));
         }
 
         historyPanel.revalidate();
