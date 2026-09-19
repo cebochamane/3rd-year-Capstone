@@ -504,10 +504,21 @@ public class GameController {
         return true;
     }
 
+    /**
+     * Claims the remaining tricks in the current gameplay by the current player.
+     * 
+     * @return TODO
+     */
     public boolean claim() {
         return gameplay != null && claim(gameplay.getRemainingTricks());
     }
 
+    /**
+     * Claims a specified number of tricks by the current player in the gameplay phase.
+     * 
+     * @param tricks the number of tricks being claimed
+     * @return TODO
+     */
     public boolean claim(int tricks) {
         if (phase != GamePhase.PLAYING || gameplay == null) {
             return false;
@@ -521,6 +532,13 @@ public class GameController {
         return true;
     }
 
+    /**
+     * Claims a specified number of tricks with analysis evidence for the current player during gameplay.
+     * 
+     * @param tricks the number of tricks being claimed
+     * @param analysis the analysis supporting the claim
+     * @return TODO
+     */
     boolean claim(int tricks, DdsSolver.Analysis analysis) {
         if (phase != GamePhase.PLAYING || gameplay == null) { 
             return false;
@@ -533,6 +551,11 @@ public class GameController {
         return true;
     }
 
+    /**
+     * Allows the current player to concede the game during the gameplay phase, ending the game.
+     * 
+     * @return TODO
+     */
     public boolean concede() {
         if (phase != GamePhase.PLAYING || gameplay == null) {
             return false;
@@ -546,6 +569,15 @@ public class GameController {
         return true;
     }
 
+    /**
+     * Restores a game settlement state with details about concession and trick counts during gameplay reconstruction.
+     * 
+     * @param actor the seat performing the settlement
+     * @param conceded true if the game was conceded
+     * @param tricks number of tricks involved
+     * @param declarer tricks made by declarer
+     * @param defenders tricks made by defenders
+     */
     void restoreSettlement(Seat actor, boolean conceded, int tricks, int declarer, int defenders) {
         if (phase != GamePhase.PLAYING || gameplay == null) {
             throw new IllegalStateException("Cannot restore a settlement outside play.");

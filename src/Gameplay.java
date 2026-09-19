@@ -273,6 +273,14 @@ public class Gameplay {
         return legalCards;
     }
 
+    /**
+     * Determines legal cards a player can play from a hand considering the given trick's state.
+     * 
+     * @param seat the player who is playing
+     * @param hand the player's current hand
+     * @param currentTrick the trick currently being played
+     * @return list of cards legal to play
+     */
     private ArrayList<Card> getLegalCards(Seat seat, Hand hand, Trick currentTrick) {
 
         ArrayList<Card> legalCards = new ArrayList<>();
@@ -357,22 +365,51 @@ public class Gameplay {
         return currentTrick.getWinner(contract.getDenomination());
     }
 
+    /**
+     * Calculates the number of tricks remaining to be played in the game.
+     * 
+     * @return the count of remaining tricks
+     */
     public int getRemainingTricks() {
         return 13 - declarerTricks - defenderTricks;
     }
 
+    /**
+     * Performs analysis on the remaining tricks using a double-dummy solver.
+     * 
+     * @return analysis result of remaining tricks
+     */
     public DdsSolver.Analysis analyzeRemainingTricks() {
         return DdsSolver.analyze(this);
     }
 
+    /**
+     * Checks if the given player is the one currently expected to act.
+     * 
+     * @param actor the player to check
+     * @return true if the player is the current actor, false otherwise
+     */
     private boolean isCurrentActor(Seat actor) {
         return actor != null && actor.getPosition() != null && actor.equals(getCurrentPlayer());
     }
 
+    /**
+     * Determines if the given player can validly claim all remaining tricks.
+     * 
+     * @param claimant the player attempting the claim
+     * @return true if the claim is valid, false otherwise
+     */
     public boolean isClaimValid(Seat claimant) {
         return isClaimValid(claimant, getRemainingTricks());
     }
 
+    /**
+     * Determines if the given player can validly claim a specified number of tricks.
+     * 
+     * @param claimant the player attempting the claim
+     * @param tricks the number of tricks being claimed
+     * @return true if claiming the specified number of tricks is valid, false otherwise
+     */
     public boolean isClaimValid(Seat claimant, int tricks) {
         if (finished || !isCurrentActor(claimant) || tricks < 0 || tricks > getRemainingTricks()) {
             return false;
@@ -449,14 +486,35 @@ public class Gameplay {
         return declarer.next().next();
     }
 
+    /**
+     * Returns the player whose claim has been accepted if any.
+     * 
+     * @return the claimant seat whose claim has been accepted, or null if none
+     */
     public Seat getAcceptedClaimant() {
         return acceptedClaimant;
     }
 
+    /**
+     * Restores a previously accepted claim with specified final declarer and defender tricks.
+     * 
+     * @param claimant the player who claimed
+     * @param finalDeclarerTricks final number of tricks credited to declarer side
+     * @param finalDefenderTricks final number of tricks credited to defender side
+     */
     void restoreAcceptedClaim(Seat claimant, int finalDeclarerTricks, int finalDefenderTricks) {
         restoreSettlement(claimant, false, getRemainingTricks(), finalDeclarerTricks, finalDefenderTricks);
     }
 
+    /**
+     * Restores a saved settlement state including conceding and awarded tricks, validating consistency.
+     * 
+     * @param actor the player settling
+     * @param conceded true if the settlement is a concession
+     * @param awardedTricks number of tricks awarded in the settlement
+     * @param finalDeclarerTricks final declarer trick count
+     * @param finalDefenderTricks final defender trick count
+     */
     void restoreSettlement(Seat actor, boolean conceded, int awardedTricks,
             int finalDeclarerTricks, int finalDefenderTricks) {
         if (finished || !isCurrentActor(actor)) {
@@ -476,18 +534,40 @@ public class Gameplay {
         settle(actor, awardedTricks, conceded);
     }
 
+    /**
+     * Returns the player associated with the current settlement or concession phase.
+     * 
+     * @return the player who performed the accepted claim or concession
+     */
     public Seat getSettlementActor() {
         return acceptedConceder == null ? acceptedClaimant : acceptedConceder;
     }
 
+    /**
+     * Checks if the current game has been conceded by a player.
+     * 
+     * @return true if the game is conceded, false otherwise
+     */
     public boolean isConceded() { 
         return acceptedConceder != null; 
     }
     
+    /**
+     * Returns the number of tricks accepted as won in a claim or concession.
+     * 
+     * @return the count of accepted tricks
+     */
     public int getAcceptedTricks() { 
         return acceptedTricks; 
     }
 
+    /**
+     * Finalizes the game by settling with a player awarding specified tricks and concession status.
+     * 
+     * @param actor the player settling the result
+     * @param tricks the number of tricks awarded
+     * @param conceded true if the game was conceded
+     */
     private void settle(Seat actor, int tricks, boolean conceded) {
         int remaining = getRemainingTricks();
         boolean declaringSide = actor.equals(contract.getDeclarer()) || actor.isPartner(contract.getDeclarer());
@@ -499,6 +579,14 @@ public class Gameplay {
         finished = true;
     }
 
+    /**
+     * Attempts to settle the game in a tutorial lession validating the declared tricks and analysis.
+     * 
+     * @param declarerRemainingTricks number of tricks declarer claims to remain
+     * @param concede true if conceding
+     * @param analysis analysis result to validate settlement
+     * @return true if settlement was successful, false otherwise
+     */
     boolean settleTutorial(int declarerRemainingTricks, boolean concede, DdsSolver.Analysis analysis) {
         if (finished) {
             return false;
@@ -598,11 +686,26 @@ public class Gameplay {
         return claim(claimant, getRemainingTricks());
     }
 
+    /**
+     * Attempts to claim a specified number of remaining tricks for the specified player.
+     * 
+     * @param claimant the player making the claim
+     * @param tricks number of tricks claimed
+     * @return true if the claim was valid and accepted, false otherwise
+     */
     public boolean claim(Seat claimant, int tricks) {
         if (finished || !isCurrentActor(claimant) || tricks < 0 || tricks > getRemainingTricks()) return false;
         return claim(claimant, tricks, analyzeRemainingTricks());
     }
 
+    /**
+     * Attempts to claim a specified number of tricks validated against a solver analysis.
+     * 
+     * @param claimant the player making the claim
+     * @param tricks number of tricks claimed
+     * @param analysis solver analysis to validate claim
+     * @return true if the claim was valid and accepted, false otherwise
+     */
     boolean claim(Seat claimant, int tricks, DdsSolver.Analysis analysis) {
         if (finished || !isCurrentActor(claimant) || analysis == null || !analysis.matches(this)
                 || tricks < 0 || tricks > analysis.tricksFor(claimant, contract)) return false;
@@ -610,6 +713,12 @@ public class Gameplay {
         return true;
     }
 
+    /**
+     * Attempts to concede the game for the given player, ending play.
+     * 
+     * @param conceder the player conceding
+     * @return true if the concession was accepted, false otherwise
+     */
     public boolean concede(Seat conceder) {
         if (finished || !isCurrentActor(conceder)) return false;
         settle(conceder, 0, true);

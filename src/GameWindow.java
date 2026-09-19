@@ -514,14 +514,29 @@ public class GameWindow {
         homePanel.setUsers(users);
     }
 
+    /**
+     * Enables or disables the concede button in the UI.
+     * 
+     * @param enabled true to enable the concede button, false to disable
+     */
     public void setConcedeEnabled(boolean enabled) {
         concedeButton.setEnabled(enabled);
     }
 
+    /**
+     * Updates the tutorial status label with the given status text.
+     * 
+     * @param status the tutorial status message to display
+     */
     public void setTutorialStatus(String status) {
         tutorialStatusLabel.setText(status == null ? "" : status);
     }
 
+    /**
+     * Enables or disables the claim button in the UI.
+     * 
+     * @param enabled true to enable the claim button, false to disable
+     */
     public void setClaimEnabled(boolean enabled) {
         claimButton.setEnabled(enabled);
     }

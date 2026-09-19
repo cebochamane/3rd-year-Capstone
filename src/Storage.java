@@ -148,6 +148,13 @@ public class Storage {
         }
     }
 
+    /**
+     * Performs migration of the game_results table to include the awarded_tricks column if missing.
+     * 
+     * @param connection active database connection
+     * @param createTable SQL command to create the updated game_results table
+     * @throws SQLException if a database access error occurs during migration
+     */
     private void migrateGameResults(Connection connection, String createTable) throws SQLException {
         try (Statement statement = connection.createStatement();
                 ResultSet columns = statement.executeQuery("PRAGMA table_info(game_results)")) {

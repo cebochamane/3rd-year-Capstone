@@ -38,6 +38,14 @@ public final class TutorialSession {
         this(lesson, automaticallyAdvanceComputerActions, false);
     }
 
+    /**
+     * Constructs a tutorial session with specified lesson & flags for automatic computer action advancement,
+     * and waiting for ending button.
+     * 
+     * @param lesson The tutorial lesson to run in this session.
+     * @param automaticallyAdvanceComputerActions If true, computer actions proceed automatically without user intervention.
+     * @param waitForEndingButton If true, lesson waits for a user action to conclude the ending (claim or concede).
+     */
     public TutorialSession(TutorialLesson lesson, boolean automaticallyAdvanceComputerActions, boolean waitForEndingButton) {
         if (lesson == null) {
             throw new IllegalArgumentException("A tutorial lesson is required.");
@@ -174,14 +182,30 @@ public final class TutorialSession {
         return conceded;
     }
 
+    /**
+     * Checks whether the session is waiting for the player to claim to finish the lesson.
+     * 
+     * @return True if waiting for claim action; false otherwise.
+     */
     public boolean isAwaitingClaim() {
         return waitForEndingButton && !isComplete() && nextAction() != null && nextAction().getType() == TutorialAction.Type.CLAIM;
     }
 
+    /**
+     * Checks whether the session is waiting for the player to concede to finish the lesson.
+     * 
+     * @return True if waiting for concede action; false otherwise.
+     */
     public boolean isAwaitingConcede() {
         return waitForEndingButton && !isComplete() && nextAction() != null && nextAction().getType() == TutorialAction.Type.CONCEDE;
     }
 
+    /**
+     * Executes isAwaitingEnding.
+     * 
+     * @param isAwaitingConcede( the input value
+     * @return the result
+     */
     public boolean isAwaitingEnding() { return isAwaitingClaim() || isAwaitingConcede(); }
 
     /** Number of future tricks allocated to declarer's side by the lesson ending. */
@@ -201,6 +225,13 @@ public final class TutorialSession {
         return tricks;
     }
 
+    /**
+     * Confirms the tutorial session ending by claim or concede, settling the lesson result with provided analysis.
+     * 
+     * @param concede True to concede, false to claim.
+     * @param analysis The double-dummy solver analysis for confirming the ending.
+     * @return True if the ending confirmation was successful; false otherwise.
+     */
     public boolean confirmEnding(boolean concede, DdsSolver.Analysis analysis) {
         if (concede ? !isAwaitingConcede() : !isAwaitingClaim()) return false;
         int tricks = proposedEndingTricks(analysis);
@@ -214,6 +245,11 @@ public final class TutorialSession {
         return true;
     }
 
+    /**
+     * Provides a prompt message for the South player based on the current expected action or tutorial state.
+     * 
+     * @return A string containing instructions or status messages for South.
+     */
     public String getSouthPrompt() {
         if (isAwaitingClaim()) return "Click Claim to finish the lesson.";
         if (isAwaitingConcede()) return "Click Concede to finish the lesson.";

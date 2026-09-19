@@ -544,14 +544,25 @@ public class GameView {
         }
     }
 
+    /**
+     * Initiates a claim action by beginning settlement analysis with concede set to false.
+     */
     public void claimClicked() {
         beginSettlement(false);
     }
 
+    /**
+     * Initiates a concede action by beginning settlement analysis with concede set to true.
+     */
     public void concedeClicked() {
         beginSettlement(true);
     }
 
+    /**
+     * Begins settlement analysis for claiming or conceding remaining tricks based on parameter.
+     * 
+     * @param concede true to concede all remaining tricks, false to claim remaining tricks
+     */
     private void beginSettlement(boolean concede) {
         if (settlementAnalysisActive || controller == null) return;
         TutorialSession lessonSession = tutorialSession;
@@ -588,10 +599,18 @@ public class GameView {
         window.updateCurrentPlayer(null);
         window.setTutorialStatus("Analysing remaining tricks…");
         settlementWorker = new javax.swing.SwingWorker<>() {
+            /**
+             * Performs background analysis of remaining tricks in settlement calculation.
+             * 
+             * @return the double-dummy analysis result
+             */
             @Override protected DdsSolver.Analysis doInBackground() {
                 return game.analyzeRemainingTricks();
             }
 
+            /**
+             * Handles completion of the background analysis, updates UI and processes claim or concede logic.
+             */
             @Override protected void done() {
                 if (generation != settlementGeneration) return;
                 settlementAnalysisActive = false;

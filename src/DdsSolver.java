@@ -12,9 +12,18 @@ import java.util.concurrent.TimeUnit;
 //Let's go
 
 public final class DdsSolver {
+    /**
+     * Creates a new instance of the DdsSolver class, which is not instantiable externally.
+     */
     private DdsSolver() {}
 
     private static final Map<String, Integer> CACHE = new LinkedHashMap<>(32, .75f, true) {
+        /**
+         * Determines whether the eldest entry should be removed to maintain the cache size limit.
+         * 
+         * @param entry The eldest entry in the cache map being considered for removal
+         * @return true if the cache size exceeds 128 entries and the eldest should be removed, false otherwise
+         */
         @Override protected boolean removeEldestEntry(Map.Entry<String, Integer> entry) {
             return size() > 128;
         }
@@ -27,6 +36,14 @@ public final class DdsSolver {
         private final int declarerTricks;
         private final Position declarer;
 
+        /**
+         * Constructs a new Analysis instance representing the verified result for one exact position and partial trick state.
+         * 
+         * @param position The encoded string representation of the position and trick state
+         * @param remaining The number of remaining tricks in the hand
+         * @param declarerTricks The number of tricks won by the declarer
+         * @param declarer The position of the declarer player
+         */
         private Analysis(String position, int remaining, int declarerTricks, Position declarer) {
             this.declarer = declarer;
             this.position = position;
@@ -34,9 +51,31 @@ public final class DdsSolver {
             this.declarerTricks = declarerTricks;
         }
 
-        public int remainingTricks() { return remaining; }
-        public int declarerTricks() { return declarerTricks; }
+        /**
+         * Returns the number of remaining tricks left to be played in the hand.
+         * 
+         * @return The count of remaining tricks
+         */
+        public int remainingTricks() { 
+            return remaining; 
+        }
 
+        /**
+         * Returns the number of tricks won by the declarer so far in the analysis.
+         * 
+         * @return The count of declarer's tricks
+         */
+        public int declarerTricks() { 
+            return declarerTricks; 
+        }
+
+        /**
+         * Calculates the number of tricks taken by a given seat according to the contract and analysis result.
+         * 
+         * @param seat The seat (player) for whom to determine trick count
+         * @param contract The contract describing declarer and denomination
+         * @return The number of tricks won by the specified seat
+         */
         public int tricksFor(Seat seat, Contract contract) {
             if (seat == null || seat.getPosition() == null) {
                 throw new IllegalArgumentException("A valid player is required.");
@@ -45,12 +84,24 @@ public final class DdsSolver {
             return seat.equals(declarer) || seat.isPartner(declarer) ? declarerTricks : remaining - declarerTricks;
         }
 
+        /**
+         * Checks if the analysis matches the current unfinished gameplay position and state exactly.
+         * 
+         * @param gameplay The Gameplay instance to compare against this analysis
+         * @return true if the analysis corresponds exactly to the gameplay state, false otherwise
+         */
         boolean matches(Gameplay gameplay) {
             return !gameplay.isFinished() && remaining == gameplay.getRemainingTricks()
                     && declarer == gameplay.getContract().getDeclarer().getPosition() && position.equals(encode(gameplay));
         }
     }
 
+    /**
+     * Performs double-dummy analysis on an unfinished gameplay hand by invoking the external DDS solver.
+     * 
+     * @param gameplay The current gameplay state which must not be finished
+     * @return An Analysis object capturing the verified number of declarer tricks and position encoding
+     */
     public static Analysis analyze(Gameplay gameplay) {
         if (gameplay == null || gameplay.isFinished()) {
             throw new IllegalStateException("Only an unfinished hand can be analysed.");
@@ -84,6 +135,13 @@ public final class DdsSolver {
         return new Analysis(position, remaining, declarerToPlay ? value : remaining - value, declarer.getPosition());
     }
 
+    /**
+     * Runs the external DDS solver process with specified input and returns the calculated declarer tricks.
+     * 
+     * @param executable The file path to the DDS solver executable
+     * @param input The encoded input string representing current hand and trick state
+     * @return The number of tricks determined by the DDS solver
+     */
     private static int solve(Path executable, String input) {
         Process process = null;
         try {
@@ -109,6 +167,12 @@ public final class DdsSolver {
         }
     }
 
+    /**
+     * Encodes the current incomplete trick and remaining hand state into a string suitable for DDS input.
+     * 
+     * @param gameplay The Gameplay instance with an active, incomplete trick to encode
+     * @return A string encoding the trick, leader, contract, played cards, and remaining hands
+     */
     static String encode(Gameplay gameplay) {
         Trick trick = gameplay.getCurrentTrick();
         if (trick == null || trick.isComplete()) throw new IllegalStateException("No active trick to analyse.");
@@ -140,6 +204,12 @@ public final class DdsSolver {
         return text.append('\n').toString();
     }
 
+    /**
+     * Validates that a card is valid for double-dummy input and not duplicated in the current set.
+     * 
+     * @param card The card to validate
+     * @param seen Set of cards already seen to detect duplicates
+     */
     private static void validateCard(Card card, Set<Card> seen) {
         if (card == null || card.getSuit() == null || card.getSuit() == Suit.NT || card.getRank() == null) {
             throw new IllegalStateException("Invalid card in double-dummy input.");
@@ -147,6 +217,12 @@ public final class DdsSolver {
         if (!seen.add(card)) throw new IllegalStateException("Duplicate card in double-dummy input.");
     }
 
+    /**
+     * Converts a Suit enum into the integer code expected by the DDS solver.
+     * 
+     * @param suit The suit to encode
+     * @return Integer code corresponding to the suit (Spades=0, Hearts=1, Diamonds=2, Clubs=3, NT=4)
+     */
     static int suitCode(Suit suit) {
         return switch (suit) {
             case SPADES -> 0;
@@ -157,6 +233,12 @@ public final class DdsSolver {
         };
     }
 
+    /**
+     * Converts a Position enum into the integer code used in DDS input encoding.
+     * 
+     * @param position The player position to encode
+     * @return Integer code for the position (North=0, East=1, South=2, West=3)
+     */
     private static int seatCode(Position position) {
         return switch (position) {
             case NORTH -> 0;
