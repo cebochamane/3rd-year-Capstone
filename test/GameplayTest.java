@@ -160,4 +160,92 @@ class GameplayTest {
             this.gameplay = gameplay;
         }
     }
+
+    @Test
+    void claimIsAcceptedWhenClaimingSideCanWinAllRemainingTricks() {
+
+        Map<Position, List<Card>> hands = new EnumMap<>(Position.class);
+
+        hands.put(Position.NORTH, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.KING))));
+
+        hands.put(Position.EAST, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.ACE))));
+
+        hands.put(Position.SOUTH, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.TWO))));
+
+        hands.put(Position.WEST, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.THREE))));
+
+        Deal deal = Deal.fromHands(new Seat(Position.NORTH), Vulnerability.NONE, hands);
+
+        Contract contract = new Contract(1, Suit.CLUBS, new Seat(Position.NORTH), false, false);
+
+        Gameplay gameplay = new Gameplay(deal, contract);
+
+        assertTrue(gameplay.claim(new Seat(Position.EAST)));
+        assertTrue(gameplay.isFinished());
+        assertEquals(1, gameplay.getDefenderTricks());
+        assertEquals(0, gameplay.getDeclarerTricks());
+    }
+
+    @Test
+    void claimCanBeAcceptedPartwayThroughCurrentTrick() {
+
+        Map<Position, List<Card>> hands = new EnumMap<>(Position.class);
+
+        hands.put(Position.NORTH, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.KING))));
+
+        hands.put(Position.EAST, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.TWO))));
+
+        hands.put(Position.SOUTH, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.ACE))));
+
+        hands.put(Position.WEST, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.THREE))));
+
+        Deal deal = Deal.fromHands(new Seat(Position.NORTH), Vulnerability.NONE, hands);
+
+        Contract contract = new Contract(1, Suit.CLUBS, new Seat(Position.NORTH), false, false);
+
+        Gameplay gameplay = new Gameplay(deal, contract);
+
+        /*
+         * East makes the opening lead.
+         */
+        Card eastTwo = cardIn(deal, Position.EAST, Suit.SPADES, Rank.TWO);
+
+        assertTrue(gameplay.playCard(new Seat(Position.EAST), eastTwo));
+
+        /*
+         * It is now South's turn.
+         * South claims the rest of the trick.
+         */
+        assertEquals(new Seat(Position.SOUTH), gameplay.getCurrentPlayer());
+
+        assertTrue(gameplay.claim(new Seat(Position.SOUTH)));
+
+        assertTrue(gameplay.isFinished());
+        assertEquals(1, gameplay.getDeclarerTricks());
+        assertEquals(0, gameplay.getDefenderTricks());
+    }
+
+    @Test
+    void claimIsRejectedWhenOpposingSideCanWinARemainingTrick() {
+
+        Map<Position, List<Card>> hands = new EnumMap<>(Position.class);
+
+        hands.put(Position.NORTH, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.KING))));
+
+        hands.put(Position.EAST, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.TWO))));
+
+        hands.put(Position.SOUTH, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.ACE))));
+
+        hands.put(Position.WEST, new ArrayList<>(List.of(new Card(Suit.SPADES, Rank.THREE))));
+
+        Deal deal = Deal.fromHands(new Seat(Position.NORTH), Vulnerability.NONE, hands);
+
+        Contract contract = new Contract(1, Suit.CLUBS, new Seat(Position.NORTH), false, false);
+
+        Gameplay gameplay = new Gameplay(deal, contract);
+
+        assertFalse(gameplay.claim(new Seat(Position.EAST)));
+        assertFalse(gameplay.isFinished());
+    }
+
 }
