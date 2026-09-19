@@ -110,7 +110,7 @@ public final class TutorialSession {
     }
 
     /**
-     * Computes and returns the final score of the tutorial session if complete and gameplay has finished.
+     * Computes and returns the final score of the tutorial session if gameplay has finished.
      * 
      * @return The final score of the tutorial or null if incomplete or gameplay not available.
      */
