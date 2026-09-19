@@ -3,7 +3,38 @@
 #include <iostream>
 #include <string>
 
-int main() {
+int main(int argc, char **argv) {
+    if (argc == 2 && std::string(argv[1]) == "--table") {
+        ddTableDeal tableDeal{};
+        for (int hand = 0; hand < 4; ++hand) {
+            for (int suit = 0; suit < 4; ++suit) {
+                if (!(std::cin >> tableDeal.cards[hand][suit])) return 2;
+            }
+        }
+        std::string extra;
+        if (std::cin >> extra) return 2;
+        SetResources(96, 1);
+        ddTableResults result{};
+        int status = CalcDDtable(tableDeal, &result);
+        if (status != RETURN_NO_FAULT) {
+            char message[80]{};
+            ErrorMessage(status, message);
+            std::cerr << "DDS table error " << status << ": " << message << "\n";
+            FreeMemory();
+            return 3;
+        }
+        // DDS ordering: S/H/D/C/NT rows, N/E/S/W declarer columns.
+        std::cout << "DDS20900_TABLE";
+        for (int strain = 0; strain < 5; ++strain) {
+            for (int declarer = 0; declarer < 4; ++declarer) {
+                std::cout << " " << result.resTable[strain][declarer];
+            }
+        }
+        std::cout << "\n";
+        FreeMemory();
+        return 0;
+    }
+    if (argc != 1) return 2;
     deal position{};
     int count;
     if (!(std::cin >> position.trump >> position.first >> count)
