@@ -12,8 +12,7 @@ import java.awt.event.ComponentEvent;
 import javax.swing.SwingUtilities;
 
 /**
- * GameView handles communication between the GameController
- * and the graphical user interface.
+ * GameView handles communication between the GameController and the graphical user interface.
  * The auction is displayed in the GameWindow.
  */
 public class GameView {
@@ -79,8 +78,7 @@ public class GameView {
     }
 
     /**
-     * Displays the current auction in the centre
-     * of the table.
+     * Displays the current auction in the centre of the table.
      *
      * @param auction the current auction
      */
@@ -239,7 +237,7 @@ public class GameView {
     }
 
     /**
-     * Displays a message to the user.
+     * Displays a centered informational message dialog to the user.
      *
      * @param message message to display
      */
@@ -258,8 +256,7 @@ public class GameView {
         JDialog dialog = optionPane.createDialog(window.getMainFrame(), "BridgeTut");
 
         /*
-         * Ensure the dialog has its final width and height before calculating its
-         * position.
+         * Ensure the dialog has its final width and height before calculating its position.
          */
         dialog.pack();
 
@@ -307,8 +304,7 @@ public class GameView {
     }
 
     /**
-     * Called by GameWindow when the user clicks
-     * a bid button.
+     * Called by GameWindow when the user clicks a bid button.
      *
      * @param bid the bid selected by the user
      */
@@ -347,8 +343,7 @@ public class GameView {
     }
 
     /**
-     * Creates the GameWindow if it does not
-     * already exist.
+     * Creates the GameWindow if it does not already exist.
      */
     public void initialiseWindow() {
 
@@ -880,8 +875,7 @@ public class GameView {
     }
 
     /**
-     * Called by the "Learning Notes" button in GameWindow.
-     * Displays all saved learning notes or a message if none exist.
+     * Displays all current learning notes, including tutorial notes and user-created quick notes.
      */
     public void showLearningNotes() {
         ArrayList<LearningNote> notesToShow = new ArrayList<>();
@@ -915,6 +909,7 @@ public class GameView {
     /**
      * Called by a "Quick Note" button on Gameview
      * Prompts the user to add a quick note for a specified phase and saves it with contextual information.
+     * 
      * @param phase the phase of the game for the note
      */
     public void addQuickNote(NotePhase phase) {
@@ -1018,7 +1013,9 @@ public class GameView {
     }
 
     /**
-     * Main method used to start the GUI.
+     * Initializes the game view and controller, sets up storage, and shows the home page with profiles.
+     * 
+     * @param args command line arguments
      */
     public static void main(String[] args) {
         GameView view = new GameView();
@@ -1055,7 +1052,7 @@ public class GameView {
     }
 
     /**
-     * Called when the user clicks Save Game.
+     * Saves the current game or tutorial session depending on context, showing feedback messages.
      */
     public void saveGameClicked() {
         try {
@@ -1071,7 +1068,7 @@ public class GameView {
     }
 
     /**
-     * Allows the user to load or restart a tutorial, handling selection dialogs and tutorial initialization.
+     * Allows the user to load a tutorial or practice deal, choosing from files or saved tutorials.
      */
     public void loadTutorialClicked() {
         if (controller == null || controller.getCurrentUser() == null) {
@@ -1192,7 +1189,7 @@ public class GameView {
     }
 
     /**
-     * Updates the GUI to reflect the current state of the tutorial session, including hands, auction, and feedback.
+     * Updates the game window to display the current state of the active tutorial session.
      */
     private void renderTutorialSession() {
         Deal deal = tutorialSession.getLesson().getDeal();
@@ -1245,7 +1242,22 @@ public class GameView {
 
         if (tutorialSession.isComplete() && !tutorialCompletionShown) {
             tutorialCompletionShown = true;
-            showMessage(tutorialSession.getFeedback());
+
+            String message = tutorialSession.getFeedback();
+
+            try {
+                Score score = tutorialSession.getScore();
+
+                if (score == null) {
+                    message += "\n\nScore unavailable: this lesson ended early " + "without a final declarer trick total.";
+                } else {
+                    message += "\n\n" + formatScore(score);
+                }
+            } catch (IllegalArgumentException | IllegalStateException exception) {
+                message += "\n\nThe score could not be calculated.\n" + exception.getMessage();
+            }
+
+            showMessage(message);
         }
     }
 
