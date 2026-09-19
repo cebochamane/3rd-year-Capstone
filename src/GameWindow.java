@@ -84,6 +84,8 @@ public class GameWindow {
     private JPanel actionPanel;
     private JButton swapCardsButton;
     private JButton claimButton;
+    private JButton concedeButton;
+    private JLabel tutorialStatusLabel;
 
     /*
      * Colours.
@@ -265,6 +267,9 @@ public class GameWindow {
         saveGameButton = createActionButton("Save Game");
         swapCardsButton = createActionButton("Swap cards");
         claimButton = createActionButton("Claim");
+        concedeButton = createActionButton("Concede");
+        tutorialStatusLabel = new JLabel("");
+        tutorialStatusLabel.setForeground(Color.WHITE);
         nextTrickButton = createActionButton("Next Trick");
 
         /*
@@ -300,11 +305,14 @@ public class GameWindow {
         });
 
         claimButton.setEnabled(false);
+        concedeButton.setEnabled(false);
         actionPanel.add(quitGameButton);
         actionPanel.add(swapCardsButton);
         actionPanel.add(saveGameButton);
         actionPanel.add(nextTrickButton);
         actionPanel.add(claimButton);
+        actionPanel.add(concedeButton);
+        actionPanel.add(tutorialStatusLabel);
         southHandPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 2, 5));
 
         southPanel.add(southLabel, BorderLayout.NORTH);
@@ -482,6 +490,10 @@ public class GameWindow {
             }
         });
 
+        concedeButton.addActionListener(event -> {
+            if (view != null) view.concedeClicked();
+        });
+
         claimButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -502,11 +514,14 @@ public class GameWindow {
         homePanel.setUsers(users);
     }
 
-    /**
-     * Enables or disables the Claim button.
-     *
-     * @param enabled true to enable the button
-     */
+    public void setConcedeEnabled(boolean enabled) {
+        concedeButton.setEnabled(enabled);
+    }
+
+    public void setTutorialStatus(String status) {
+        tutorialStatusLabel.setText(status == null ? "" : status);
+    }
+
     public void setClaimEnabled(boolean enabled) {
         claimButton.setEnabled(enabled);
     }

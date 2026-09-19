@@ -38,6 +38,11 @@ public class GameView {
     private boolean waitingForTutorialNextTrick;
     private LearningNote tutorialLearningNote;
 
+    // Double-dummy fields
+    private boolean settlementAnalysisActive;
+    private long settlementGeneration;
+    private javax.swing.SwingWorker<DdsSolver.Analysis, Void> settlementWorker;
+
     /**
      * Connects this view to the game controller.
      * 
@@ -155,7 +160,8 @@ public class GameView {
         /*
          * Claim is available while the game is still played.
          */
-        window.setClaimEnabled(!gameplay.isFinished());
+        window.setClaimEnabled(!gameplay.isFinished() && !settlementAnalysisActive);
+        window.setConcedeEnabled(!gameplay.isFinished() && !settlementAnalysisActive);
 
         Seat currentPlayer = gameplay.getCurrentPlayer();
 
@@ -184,7 +190,7 @@ public class GameView {
         /*
          * Highlight whose turn it is.
          */
-        window.updateCurrentPlayer(gameplay.isFinished() ? null : currentPlayer);
+        window.updateCurrentPlayer(gameplay.isFinished() || settlementAnalysisActive ? null : currentPlayer);
     }
 
     /**
@@ -196,6 +202,9 @@ public class GameView {
      * @param card the card that was clicked
      */
     public void cardClicked(Seat seat, Card card) {
+        if (settlementAnalysisActive) return;
+        if (tutorialSession != null && (tutorialSession.isAwaitingEnding()
+                || tutorialSession.isComplete() || waitingForTutorialNextTrick)) return;
         if (controller == null) {
             showMessage("Controller has not been connected.");
             return;
@@ -406,6 +415,8 @@ public class GameView {
          */
         boolean finalTrick = trick.getTrickNo() == 13;
         window.showNextTrickButton(finalTrick);
+        window.setClaimEnabled(false);
+        window.setConcedeEnabled(false);
     }
 
     /**
@@ -533,39 +544,115 @@ public class GameView {
         }
     }
 
-    /**
-     * Attempts to claim all remaining tricks.
-     */
     public void claimClicked() {
+        beginSettlement(false);
+    }
 
-        if (controller == null || controller.getGameplay() == null) {
-            return;
-        }
+    public void concedeClicked() {
+        beginSettlement(true);
+    }
 
+    private void beginSettlement(boolean concede) {
+        if (settlementAnalysisActive || controller == null) return;
+        TutorialSession lessonSession = tutorialSession;
+        Gameplay game = lessonSession == null ? controller.getGameplay() : lessonSession.getGameplay();
+        if (game == null) return;
+        if (lessonSession != null) {
+            if (waitingForTutorialNextTrick
+                    || (concede ? !lessonSession.isAwaitingConcede() : !lessonSession.isAwaitingClaim())) return;
+        } else if (controller.getPhase() != GamePhase.PLAYING || game.isFinished()) return;
         initialiseWindow();
-        /*
-         * Ask the user to confirm before attempting the claim.
-         */
-        int choice = JOptionPane.showConfirmDialog(window.getMainFrame(), "Claim all remaining tricks?",
-                "Claim", JOptionPane.YES_NO_OPTION, JOptionPane.QUESTION_MESSAGE);
 
-        if (choice != JOptionPane.YES_OPTION) {
+        if (lessonSession == null && concede) {
+            int choice = JOptionPane.showConfirmDialog(window.getMainFrame(),
+                    "Concede all " + game.getRemainingTricks() + " remaining tricks to the opponents?",
+                    "Concede", JOptionPane.YES_NO_OPTION);
+            if (choice == JOptionPane.YES_OPTION && controller.concede()) {
+                updateGameplayDisplay();
+                showFinalScore("Remaining tricks conceded.");
+            }
             return;
         }
 
-        /*
-         * Ask the controller to process the claim.
-         */
-        boolean claimed = controller.claim();
-
-        if (claimed) {
-            updateGameplayDisplay();
-            showFinalScore("Claim accepted.");
-        } else {
-            showMessage(
-                    "Claim rejected.\n"
-                    + "The claiming side could not win all remaining tricks.");
+        // A redundant keyword after 13 played tricks needs no solver call.
+        if (game.isFinished()) {
+            if (lessonSession != null && lessonSession.confirmEnding(concede, null)) renderTutorialSession();
+            return;
         }
+
+        cancelTutorialDelay();
+        settlementAnalysisActive = true;
+        long generation = ++settlementGeneration;
+        window.setClaimEnabled(false);
+        window.setConcedeEnabled(false);
+        window.updateCurrentPlayer(null);
+        window.setTutorialStatus("Analysing remaining tricks…");
+        settlementWorker = new javax.swing.SwingWorker<>() {
+            @Override protected DdsSolver.Analysis doInBackground() {
+                return game.analyzeRemainingTricks();
+            }
+
+            @Override protected void done() {
+                if (generation != settlementGeneration) return;
+                settlementAnalysisActive = false;
+                settlementWorker = null;
+                try {
+                    DdsSolver.Analysis analysis = get();
+                    if (lessonSession != tutorialSession
+                            || (lessonSession == null && controller.getGameplay() != game)) return;
+                    if (lessonSession != null) {
+                        int target = lessonSession.proposedEndingTricks(analysis);
+                        String message = "Double-dummy analysis: declarer's partnership can secure "
+                                + analysis.declarerTricks() + " of the " + analysis.remainingTricks()
+                                + " remaining tricks.\n\nThis lesson ending allocates " + target
+                                + " remaining tricks to declarer and " + (analysis.remainingTricks() - target)
+                                + " to the defenders.\nFinish the lesson?";
+                        int choice = JOptionPane.showConfirmDialog(window.getMainFrame(), message,
+                                concede ? "Concede" : "Claim", JOptionPane.YES_NO_OPTION);
+                        if (choice == JOptionPane.YES_OPTION
+                                && !lessonSession.confirmEnding(concede, analysis)) {
+                            showMessage("The position changed. Please try again.");
+                        }
+                    } else {
+                        Seat actor = game.getCurrentPlayer();
+                        int maximum = analysis.tricksFor(actor, game.getContract());
+                        javax.swing.JSpinner count = new javax.swing.JSpinner(
+                                new javax.swing.SpinnerNumberModel(maximum, 0, analysis.remainingTricks(), 1));
+                        Object[] message = {
+                            "Double-dummy maximum for " + actor + "'s partnership: " + maximum,
+                            "Number of remaining tricks to claim:", count,
+                            "Any other remaining tricks will be conceded to the opponents."
+                        };
+                        int choice = JOptionPane.showConfirmDialog(window.getMainFrame(), message,
+                                "Claim", JOptionPane.OK_CANCEL_OPTION);
+                        if (choice == JOptionPane.OK_OPTION) {
+                            count.commitEdit();
+                            int requested = (Integer) count.getValue();
+                            if (controller.claim(requested, analysis)) {
+                                updateGameplayDisplay();
+                                showFinalScore("Claim accepted.");
+                            } else {
+                                showMessage("Claim rejected. The double-dummy maximum is " + maximum
+                                        + ". No cards or trick totals have changed.");
+                            }
+                        }
+                    }
+                } catch (java.util.concurrent.CancellationException exception) {
+                    // Changing/closing the session deliberately cancels analysis.
+                } catch (Exception exception) {
+                    Throwable cause = exception instanceof java.util.concurrent.ExecutionException
+                            ? exception.getCause() : exception;
+                    showMessage("The hand has not been changed.\n" + cause.getMessage());
+                } finally {
+                    if (generation == settlementGeneration) {
+                        window.setTutorialStatus("");
+                        if (tutorialSession != null) renderTutorialSession();
+                        else updateGameplayDisplay();
+                    }
+                }
+            }
+        };
+        settlementWorker.execute();
     }
 
     /**
@@ -1044,6 +1131,7 @@ public class GameView {
             initialiseWindow();
             window.hideNextTrickButton();
             window.setClaimEnabled(false);
+            window.setConcedeEnabled(false);
             window.updateCurrentPlayer(null);
 
             showMessage(heading + "\n\n" + formatScore(score));
@@ -1240,7 +1328,7 @@ public class GameView {
         Deal nextPracticeDeal = null;
 
         if (entry.isScriptedTutorial()) {
-            nextSession = new TutorialSession(entry.getLesson(), false);
+            nextSession = new TutorialSession(entry.getLesson(), false, true);
         } else {
             nextPracticeDeal = HtmlDealParser.parse(entry.getSource());
         }
@@ -1273,6 +1361,13 @@ public class GameView {
         Deal deal = tutorialSession.getLesson().getDeal();
         window.updateInfo(deal.getDealer());
         window.setSwapCardsEnabled(false);
+        boolean mayEnd = !waitingForTutorialNextTrick && !tutorialActionDelayActive && !settlementAnalysisActive;
+        window.setClaimEnabled(mayEnd && tutorialSession.isAwaitingClaim());
+        window.setConcedeEnabled(mayEnd && tutorialSession.isAwaitingConcede());
+        if (!settlementAnalysisActive) {
+            window.setTutorialStatus(tutorialSession.isComplete() ? "Lesson complete."
+                    : tutorialSession.isAwaitingEnding() ? tutorialSession.getSouthPrompt() : "");
+        }
 
         if (tutorialSession.getPhase() == TutorialPhase.BIDDING) {
             Seat expected = tutorialSession.getExpectedSeat();
@@ -1316,7 +1411,8 @@ public class GameView {
         window.hideNextTrickButton();
         window.updateTrick(gameplay.getCurrentTrick());
         window.updateCurrentPlayer(
-            tutorialSession.isComplete() || tutorialActionDelayActive ? null : tutorialSession.getExpectedSeat());
+            tutorialSession.isComplete() || tutorialActionDelayActive || settlementAnalysisActive
+                    || tutorialSession.isAwaitingEnding() ? null : tutorialSession.getExpectedSeat());
 
         if (tutorialSession.isComplete() && !tutorialCompletionShown) {
             tutorialCompletionShown = true;
@@ -1359,7 +1455,8 @@ public class GameView {
      * Schedules the next automatic tutorial step with a delay, updating the GUI accordingly.
      */
     private void scheduleNextTutorialStep() {
-        if (tutorialSession == null || tutorialSession.isComplete()) {
+        if (tutorialSession == null || tutorialSession.isComplete() || tutorialSession.isAwaitingEnding() 
+                || waitingForTutorialNextTrick || settlementAnalysisActive) {
             return;
         }
 
@@ -1436,6 +1533,10 @@ public class GameView {
      */
     private void clearSessionViewState() {
         cancelTutorialDelay();
+        settlementGeneration++;
+        if (settlementWorker != null) settlementWorker.cancel(true);
+        settlementWorker = null;
+        settlementAnalysisActive = false;
 
         learningNotes.clear();
 
@@ -1453,6 +1554,9 @@ public class GameView {
 
         if (window != null) {
             window.hideNextTrickButton();
+            window.setClaimEnabled(false);
+            window.setConcedeEnabled(false);
+            window.setTutorialStatus("");
         }
     }
 
@@ -1549,11 +1653,19 @@ public class GameView {
                 : tutorialSession.isConceded()
                         ? "Concede" : "Played out";
 
+        int playedDeclarer = 0;
+        int playedDefenders = 0;
+        for (Trick trick : gameplay.getTricks()) {
+            if (!trick.isComplete()) continue;
+            Seat winner = trick.getWinner(contract.getDenomination());
+            if (winner.equals(contract.getDeclarer()) || winner.isPartner(contract.getDeclarer())) playedDeclarer++;
+            else playedDefenders++;
+        }
         report.append("\nEnding: ").append(ending)
                 .append("\nTricks won during recorded play — declarer: ")
-                .append(gameplay.getDeclarerTricks())
+                .append(playedDeclarer)
                 .append(", defenders: ")
-                .append(gameplay.getDefenderTricks());
+                .append(playedDefenders);
 
         if (lesson.getFinalDeclarerTricks() != null) {
             report.append("\nExplicit final RESULT: ")

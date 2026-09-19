@@ -88,31 +88,26 @@ public class Storage {
                 + "game_id TEXT PRIMARY KEY, " + "score_ns INTEGER NOT NULL, " + "score_ew INTEGER NOT NULL, "
                 + "FOREIGN KEY (game_id) REFERENCES games(game_id) " + "ON DELETE CASCADE" + ")";
 
-        String createGameResultsTable = "CREATE TABLE IF NOT EXISTS game_results (\n"
-                + "    game_id TEXT PRIMARY KEY,\n" 
-                + "    ending_type TEXT NOT NULL\n" 
-                + "        CHECK (ending_type IN ('PLAYED_OUT', 'CLAIM')),\n" 
-                + "    claimant TEXT\n"
-                + "        CHECK (claimant IN ('NORTH', 'EAST', 'SOUTH', 'WEST')),\n"
-                + "    played_cards INTEGER NOT NULL\n"
-                + "        CHECK (played_cards BETWEEN 0 AND 52),\n"
-                + "    declarer_tricks INTEGER NOT NULL\n"
-                + "        CHECK (declarer_tricks BETWEEN 0 AND 13),\n"
-                + "    defender_tricks INTEGER NOT NULL\n"
-                + "        CHECK (defender_tricks BETWEEN 0 AND 13),\n" + "\n"
-                + "    CHECK (declarer_tricks + defender_tricks = 13),\n" + "\n"
-                + "    CHECK (\n"
-                + "        (ending_type = 'PLAYED_OUT'\n"
-                + "            AND claimant IS NULL\n"
-                + "            AND played_cards = 52)\n"
-                + "        OR\n"
-                + "        (ending_type = 'CLAIM'\n"
-                + "            AND claimant IS NOT NULL\n"
-                + "            AND played_cards < 52)\n" 
-                + "    ),\n" + "\n"
-                + "    FOREIGN KEY (game_id)\n" 
-                + "        REFERENCES games(game_id)\n"
-                + "        ON DELETE CASCADE\n" + ");";
+        String createGameResultsTable = """
+                CREATE TABLE IF NOT EXISTS game_results (
+                    game_id TEXT PRIMARY KEY,
+                    ending_type TEXT NOT NULL CHECK (ending_type IN ('PLAYED_OUT', 'CLAIM', 'CONCEDE')),
+                    claimant TEXT CHECK (claimant IN ('NORTH', 'EAST', 'SOUTH', 'WEST')),
+                    played_cards INTEGER NOT NULL CHECK (played_cards BETWEEN 0 AND 52),
+                    declarer_tricks INTEGER NOT NULL CHECK (declarer_tricks BETWEEN 0 AND 13),
+                    defender_tricks INTEGER NOT NULL CHECK (defender_tricks BETWEEN 0 AND 13),
+                    awarded_tricks INTEGER CHECK (awarded_tricks BETWEEN 0 AND 13),
+                    CHECK (declarer_tricks + defender_tricks = 13),
+                    CHECK (
+                        (ending_type = 'PLAYED_OUT' AND claimant IS NULL AND played_cards = 52
+                            AND awarded_tricks IS NULL)
+                        OR (ending_type = 'CLAIM' AND claimant IS NOT NULL AND played_cards < 52)
+                        OR (ending_type = 'CONCEDE' AND claimant IS NOT NULL AND played_cards < 52
+                            AND awarded_tricks IS NOT NULL AND awarded_tricks = 0)
+                    ),
+                    FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
+                )
+                """;
 
         String createTutorialSessionsTable = "CREATE TABLE IF NOT EXISTS tutorial_sessions ("
             + "tutorial_id TEXT PRIMARY KEY, "
@@ -145,10 +140,38 @@ public class Storage {
             statement.execute(createCardPlaysTable);
             statement.execute(createScoresTable);
             statement.execute(createGameResultsTable);
+            migrateGameResults(connection, createGameResultsTable);
             statement.execute(createTutorialSessionsTable);
             statement.execute(createTutorialAttemptsTable);
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not initialise the BridgeTut database.", exception);
+        }
+    }
+
+    private void migrateGameResults(Connection connection, String createTable) throws SQLException {
+        try (Statement statement = connection.createStatement();
+                ResultSet columns = statement.executeQuery("PRAGMA table_info(game_results)")) {
+            while (columns.next()) {
+                if ("awarded_tricks".equals(columns.getString("name"))) return;
+            }
+        }
+        connection.setAutoCommit(false);
+        try (Statement statement = connection.createStatement()) {
+            statement.execute("ALTER TABLE game_results RENAME TO game_results_legacy");
+            statement.execute(createTable);
+            statement.executeUpdate("""
+                    INSERT INTO game_results (game_id, ending_type, claimant, played_cards,
+                            declarer_tricks, defender_tricks, awarded_tricks)
+                    SELECT game_id, ending_type, claimant, played_cards,
+                            declarer_tricks, defender_tricks, NULL FROM game_results_legacy
+                    """);
+            statement.execute("DROP TABLE game_results_legacy");
+            connection.commit();
+        } catch (SQLException exception) {
+            connection.rollback();
+            throw exception;
+        } finally {
+            connection.setAutoCommit(true);
         }
     }
 
@@ -236,7 +259,7 @@ public class Storage {
 
         String sql = """
                 SELECT ending_type, claimant, played_cards,
-                    declarer_tricks, defender_tricks
+                    declarer_tricks, defender_tricks, awarded_tricks
                 FROM game_results
                 WHERE game_id = ?
                 """;
@@ -274,7 +297,7 @@ public class Storage {
                     throw new IllegalStateException("The saved result has invalid final trick totals.");
                 }
 
-                if ("CLAIM".equals(ending)) {
+                if ("CLAIM".equals(ending) || "CONCEDE".equals(ending)) {
                     if (claimantText == null || playedCards < 0 || playedCards >= 52) {
                         throw new IllegalStateException("The saved claim has invalid metadata.");
                     }
@@ -287,10 +310,16 @@ public class Storage {
                         throw new IllegalStateException("The saved claimant is invalid.", exception);
                     }
 
-                    controller.restoreAcceptedClaim(new Seat(claimantPosition), declarerTricks, defenderTricks);
+                    int awarded = results.getInt("awarded_tricks");
+                    if (results.wasNull()) {
+                        if (!"CLAIM".equals(ending)) throw new IllegalStateException("Missing concession allocation.");
+                        awarded = gameplay.getRemainingTricks();
+                    }
+                    controller.restoreSettlement(new Seat(claimantPosition), "CONCEDE".equals(ending),
+                            awarded, declarerTricks, defenderTricks);
 
                 } else if ("PLAYED_OUT".equals(ending)) {
-                    if (claimantText != null || playedCards != 52
+                    if (results.getObject("awarded_tricks") != null || claimantText != null || playedCards != 52
                             || !gameplay.isFinished() || gameplay.getDeclarerTricks() != declarerTricks
                             || gameplay.getDefenderTricks() != defenderTricks) {
                         throw new IllegalStateException("The saved played-out result disagrees with replay.");
@@ -837,7 +866,7 @@ public class Storage {
 
         // Also validates that gameplay finished with 13 allocated tricks.
         Score score = controller.getScore();
-        Seat claimant = gameplay.getAcceptedClaimant();
+        Seat claimant = gameplay.getSettlementActor();
         int playedCards = countPlayedCards(gameplay);
 
         if (claimant == null && playedCards != 52) {
@@ -851,13 +880,13 @@ public class Storage {
         String sql = """
                 INSERT INTO game_results (
                     game_id, ending_type, claimant, played_cards,
-                    declarer_tricks, defender_tricks
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    declarer_tricks, defender_tricks, awarded_tricks
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)
                 """;
 
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             statement.setString(1, gameId);
-            statement.setString(2, claimant == null ? "PLAYED_OUT" : "CLAIM");
+            statement.setString(2, claimant == null ? "PLAYED_OUT" : gameplay.isConceded() ? "CONCEDE" : "CLAIM");
 
             if (claimant == null) {
                 statement.setNull(3, Types.VARCHAR);
@@ -868,6 +897,8 @@ public class Storage {
             statement.setInt(4, playedCards);
             statement.setInt(5, gameplay.getDeclarerTricks());
             statement.setInt(6, gameplay.getDefenderTricks());
+            if (claimant == null) statement.setNull(7, Types.INTEGER);
+            else statement.setInt(7, gameplay.getAcceptedTricks());
             statement.executeUpdate();
         }
 

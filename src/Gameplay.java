@@ -16,6 +16,8 @@ public class Gameplay {
     private boolean finished;
     private Map<Position, Hand> remainingHands;
     private Seat acceptedClaimant;
+    private Seat acceptedConceder;
+    private int acceptedTricks = -1;
 
     /**
      * Creates a new gameplay session.
@@ -355,221 +357,28 @@ public class Gameplay {
         return currentTrick.getWinner(contract.getDenomination());
     }
 
-    /**
-     * Returns the strongest legal card for the current trick.
-     * Used when checking wheather a claim is valid.
-     * 
-     * @param legalCards cards the player may legally play
-     * @param trick      the current trick
-     * @return stongest legal card
-     */
-    private Card getStrongestLegalCard(ArrayList<Card> legalCards, Trick trick, Contract contract) {
-
-        if (legalCards == null || legalCards.isEmpty()) {
-            return null;
-        }
-        Card strongest = legalCards.get(0);
-
-        /*
-         * If this player is leading there is no lead suit yet.
-         * Choose the highest-ranked card.
-         */
-        if (trick.getPlays().isEmpty()) {
-
-            for (Card card : legalCards) {
-                if (card.getRank().compareTo(strongest.getRank()) > 0) {
-                    strongest = card;
-                }
-            }
-            return strongest;
-        }
-
-        /*
-         * The trick has already started, so find the lead suit.
-         */
-        Card leadCard = trick.getPlays().get(trick.getLeader());
-        Suit leadSuit = leadCard.getSuit();
-        Suit trump = contract.getDenomination();
-
-        /*
-         * Find the strongest legal card in the context of this trick.
-         */
-        for (Card card : legalCards) {
-            if (card.compareTo(strongest, trump, leadSuit) > 0) {
-                strongest = card;
-            }
-        }
-        return strongest;
+    public int getRemainingTricks() {
+        return 13 - declarerTricks - defenderTricks;
     }
 
-    /**
-     * Create a copy of all the remaining hands.
-     * The copies can be changed during claim validation without
-     * changing the real game.
-     */
-    private Map<Position, Hand> copyRemainingHands() {
-        Map<Position, Hand> copiedHands = new HashMap<>();
-
-        for (Position position : Position.values()) {
-
-            Hand originalHand = remainingHands.get(position);
-            Hand copiedHand = new Hand(new ArrayList<>(originalHand.getCards()));
-
-            copiedHands.put(position, copiedHand);
-        }
-        return copiedHands;
+    public DdsSolver.Analysis analyzeRemainingTricks() {
+        return DdsSolver.analyze(this);
     }
 
-    /**
-     * Create a copy of the current trick.
-     * This allows claim validation to continue from the current position without
-     * changing the real trick.
-     * 
-     * @return copied current trick
-     */
-    private Trick copyCurrentTrick() {
-
-        Trick currentTrick = this.getCurrentTrick();
-
-        if (currentTrick == null) {
-            return null;
-        }
-        Trick copiedTrick = new Trick(currentTrick.getTrickNo(), currentTrick.getLeader());
-
-        for (Map.Entry<Seat, Card> play : currentTrick.getPlays().entrySet()) {
-            copiedTrick.addPlay(play.getKey(), play.getValue());
-        }
-        return copiedTrick;
+    private boolean isCurrentActor(Seat actor) {
+        return actor != null && actor.getPosition() != null && actor.equals(getCurrentPlayer());
     }
 
-    /**
-     * Checks whether the current player can validily claim all remaining tricks.
-     * 
-     * @param claimant the player making the claim
-     * @return true if the claiming side wins all remaining tricks in the claim
-     *         simulation
-     * 
-     */
     public boolean isClaimValid(Seat claimant) {
+        return isClaimValid(claimant, getRemainingTricks());
+    }
 
-        if (finished || claimant == null) {
+    public boolean isClaimValid(Seat claimant, int tricks) {
+        if (finished || !isCurrentActor(claimant) || tricks < 0 || tricks > getRemainingTricks()) {
             return false;
         }
 
-        /*
-         * Make copies so that checking the claim does not change the real game.
-         */
-        Map<Position, Hand> simulatedHands = copyRemainingHands();
-        Trick simulatedTrick = this.copyCurrentTrick();
-
-        if (simulatedTrick == null) {
-            return false;
-        }
-
-        /*
-         * Determine which partnership is making the claim.
-         */
-        Seat declarer = contract.getDeclarer();
-        boolean claimantIsDeclarerSide = claimant.equals(declarer) || claimant.isPartner(declarer);
-
-        /*
-         * Start from the player whose turn it currently is.
-         */
-        Seat currentPlayer = simulatedTrick.getLeader();
-
-        for (int i = 0; i < simulatedTrick.getPlays().size(); i++) {
-            currentPlayer = currentPlayer.next();
-        }
-
-        /*
-         * Continue simulating until there are no cards left.
-         */
-
-        while (true) {
-            /*
-             * Get the current player's simulated hand.
-             */
-            Hand simulatedHand = simulatedHands.get(currentPlayer.getPosition());
-
-            if (simulatedHand == null || simulatedHand.getCards().isEmpty()) {
-                /*
-                 * No cards remain, so every remaining trick
-                 * has been successfully simulated.
-                 */
-                return true;
-            }
-
-            /*
-             * Determine which cards this player may legally play.
-             */
-            ArrayList<Card> legalCards = getLegalCards(currentPlayer, simulatedHand, simulatedTrick);
-
-            /*
-             * Choose the strongest legal card.
-             */
-            Card cardToPlay = this.getStrongestLegalCard(legalCards, simulatedTrick, contract);
-
-            if (cardToPlay == null) {
-                return false;
-            }
-
-            /*
-             * Play the card only in the simulation.
-             */
-            simulatedTrick.addPlay(currentPlayer, cardToPlay);
-            simulatedHand.removeCard(cardToPlay);
-
-            /*
-             * If the trick is not complete, move clockwise to the next player.
-             */
-            if (!simulatedTrick.isComplete()) {
-                currentPlayer = currentPlayer.next();
-                continue; // jump back to "while true"
-            }
-
-            /*
-             * The trick is complete, so determine its winner.
-             */
-            Seat winner = simulatedTrick.getWinner(contract.getDenomination());
-
-            /*
-             * Determine whether the winner belongs to the declarer's partenership.
-             */
-            boolean winnerIsDeclarerSide = winner.equals(declarer) || winner.isPartner(declarer);
-
-            /*
-             * The claim fails immediately if the opponents win even one of the remaining
-             * tricks.
-             */
-            if (winnerIsDeclarerSide != claimantIsDeclarerSide) {
-                return false;
-            }
-
-            /*
-             * The claiming side won this trick otherwise the method would have terminated.
-             * 
-             * If all four simulated hands are now empty, there are no more tricks to play.
-             */
-            boolean cardsRemaining = false;
-            for (Hand hand : simulatedHands.values()) {
-
-                if (!hand.getCards().isEmpty()) {
-                    cardsRemaining = true;
-                    break;
-                }
-            }
-            if (!cardsRemaining) {
-                return true;
-            }
-
-            /*
-             * The winner of this trick leads the next trick.
-             */
-            currentPlayer = winner;
-
-            simulatedTrick = new Trick(simulatedTrick.getTrickNo() + 1, winner);
-
-        }
+        return tricks <= analyzeRemainingTricks().tricksFor(claimant, contract);
     }
 
     /**
@@ -600,6 +409,7 @@ public class Gameplay {
         if (seat == null) {
             return null;
         }
+
         return remainingHands.get(seat.getPosition());
     }
 
@@ -643,70 +453,67 @@ public class Gameplay {
         return acceptedClaimant;
     }
 
-    /**
-     * Restores an already accepted claim after saved cards have been replayed.
-     *
-     * This validates the recorded outcome without re-running claim simulation.
-     * Unplayed cards and any partial trick remain as they were at the claim.
-     */
-    void restoreAcceptedClaim(
-            Seat claimant,
-            int finalDeclarerTricks,
-            int finalDefenderTricks) {
+    void restoreAcceptedClaim(Seat claimant, int finalDeclarerTricks, int finalDefenderTricks) {
+        restoreSettlement(claimant, false, getRemainingTricks(), finalDeclarerTricks, finalDefenderTricks);
+    }
 
-        if (finished || acceptedClaimant != null) {
-            throw new IllegalStateException(
-                    "Cannot restore a claim into an already finished game.");
+    void restoreSettlement(Seat actor, boolean conceded, int awardedTricks,
+            int finalDeclarerTricks, int finalDefenderTricks) {
+        if (finished || !isCurrentActor(actor)) {
+            throw new IllegalStateException("The saved settlement has an invalid actor or phase.");
         }
 
-        if (claimant == null || claimant.getPosition() == null) {
-            throw new IllegalStateException(
-                    "The saved claim has no valid claimant.");
+        if (awardedTricks < 0 || awardedTricks > getRemainingTricks() || (conceded && awardedTricks != 0)) {
+            throw new IllegalStateException("The saved settlement has an invalid trick allocation.");
         }
 
-        if (!claimant.equals(getCurrentPlayer())) {
-            throw new IllegalStateException(
-                    "The saved claimant was not the player whose turn it was.");
+        boolean declaringSide = actor.equals(contract.getDeclarer()) || actor.isPartner(contract.getDeclarer());
+        int expectedDeclarer = declarerTricks + (declaringSide ? awardedTricks : getRemainingTricks() - awardedTricks);
+
+        if (finalDeclarerTricks != expectedDeclarer || finalDefenderTricks != 13 - expectedDeclarer) {
+            throw new IllegalStateException("Saved final totals contradict the tricks already won or awarded.");
         }
+        settle(actor, awardedTricks, conceded);
+    }
 
-        if (finalDeclarerTricks < 0 || finalDeclarerTricks > 13
-                || finalDefenderTricks < 0 || finalDefenderTricks > 13
-                || finalDeclarerTricks + finalDefenderTricks != 13) {
-            throw new IllegalStateException(
-                    "Saved final trick totals must account for all 13 tricks.");
-        }
+    public Seat getSettlementActor() {
+        return acceptedConceder == null ? acceptedClaimant : acceptedConceder;
+    }
 
-        int completedTricks = declarerTricks + defenderTricks;
+    public boolean isConceded() { 
+        return acceptedConceder != null; 
+    }
+    
+    public int getAcceptedTricks() { 
+        return acceptedTricks; 
+    }
 
-        if (completedTricks < 0 || completedTricks >= 13) {
-            throw new IllegalStateException(
-                    "There are no remaining tricks to restore as claimed.");
-        }
-
-        int remainingTricks = 13 - completedTricks;
-
-        Seat declarer = contract.getDeclarer();
-        boolean claimantIsDeclarerSide =
-                claimant.equals(declarer) || claimant.isPartner(declarer);
-
-        int expectedDeclarerTricks = declarerTricks
-                + (claimantIsDeclarerSide ? remainingTricks : 0);
-
-        int expectedDefenderTricks = defenderTricks
-                + (claimantIsDeclarerSide ? 0 : remainingTricks);
-
-        if (finalDeclarerTricks != expectedDeclarerTricks
-                || finalDefenderTricks != expectedDefenderTricks) {
-            throw new IllegalStateException(
-                    "Saved claim totals contradict the tricks already won "
-                    + "or the claiming partnership.");
-        }
-
-        // Mutate only after every check succeeds.
-        declarerTricks = finalDeclarerTricks;
-        defenderTricks = finalDefenderTricks;
-        acceptedClaimant = claimant;
+    private void settle(Seat actor, int tricks, boolean conceded) {
+        int remaining = getRemainingTricks();
+        boolean declaringSide = actor.equals(contract.getDeclarer()) || actor.isPartner(contract.getDeclarer());
+        declarerTricks += declaringSide ? tricks : remaining - tricks;
+        defenderTricks = 13 - declarerTricks;
+        acceptedTricks = tricks;
+        acceptedClaimant = conceded ? null : actor;
+        acceptedConceder = conceded ? actor : null;
         finished = true;
+    }
+
+    boolean settleTutorial(int declarerRemainingTricks, boolean concede, DdsSolver.Analysis analysis) {
+        if (finished) {
+            return false;
+        }
+
+        if (declarerRemainingTricks < 0 || declarerRemainingTricks > getRemainingTricks()) {
+            return false;
+        }
+
+        if (analysis == null || !analysis.matches(this) || declarerRemainingTricks > analysis.declarerTricks()) {
+            return false;
+        }
+
+        settle(contract.getDeclarer(), declarerRemainingTricks, concede);
+        return true;
     }
 
     /**
@@ -788,44 +595,24 @@ public class Gameplay {
      * @return true if the claim is valid and accepted, otherwise false
      */
     public boolean claim(Seat claimant) {
+        return claim(claimant, getRemainingTricks());
+    }
 
-        /*
-         * First validate the claim.
-         */
-        if (!isClaimValid(claimant)) {
-            return false;
-        }
+    public boolean claim(Seat claimant, int tricks) {
+        if (finished || !isCurrentActor(claimant) || tricks < 0 || tricks > getRemainingTricks()) return false;
+        return claim(claimant, tricks, analyzeRemainingTricks());
+    }
 
-        /*
-         * Count how many tricks have already been completed.
-         */
-        int completedTricks = declarerTricks + defenderTricks;
-
-        int remainingTricks = 13 - completedTricks;
-
-        /*
-         * Determine which partnership made the claim.
-         */
-        Seat declarer = contract.getDeclarer();
-
-        boolean claimantIsDeclarerSide = claimant.equals(declarer)
-                || claimant.isPartner(declarer);
-
-        /*
-         * Award all remaining tricks to the claiming side.
-         */
-        if (claimantIsDeclarerSide) {
-            declarerTricks += remainingTricks;
-        } else {
-            defenderTricks += remainingTricks;
-        }
-
-        /*
-         * A successful claim ends the game.
-         */
-        acceptedClaimant = claimant;
-        finished = true;
+    boolean claim(Seat claimant, int tricks, DdsSolver.Analysis analysis) {
+        if (finished || !isCurrentActor(claimant) || analysis == null || !analysis.matches(this)
+                || tricks < 0 || tricks > analysis.tricksFor(claimant, contract)) return false;
+        settle(claimant, tricks, false);
         return true;
     }
 
+    public boolean concede(Seat conceder) {
+        if (finished || !isCurrentActor(conceder)) return false;
+        settle(conceder, 0, true);
+        return true;
+    }
 }

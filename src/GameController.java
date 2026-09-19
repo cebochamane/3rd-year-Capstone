@@ -504,46 +504,54 @@ public class GameController {
         return true;
     }
 
-    /**
-     * Attempts to claim all remaining tricks for the
-     * player whose turn it currently is.
-     *
-     * @return true if the claim is valid and accepted,
-     *         otherwise false
-     */
     public boolean claim() {
+        return gameplay != null && claim(gameplay.getRemainingTricks());
+    }
 
-        /*
-         * A claim can only be made during gameplay.
-         */
+    public boolean claim(int tricks) {
         if (phase != GamePhase.PLAYING || gameplay == null) {
             return false;
         }
 
-        /*
-         * The player whose turn it is makes the claim.
-         */
-        Seat claimant = gameplay.getCurrentPlayer();
-
-        if (claimant == null) {
+        if (!gameplay.claim(gameplay.getCurrentPlayer(), tricks)) {
             return false;
         }
 
-        /*
-         * Ask Gameplay to validate and process the claim.
-         */
-        boolean claimed = this.gameplay.claim(claimant);
-
-        if (!claimed) {
-            return false;
-        }
-
-        /*
-         * A successful claim ends the game.
-         */
         phase = GamePhase.FINISHED;
-
         return true;
+    }
+
+    boolean claim(int tricks, DdsSolver.Analysis analysis) {
+        if (phase != GamePhase.PLAYING || gameplay == null) { 
+            return false;
+        }
+        if (!gameplay.claim(gameplay.getCurrentPlayer(), tricks, analysis)) {
+            return false;
+        }
+
+        phase = GamePhase.FINISHED;
+        return true;
+    }
+
+    public boolean concede() {
+        if (phase != GamePhase.PLAYING || gameplay == null) {
+            return false;
+        }
+
+        if (!gameplay.concede(gameplay.getCurrentPlayer())) {
+            return false;
+        }
+
+        phase = GamePhase.FINISHED;
+        return true;
+    }
+
+    void restoreSettlement(Seat actor, boolean conceded, int tricks, int declarer, int defenders) {
+        if (phase != GamePhase.PLAYING || gameplay == null) {
+            throw new IllegalStateException("Cannot restore a settlement outside play.");
+        }
+        gameplay.restoreSettlement(actor, conceded, tricks, declarer, defenders);
+        phase = GamePhase.FINISHED;
     }
 
     /**

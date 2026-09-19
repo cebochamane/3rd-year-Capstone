@@ -17,6 +17,7 @@ public final class TutorialSession {
     private boolean claimed;
     private boolean conceded;
     private final boolean automaticallyAdvanceComputerActions;
+    private final boolean waitForEndingButton;
 
     /**
      * Initializes a new tutorial session using the specified tutorial lesson.
@@ -34,6 +35,10 @@ public final class TutorialSession {
      * @param automaticallyAdvanceComputerActions If true, computer actions proceed automatically without user intervention.
      */
     public TutorialSession(TutorialLesson lesson, boolean automaticallyAdvanceComputerActions) {
+        this(lesson, automaticallyAdvanceComputerActions, false);
+    }
+
+    public TutorialSession(TutorialLesson lesson, boolean automaticallyAdvanceComputerActions, boolean waitForEndingButton) {
         if (lesson == null) {
             throw new IllegalArgumentException("A tutorial lesson is required.");
         }
@@ -45,6 +50,7 @@ public final class TutorialSession {
                 ? TutorialPhase.BIDDING : TutorialPhase.PLAYING;
         this.feedback = "";
         this.automaticallyAdvanceComputerActions = automaticallyAdvanceComputerActions;
+        this.waitForEndingButton = waitForEndingButton;
 
         if (phase == TutorialPhase.PLAYING) {
             startGameplay();
@@ -119,6 +125,9 @@ public final class TutorialSession {
             return null;
         }
 
+        if (waitForEndingButton && gameplay.isFinished()) {
+            return Score.fromCompletedGame(lesson.getDeal(), gameplay);
+        }
         Integer finalTricks = lesson.getFinalDeclarerTricks();
 
         if (finalTricks == null) {
@@ -165,8 +174,49 @@ public final class TutorialSession {
         return conceded;
     }
 
-    /** Returns a concise prompt for South, or the lesson note after completion. */
+    public boolean isAwaitingClaim() {
+        return waitForEndingButton && !isComplete() && nextAction() != null && nextAction().getType() == TutorialAction.Type.CLAIM;
+    }
+
+    public boolean isAwaitingConcede() {
+        return waitForEndingButton && !isComplete() && nextAction() != null && nextAction().getType() == TutorialAction.Type.CONCEDE;
+    }
+
+    public boolean isAwaitingEnding() { return isAwaitingClaim() || isAwaitingConcede(); }
+
+    /** Number of future tricks allocated to declarer's side by the lesson ending. */
+    public int proposedEndingTricks(DdsSolver.Analysis analysis) {
+        if (!isAwaitingEnding()) throw new IllegalStateException("No tutorial ending is waiting.");
+        if (gameplay.isFinished()) return 0;
+        if (analysis == null || !analysis.matches(gameplay)) {
+            throw new IllegalStateException("The double-dummy analysis no longer matches this lesson.");
+        }
+        Integer result = lesson.getFinalDeclarerTricks();
+        int tricks = result != null ? result - gameplay.getDeclarerTricks()
+                : isAwaitingClaim() ? analysis.declarerTricks() : 0;
+        if (tricks < 0 || tricks > analysis.declarerTricks()) {
+            throw new IllegalStateException("The lesson RESULT cannot be achieved against optimal defence "
+                    + "from this position. Ask the lecturer to check it; the lesson has not changed.");
+        }
+        return tricks;
+    }
+
+    public boolean confirmEnding(boolean concede, DdsSolver.Analysis analysis) {
+        if (concede ? !isAwaitingConcede() : !isAwaitingClaim()) return false;
+        int tricks = proposedEndingTricks(analysis);
+        if (!gameplay.isFinished() && !gameplay.settleTutorial(tricks, concede, analysis)) return false;
+        completedActions.add(nextAction());
+        nextActionIndex++;
+        claimed = !concede;
+        conceded = concede;
+        phase = TutorialPhase.COMPLETE;
+        feedback = lesson.getNote();
+        return true;
+    }
+
     public String getSouthPrompt() {
+        if (isAwaitingClaim()) return "Click Claim to finish the lesson.";
+        if (isAwaitingConcede()) return "Click Concede to finish the lesson.";
         TutorialAction expected = nextAction();
         if (expected == null) {
             return isComplete() ? lesson.getNote() : "The computer is making its move.";
@@ -283,6 +333,11 @@ public final class TutorialSession {
 
         if (expected == null) {
             throw new IllegalStateException("The tutorial ended before 13 tricks were completed " + "and without Claim or Concede.");
+        }
+
+        if (isAwaitingEnding()) {
+            feedback = getSouthPrompt();
+            return false;
         }
 
         if (expected.getType() == TutorialAction.Type.CLAIM) {
