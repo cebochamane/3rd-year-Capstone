@@ -123,6 +123,18 @@ public class Storage {
             + "FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE"
             + ")";
 
+        String createTutorialAttemptsTable = "CREATE TABLE IF NOT EXISTS tutorial_attempts ("
+            + "   attempt_id TEXT PRIMARY KEY,"
+            + "   user_id TEXT NOT NULL,"
+            + "   source_file TEXT NOT NULL,"
+            + "   lesson_index INTEGER NOT NULL CHECK (lesson_index > 0),"
+            + "   saved_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+            + "   report_text TEXT NOT NULL"
+            + "       CHECK (length(trim(report_text)) > 0),"
+            + "   FOREIGN KEY (user_id) REFERENCES users(user_id)"
+            + "       ON DELETE CASCADE"
+            + ")";
+
         try (Connection connection = openConnection();
                 Statement statement = connection.createStatement()) {
             statement.execute(createUsersTable);
@@ -134,6 +146,7 @@ public class Storage {
             statement.execute(createScoresTable);
             statement.execute(createGameResultsTable);
             statement.execute(createTutorialSessionsTable);
+            statement.execute(createTutorialAttemptsTable);
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not initialise the BridgeTut database.", exception);
         }
@@ -208,6 +221,16 @@ public class Storage {
         }
     }
 
+    /**
+     * Restores the saved completed game result to the controller if the game is finished, validating consistency with the gameplay.
+     * 
+     * @param connection active database connection
+     * @param gameId identifier of the saved game
+     * @param controller game controller to restore the result into
+     * @param savedPhase the saved game phase
+     * @return true if a completed result was restored, false otherwise
+     * @throws SQLException if a database access error occurs
+     */
     private boolean restoreSavedResult(Connection connection, String gameId, GameController controller,
             GamePhase savedPhase) throws SQLException {
 
@@ -282,6 +305,15 @@ public class Storage {
         }
     }
 
+    /**
+     * Verifies the saved final score matches the reconstructed score for a finished game, optionally requiring a saved score.
+     * 
+     * @param connection active database connection
+     * @param gameId identifier of the saved game
+     * @param controller game controller containing the reconstructed game state
+     * @param required whether the saved score is required to be present
+     * @throws SQLException if a database access error occurs
+     */
     private void verifySavedScore(Connection connection, String gameId, GameController controller,
             boolean required) throws SQLException {
 
@@ -743,6 +775,14 @@ public class Storage {
         }
     }
 
+    /**
+     * Saves the final score of a completed game to the database.
+     * 
+     * @param connection active database connection
+     * @param gameId identifier of the saved game
+     * @param score the final Score object to save
+     * @throws SQLException if the score cannot be inserted
+     */
     private void saveScore(Connection connection, String gameId, Score score) throws SQLException {
 
         String sql = """
@@ -760,6 +800,12 @@ public class Storage {
         }
     }
 
+    /**
+     * Counts the number of cards that have been played in the specified gameplay state.
+     * 
+     * @param gameplay the gameplay whose card plays are to be counted
+     * @return the total number of cards played
+     */
     private int countPlayedCards(Gameplay gameplay) {
         int count = 0;
 
@@ -772,7 +818,15 @@ public class Storage {
         return count;
     }
 
-    private void saveCompletedResult( Connection connection, String gameId, GameController controller) 
+    /**
+     * Saves the completed game result including ending type, claimant, played cards, and scores if the game is finished.
+     * 
+     * @param connection active database connection
+     * @param gameId identifier of the saved game
+     * @param controller the game controller containing the final game state
+     * @throws SQLException if the result or score cannot be inserted
+     */
+    private void saveCompletedResult(Connection connection, String gameId, GameController controller) 
             throws SQLException {
 
         if (controller.getPhase() != GamePhase.FINISHED) {
@@ -1163,6 +1217,14 @@ public class Storage {
         }
     }
 
+    /**
+     * Synchronizes the user's saved tutorials with a list of tutorials, inserting any missing entries,
+     * and returns the count of new tutorials added.
+     * 
+     * @param user the user whose tutorials to synchronize
+     * @param tutorials the list of tutorial entries to sync
+     * @return the number of tutorial entries added
+     */
     public int syncTutorials(User user, List<TutorialEntry> tutorials) {
         if (user == null) {
             throw new IllegalArgumentException("A user is required.");
@@ -1241,7 +1303,112 @@ public class Storage {
         }
     }
 
+    /**
+     * Creates a unique key string for a tutorial based on source file and lesson index.
+     * 
+     * @param sourceFile the tutorial's source file name
+     * @param lessonIndex the tutorial's lesson index
+     * @return the unique key string combining source file and lesson index
+     */
     private String tutorialKey(String sourceFile, int lessonIndex) {
         return sourceFile + "\u0000" + lessonIndex;
+    }
+
+    /**
+     * Saves a completed tutorial attempt report for a user and returns the attempt ID.
+     * 
+     * @param user the user saving the attempt
+     * @param entry the scripted tutorial entry attempted
+     * @param reportText the report text describing the attempt
+     * @return the unique identifier of the saved tutorial attempt
+     */
+    public String saveTutorialAttempt(
+            User user, TutorialEntry entry, String reportText) {
+
+        if (user == null) {
+            throw new IllegalArgumentException("A user is required.");
+        }
+
+        if (entry == null || !entry.isScriptedTutorial()
+                || entry.getLessonIndex() < 1) {
+            throw new IllegalArgumentException(
+                    "A scripted tutorial entry is required.");
+        }
+
+        if (reportText == null || reportText.isBlank()) {
+            throw new IllegalArgumentException(
+                    "A completed-attempt report is required.");
+        }
+
+        String attemptId = UUID.randomUUID().toString();
+
+        String sql = """
+                INSERT INTO tutorial_attempts (
+                    attempt_id, user_id, source_file,
+                    lesson_index, report_text
+                ) VALUES (?, ?, ?, ?, ?)
+                """;
+
+        try (Connection connection = openConnection();
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)) {
+
+            statement.setString(1, attemptId);
+            statement.setString(2, user.getUserId());
+            statement.setString(3, entry.getSourceFileName());
+            statement.setInt(4, entry.getLessonIndex());
+            statement.setString(5, reportText);
+
+            statement.executeUpdate();
+            return attemptId;
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not save the tutorial attempt.", exception);
+        }
+    }
+
+    /**
+     * Retrieves all saved tutorial attempts for the specified user ordered by save date descending.
+     * 
+     * @param user the user whose tutorial attempts to retrieve
+     * @return a list of saved tutorial attempts for the user
+     */
+    public ArrayList<SavedTutorialAttempt> getTutorialAttempts(User user) {
+        if (user == null) {
+            throw new IllegalArgumentException("A user is required.");
+        }
+
+        String sql = """
+                SELECT attempt_id, source_file, lesson_index,
+                    saved_at, report_text
+                FROM tutorial_attempts
+                WHERE user_id = ?
+                ORDER BY saved_at DESC, rowid DESC
+                """;
+
+        ArrayList<SavedTutorialAttempt> attempts = new ArrayList<>();
+
+        try (Connection connection = openConnection();
+                PreparedStatement statement =
+                        connection.prepareStatement(sql)) {
+
+            statement.setString(1, user.getUserId());
+
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next()) {
+                    attempts.add(new SavedTutorialAttempt(
+                            results.getString("attempt_id"),
+                            results.getString("source_file"),
+                            results.getInt("lesson_index"),
+                            results.getString("saved_at"),
+                            results.getString("report_text")));
+                }
+            }
+
+            return attempts;
+
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not retrieve tutorial attempts.", exception);
+        }
     }
 }

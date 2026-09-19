@@ -754,8 +754,8 @@ public class GameView {
              * Display the saved games in a selection dialog.
              */
             SavedGame selectedGame = (SavedGame) JOptionPane.showInputDialog(window.getMainFrame(),
-                    "Select a game to load:",
-                    "Load Game", JOptionPane.PLAIN_MESSAGE, null, savedGames.toArray(), savedGames.get(0));
+                    "Select a game to load:", "Load Game", JOptionPane.PLAIN_MESSAGE, 
+                    null, savedGames.toArray(), savedGames.get(0));
 
             /*
              * A null result means the user clicked Cancel or closed the dialog.
@@ -904,6 +904,11 @@ public class GameView {
         showMessage(sb.toString());
     }
     
+    /**
+     * Prompts user to add a quick note relevant to the current game or tutorial phase and stores it.
+     * 
+     * @param requestedPhase the game phase context for the note
+     */
     public void addQuickNote(NotePhase requestedPhase) {
         if (tutorialSession == null && (controller == null || controller.getCurrentDeal() == null)) {
             showMessage("Start or load a game before adding a note.");
@@ -1091,14 +1096,38 @@ public class GameView {
      * Saves the current game or tutorial session depending on context, showing feedback messages.
      */
     public void saveGameClicked() {
+        if (controller == null) {
+            showMessage("Controller has not been connected.");
+            return;
+        }
+
         try {
-            if (tutorialSession != null) {
-                String tutorialId = controller.saveTutorial(activeTutorial);
-                showMessage("Tutorial saved. Loading it will restart this lesson.\nID: " + tutorialId);
-            } else {
+            if (tutorialSession == null) {
                 controller.saveGame();
+                return;
             }
-        } catch (IllegalStateException exception) {
+
+            if (!tutorialSession.isComplete()) {
+                String tutorialId = controller.saveTutorial(activeTutorial);
+
+                showMessage("Lesson added to My Tutorials.\n"
+                    + "Opening it will restart the lesson; "
+                    + "current progress is not saved.\n"
+                    + "ID: " + tutorialId);
+
+                return;
+            }
+
+            String reportText = buildCompletedTutorialReport();
+
+            String attemptId = controller.saveTutorialAttempt(
+                    activeTutorial, reportText);
+
+            showMessage("Completed attempt saved, including its notes and result.\n"
+                    + "Open Load Tutorial > Completed attempts to review it.\n"
+                    + "ID: " + attemptId);
+
+        } catch (IllegalArgumentException | IllegalStateException exception) {
             showMessage(exception.getMessage());
         }
     }
@@ -1112,42 +1141,53 @@ public class GameView {
             return;
         }
 
+        initialiseWindow();
+
+        String[] options = {"Browse tutorial/practice files", "My Tutorials", "Completed attempts"};
+
+        int option = JOptionPane.showOptionDialog(window.getMainFrame(), "Choose a tutorial option:",
+            "Load Tutorial", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
+            null, options, options[0]);
+
+        if (option == JOptionPane.CLOSED_OPTION) {
+            return;
+        }
+
         try {
+            /*
+            * Completed reports come entirely from the database.
+            * They remain accessible if the source files are unavailable.
+            */
+            if (option == 2) {
+                showSavedTutorialAttempts();
+                return;
+            }
+
             tutorialCatalog = TutorialCatalog.load(Path.of("tutorials"));
 
-            String[] options = { "Browse tutorial/practice files", "My Tutorials" };
-
-            int option = JOptionPane.showOptionDialog(
-                    window.getMainFrame(),
-                    "Choose a tutorial option:",
-                    "Load Tutorial",
-                    JOptionPane.DEFAULT_OPTION,
-                    JOptionPane.PLAIN_MESSAGE,
-                    null,
-                    options,
-                    options[0]);
-
-            if (option == 0) {
-                TutorialEntry selected = (TutorialEntry) JOptionPane.showInputDialog(
-                        window.getMainFrame(),
-                        "Choose a tutorial or practice deal:",
-                        "Load Tutorial",
-                        JOptionPane.PLAIN_MESSAGE,
-                        null,
-                        tutorialCatalog.getEntries().toArray(),
-                        tutorialCatalog.getEntries().isEmpty() ? null : tutorialCatalog.getEntries().get(0));
-
-                if (selected != null) {
-                    startTutorialEntry(selected);
-                }
-            } else if (option == 1) {
+            if (option == 1) {
                 loadSavedTutorial();
+                return;
             }
-        } catch (IOException | IllegalArgumentException exception) {
-            showMessage("Tutorials could not be loaded.\n" + exception.getMessage());
+
+            if (tutorialCatalog.getEntries().isEmpty()) {
+                showMessage("No valid tutorial or practice files are available.");
+                return;
+            }
+
+            TutorialEntry selected = (TutorialEntry) JOptionPane.showInputDialog(window.getMainFrame(), 
+                "Choose a tutorial or practice deal:", "Load Tutorial", 
+                JOptionPane.PLAIN_MESSAGE, null, tutorialCatalog.getEntries().toArray(),
+                tutorialCatalog.getEntries().get(0));
+
+            if (selected != null) {
+                startTutorialEntry(selected);
+            }
+
+        } catch (IOException | IllegalArgumentException | IllegalStateException exception) {
+            showMessage("Tutorials could not be opened.\n" + exception.getMessage());
         }
     }
-
     /**
      * Loads a saved tutorial selected by the user and starts it, throwing IOException on failure.
      * 
@@ -1414,5 +1454,183 @@ public class GameView {
         if (window != null) {
             window.hideNextTrickButton();
         }
+    }
+
+    /**
+     * Builds a detailed report string for a completed tutorial attempt including game data and notes.
+     * 
+     * @return a report string summarizing the completed tutorial attempt
+     */
+    private String buildCompletedTutorialReport() {
+        if (tutorialSession == null || !tutorialSession.isComplete() || activeTutorial == null) {
+            throw new IllegalStateException("Complete a tutorial before saving its attempt.");
+        }
+
+        TutorialLesson lesson = tutorialSession.getLesson();
+        Gameplay gameplay = tutorialSession.getGameplay();
+        Contract contract = lesson.getContract();
+
+        if (gameplay == null) {
+            throw new IllegalStateException("The completed tutorial has no gameplay.");
+        }
+
+        StringBuilder report = new StringBuilder();
+
+        report.append("Completed tutorial attempt\n")
+                .append("Source: ")
+                .append(activeTutorial.getSourceFileName())
+                .append("\nLesson: ")
+                .append(activeTutorial.getLessonIndex())
+                .append("\nType: ").append(lesson.getType())
+                .append("\nDealer: ").append(lesson.getDeal().getDealer())
+                .append("\nVulnerability: ")
+                .append(lesson.getDeal().getVulnerability())
+                .append("\nContract: ")
+                .append(contract.getLevel()).append(" ")
+                .append(contract.getDenomination())
+                .append(contract.isRedoubled() ? " XX" : contract.isDoubled() ? " X" : "")
+                .append("\nDeclarer: ").append(contract.getDeclarer());
+
+        report.append("\n\nOriginal hands\n");
+
+        for (Position position : Position.values()) {
+            report.append(position).append(": ")
+                    .append(lesson.getDeal()
+                            .getHand(new Seat(position)).getCards())
+                    .append("\n");
+        }
+
+        report.append("\nAuction\n");
+
+        if (tutorialSession.getAuction().getBids().isEmpty()) {
+            report.append("Play-only lesson: contract supplied.\n");
+        } else {
+            for (Bid bid : tutorialSession.getAuction().getBids()) {
+                report.append(bid).append("\n");
+            }
+        }
+
+        report.append("\nRecorded card play\n");
+
+        for (Trick trick : gameplay.getTricks()) {
+            if (trick.getPlays().isEmpty()) {
+                continue;
+            }
+
+            report.append("Trick ").append(trick.getTrickNo())
+                    .append(" — leader: ").append(trick.getLeader())
+                    .append("\n");
+
+            Seat seat = trick.getLeader();
+
+            for (int index = 0; index < 4; index++) {
+                Card card = trick.getPlays().get(seat);
+
+                if (card == null) {
+                    break;
+                }
+
+                report.append("  ").append(seat)
+                        .append(": ").append(card).append("\n");
+
+                seat = seat.next();
+            }
+
+            if (trick.isComplete()) {
+                report.append("  Winner: ")
+                        .append(trick.getWinner(
+                                contract.getDenomination()))
+                        .append("\n");
+            }
+        }
+
+        String ending = tutorialSession.isClaimed()
+                ? "Claim"
+                : tutorialSession.isConceded()
+                        ? "Concede" : "Played out";
+
+        report.append("\nEnding: ").append(ending)
+                .append("\nTricks won during recorded play — declarer: ")
+                .append(gameplay.getDeclarerTricks())
+                .append(", defenders: ")
+                .append(gameplay.getDefenderTricks());
+
+        if (lesson.getFinalDeclarerTricks() != null) {
+            report.append("\nExplicit final RESULT: ")
+                    .append(lesson.getFinalDeclarerTricks());
+        }
+
+        Score score = tutorialSession.getScore();
+
+        report.append("\n\n");
+
+        if (score == null) {
+            report.append(
+                    "Score unavailable: no final declarer trick total.");
+        } else {
+            report.append(formatScore(score));
+        }
+
+        report.append("\n\nTeaching note\n").append(lesson.getNote())
+                .append("\n\nLearner notes\n");
+
+        if (learningNotes.isEmpty()) {
+            report.append("No learner notes recorded.");
+        } else {
+            for (LearningNote note : learningNotes) {
+                report.append(note.getTimestamp()).append("\n")
+                        .append(note).append("\n");
+
+                if (note.getBiddingSequence() != null) {
+                    report.append("Auction when noted: ")
+                            .append(note.getBiddingSequence()).append("\n");
+                }
+
+                if (note.getLeadCard() != null) {
+                    report.append("Opening lead: ")
+                            .append(note.getLeadCard()).append("\n");
+                }
+
+                report.append("\n");
+            }
+        }
+
+        return report.toString();
+    }
+
+    /**
+     * Displays a dialog allowing the user to select and view saved completed tutorial attempts.
+     */
+    private void showSavedTutorialAttempts() {
+        ArrayList<SavedTutorialAttempt> attempts = controller.getTutorialAttempts();
+
+        if (attempts.isEmpty()) {
+            showMessage("This profile has no saved completed attempts.");
+            return;
+        }
+
+        SavedTutorialAttempt selected =
+                (SavedTutorialAttempt) JOptionPane.showInputDialog(
+                    window.getMainFrame(),
+                    "Choose a completed attempt:",
+                    "Completed tutorial attempts",
+                    JOptionPane.PLAIN_MESSAGE,
+                    null,
+                    attempts.toArray(),
+                    attempts.get(0));
+
+        if (selected == null) {
+            return;
+        }
+
+        javax.swing.JTextArea text = new javax.swing.JTextArea(selected.reportText(), 24, 80);
+
+        text.setEditable(false);
+        text.setLineWrap(true);
+        text.setWrapStyleWord(true);
+        text.setCaretPosition(0);
+
+        JOptionPane.showMessageDialog(window.getMainFrame(), new javax.swing.JScrollPane(text),
+            "Completed tutorial attempt", JOptionPane.PLAIN_MESSAGE);
     }
 }

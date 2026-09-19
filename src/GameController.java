@@ -81,6 +81,10 @@ public class GameController {
         }
     }
 
+    /**
+     * Synchronises tutorials between the tutorial catalog and the current user's saved tutorials.
+     * @return the number of tutorials synchronized
+     */
     public int syncTutorials() {
         if (storage == null) {
             throw new IllegalStateException("Storage has not been connected.");
@@ -704,6 +708,11 @@ public class GameController {
         return check;
     }
 
+    /**
+     * Returns the score from a completed game.
+     * 
+     * @return the score of the completed game
+     */
     public Score getScore() {
         if (phase != GamePhase.FINISHED) {
             throw new IllegalStateException(
@@ -739,5 +748,42 @@ public class GameController {
             return new ArrayList<>();
         }
         return storage.getSavedTutorials(currentUser);
+    }
+
+    /**
+     * Saves a tutorial attempt report for the current user.
+     * 
+     * @param entry the tutorial entry
+     * @param reportText text describing the attempt report
+     * @return an identifier for the saved tutorial attempt
+     */
+    public String saveTutorialAttempt(TutorialEntry entry, String reportText) {
+
+        if (storage == null) {
+            throw new IllegalStateException("Storage has not been connected.");
+        }
+
+        if (currentUser == null) {
+            throw new IllegalStateException("Please select a user before saving.");
+        }
+
+        return storage.saveTutorialAttempt(currentUser, entry, reportText);
+    }
+
+    /**
+     * Retrieves the tutorial attempts made by the current user from storage.
+     * 
+     * @return a list of saved tutorial attempts
+     */
+    public ArrayList<SavedTutorialAttempt> getTutorialAttempts() {
+        if (storage == null) {
+            throw new IllegalStateException("Storage has not been connected.");
+        }
+
+        if (currentUser == null) {
+            throw new IllegalStateException("Please select a user before viewing attempts.");
+        }
+
+        return storage.getTutorialAttempts(currentUser);
     }
 }
