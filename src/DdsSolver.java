@@ -114,14 +114,7 @@ public final class DdsSolver {
         Seat declarer = gameplay.getContract().getDeclarer();
         boolean declarerToPlay = player.equals(declarer) || player.isPartner(declarer);
 
-        String configured = System.getProperty("bridgetut.dds");
-        if (configured == null || configured.isBlank()) configured = System.getenv("BRIDGETUT_DDS_EXECUTABLE");
-        Path executable = Path.of(configured == null || configured.isBlank()
-                ? "native/bin/bridgetut-dds" : configured).toAbsolutePath();
-        if (!Files.isExecutable(executable)) {
-            throw new IllegalStateException("Double-dummy solver is unavailable. "
-                    + "Run python3 native/build_dds.py before starting BridgeTut.");
-        }
+        Path executable = executable();
         String key = executable + "\n" + position;
         Integer value;
         synchronized (CACHE) { value = CACHE.get(key); }
@@ -136,27 +129,102 @@ public final class DdsSolver {
     }
 
     /**
-     * Runs the external DDS solver process with specified input and returns the calculated declarer tricks.
+     * Resolves the configured native DDS solver executable and fails clearly if it is not available or executable.
      * 
-     * @param executable The file path to the DDS solver executable
-     * @param input The encoded input string representing current hand and trick state
-     * @return The number of tricks determined by the DDS solver
+     * @return The Path to the DDS executable
+     */
+    private static Path executable() {
+        String configured = System.getProperty("bridgetut.dds");
+        if (configured == null || configured.isBlank()) configured = System.getenv("BRIDGETUT_DDS_EXECUTABLE");
+        Path executable = Path.of(configured == null || configured.isBlank()
+                ? "native/bin/bridgetut-dds" : configured).toAbsolutePath();
+        if (!Files.isExecutable(executable)) {
+            throw new IllegalStateException("Double-dummy solver is unavailable. "
+                    + "Run python3 native/build_dds.py before starting BridgeTut.");
+        }
+        return executable;
+    }
+    
+    /**
+     * Calculates all twenty double-dummy results from the original deal using the DDS solver.
+     * 
+     * @param deal The deal to analyze
+     * @return A DoubleDummyTable containing the double-dummy results for the deal
+     */
+    public static DoubleDummyTable analyzeDeal(Deal deal) {
+        Deal snapshot = DoubleDummyTable.copyDeal(deal);
+        String output = run(executable(), DoubleDummyTable.holdings(snapshot) + "\n", 120, "--table");
+        return parseTable(snapshot, output);
+    }
+
+    /**
+     * Parses the DDS output string into a DoubleDummyTable representing trick counts for all contracts.
+     * 
+     * @param deal The deal corresponding to the DDS output
+     * @param output The raw output string from the DDS solver
+     * @return A DoubleDummyTable constructed from the DDS output values
+     */
+    static DoubleDummyTable parseTable(Deal deal, String output) {
+        String[] fields = output.trim().split("\\s+");
+        if (fields.length != 21 || !fields[0].equals("DDS20900_TABLE")) {
+            throw new IllegalStateException("DDS returned an invalid table. Rebuild with python3 native/build_dds.py.");
+        }
+        int[][] values = new int[5][4];
+        Suit[] strains = {Suit.SPADES, Suit.HEARTS, Suit.DIAMONDS, Suit.CLUBS, Suit.NT};
+        try {
+            for (int row = 0; row < 5; row++) {
+                for (int column = 0; column < 4; column++) {
+                    values[strains[row].ordinal()][column] = Integer.parseInt(fields[1 + row * 4 + column]);
+                }
+            }
+            return new DoubleDummyTable(deal, values);
+        } catch (IllegalArgumentException exception) {
+            throw new IllegalStateException("DDS returned invalid trick values.", exception);
+        }
+    }
+
+    /**
+     * Invokes the DDS solver executable to get the number of tricks based on the encoded position input.
+     * 
+     * @param executable The path to the DDS solver executable
+     * @param input The encoded string representing the position and trick state
+     * @return The number of tricks returned by the DDS solver
      */
     private static int solve(Path executable, String input) {
+        String output = run(executable, input, 60);
+        if (!output.matches("DDS20900 (?:[0-9]|1[0-3])")) {
+            throw new IllegalStateException("Double-dummy analysis failed: " + output);
+        }
+        return Integer.parseInt(output.substring("DDS20900 ".length()));
+    }
+
+    /**
+     * Runs an external process with given arguments and input, returning its output as a string.
+     * 
+     * @param executable The path to the executable to run
+     * @param input The input string to write to the process's stdin
+     * @param timeoutSeconds Timeout in seconds to wait for process completion
+     * @param arguments Additional command-line arguments for the process
+     * @return The trimmed string output from the process's standard output
+     */
+    private static String run(Path executable, String input, int timeoutSeconds, String... arguments) {
         Process process = null;
         try {
-            process = new ProcessBuilder(executable.toString()).redirectErrorStream(true).start();
+            java.util.List<String> command = new java.util.ArrayList<>();
+            command.add(executable.toString());
+            command.addAll(java.util.List.of(arguments));
+            process = new ProcessBuilder(command).redirectErrorStream(true).start();
             try (var stream = process.getOutputStream()) {
                 stream.write(input.getBytes(StandardCharsets.US_ASCII));
             }
-            if (!process.waitFor(60, TimeUnit.SECONDS)) {
+            if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
                 throw new IllegalStateException("Double-dummy analysis timed out. The hand has not changed.");
             }
             String output = new String(process.getInputStream().readNBytes(4096), StandardCharsets.UTF_8).trim();
-            if (process.exitValue() != 0 || !output.matches("DDS20900 (?:[0-9]|1[0-3])")) {
+            if (process.exitValue() != 0) {
                 throw new IllegalStateException("Double-dummy analysis failed: " + output);
             }
-            return Integer.parseInt(output.substring("DDS20900 ".length()));
+            return output;
         } catch (IOException exception) {
             throw new IllegalStateException("Could not run the double-dummy solver. The hand has not changed.", exception);
         } catch (InterruptedException exception) {

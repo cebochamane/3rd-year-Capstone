@@ -89,25 +89,25 @@ public class Storage {
                 + "FOREIGN KEY (game_id) REFERENCES games(game_id) " + "ON DELETE CASCADE" + ")";
 
         String createGameResultsTable = """
-                CREATE TABLE IF NOT EXISTS game_results (
-                    game_id TEXT PRIMARY KEY,
-                    ending_type TEXT NOT NULL CHECK (ending_type IN ('PLAYED_OUT', 'CLAIM', 'CONCEDE')),
-                    claimant TEXT CHECK (claimant IN ('NORTH', 'EAST', 'SOUTH', 'WEST')),
-                    played_cards INTEGER NOT NULL CHECK (played_cards BETWEEN 0 AND 52),
-                    declarer_tricks INTEGER NOT NULL CHECK (declarer_tricks BETWEEN 0 AND 13),
-                    defender_tricks INTEGER NOT NULL CHECK (defender_tricks BETWEEN 0 AND 13),
-                    awarded_tricks INTEGER CHECK (awarded_tricks BETWEEN 0 AND 13),
-                    CHECK (declarer_tricks + defender_tricks = 13),
-                    CHECK (
-                        (ending_type = 'PLAYED_OUT' AND claimant IS NULL AND played_cards = 52
-                            AND awarded_tricks IS NULL)
-                        OR (ending_type = 'CLAIM' AND claimant IS NOT NULL AND played_cards < 52)
-                        OR (ending_type = 'CONCEDE' AND claimant IS NOT NULL AND played_cards < 52
-                            AND awarded_tricks IS NOT NULL AND awarded_tricks = 0)
-                    ),
-                    FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
-                )
-                """;
+            CREATE TABLE IF NOT EXISTS game_results (
+                game_id TEXT PRIMARY KEY,
+                ending_type TEXT NOT NULL CHECK (ending_type IN ('PLAYED_OUT', 'CLAIM', 'CONCEDE')),
+                claimant TEXT CHECK (claimant IN ('NORTH', 'EAST', 'SOUTH', 'WEST')),
+                played_cards INTEGER NOT NULL CHECK (played_cards BETWEEN 0 AND 52),
+                declarer_tricks INTEGER NOT NULL CHECK (declarer_tricks BETWEEN 0 AND 13),
+                defender_tricks INTEGER NOT NULL CHECK (defender_tricks BETWEEN 0 AND 13),
+                awarded_tricks INTEGER CHECK (awarded_tricks BETWEEN 0 AND 13),
+                CHECK (declarer_tricks + defender_tricks = 13),
+                CHECK (
+                    (ending_type = 'PLAYED_OUT' AND claimant IS NULL AND played_cards = 52
+                        AND awarded_tricks IS NULL)
+                    OR (ending_type = 'CLAIM' AND claimant IS NOT NULL AND played_cards < 52)
+                    OR (ending_type = 'CONCEDE' AND claimant IS NOT NULL AND played_cards < 52
+                        AND awarded_tricks IS NOT NULL AND awarded_tricks = 0)
+                ),
+                FOREIGN KEY (game_id) REFERENCES games(game_id) ON DELETE CASCADE
+            )
+            """;
 
         String createTutorialSessionsTable = "CREATE TABLE IF NOT EXISTS tutorial_sessions ("
             + "tutorial_id TEXT PRIMARY KEY, "
@@ -130,6 +130,33 @@ public class Storage {
             + "       ON DELETE CASCADE"
             + ")";
 
+        String createAnalysisHandsTable = """
+            CREATE TABLE IF NOT EXISTS analysis_hands (
+                hand_id TEXT PRIMARY KEY, holdings TEXT NOT NULL UNIQUE)
+            """;
+        
+        String createDoubleDummyResultsTable = """
+            CREATE TABLE IF NOT EXISTS double_dummy_results (
+                hand_id TEXT NOT NULL REFERENCES analysis_hands(hand_id) ON DELETE CASCADE,
+                strain TEXT NOT NULL CHECK (strain IN ('CLUBS','DIAMONDS','HEARTS','SPADES','NT')),
+                declarer TEXT NOT NULL CHECK (declarer IN ('NORTH','EAST','SOUTH','WEST')),
+                tricks INTEGER NOT NULL CHECK (tricks BETWEEN 0 AND 13),
+                solver_version TEXT NOT NULL,
+                PRIMARY KEY (hand_id, strain, declarer))
+            """;
+        
+        String createGameAnalysisHandsTable = """
+            CREATE TABLE IF NOT EXISTS game_analysis_hands (
+                game_id TEXT PRIMARY KEY REFERENCES games(game_id) ON DELETE CASCADE,
+                hand_id TEXT NOT NULL REFERENCES analysis_hands(hand_id))
+            """;
+
+        String createTutorialAttemptAnalysisHandsTable = """
+            CREATE TABLE IF NOT EXISTS tutorial_attempt_analysis_hands (
+                attempt_id TEXT PRIMARY KEY REFERENCES tutorial_attempts(attempt_id) ON DELETE CASCADE,
+                hand_id TEXT NOT NULL REFERENCES analysis_hands(hand_id))
+            """;
+
         try (Connection connection = openConnection();
                 Statement statement = connection.createStatement()) {
             statement.execute(createUsersTable);
@@ -143,6 +170,10 @@ public class Storage {
             migrateGameResults(connection, createGameResultsTable);
             statement.execute(createTutorialSessionsTable);
             statement.execute(createTutorialAttemptsTable);
+            statement.execute(createAnalysisHandsTable);
+            statement.execute(createDoubleDummyResultsTable);
+            statement.execute(createGameAnalysisHandsTable);
+            statement.execute(createTutorialAttemptAnalysisHandsTable);
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not initialise the BridgeTut database.", exception);
         }
@@ -228,6 +259,13 @@ public class Storage {
                 }
 
                 this.saveDeal(connection, gameId, deal);
+                String analysisHandId = saveAnalysisHand(connection, deal);
+                try (PreparedStatement link = connection.prepareStatement(
+                        "INSERT INTO game_analysis_hands (game_id, hand_id) VALUES (?, ?)")) {
+                    link.setString(1, gameId);
+                    link.setString(2, analysisHandId);
+                    link.executeUpdate();
+                }
 
                 if (controller.getAuction() != null) {
                     this.saveAuction(connection, gameId, controller.getAuction());
@@ -1391,14 +1429,28 @@ public class Storage {
                 PreparedStatement statement =
                         connection.prepareStatement(sql)) {
 
-            statement.setString(1, attemptId);
-            statement.setString(2, user.getUserId());
-            statement.setString(3, entry.getSourceFileName());
-            statement.setInt(4, entry.getLessonIndex());
-            statement.setString(5, reportText);
+            connection.setAutoCommit(false);
+            try {
+                statement.setString(1, attemptId);
+                statement.setString(2, user.getUserId());
+                statement.setString(3, entry.getSourceFileName());
+                statement.setInt(4, entry.getLessonIndex());
+                statement.setString(5, reportText);
 
-            statement.executeUpdate();
-            return attemptId;
+                statement.executeUpdate();
+                String handId = saveAnalysisHand(connection, entry.getLesson().getDeal());
+                try (PreparedStatement link = connection.prepareStatement(
+                        "INSERT INTO tutorial_attempt_analysis_hands (attempt_id, hand_id) VALUES (?, ?)")) {
+                    link.setString(1, attemptId);
+                    link.setString(2, handId);
+                    link.executeUpdate();
+                }
+                connection.commit();
+                return attemptId;
+            } catch (SQLException | RuntimeException exception) {
+                connection.rollback();
+                throw exception;
+            }
 
         } catch (SQLException exception) {
             throw new IllegalStateException("Could not save the tutorial attempt.", exception);
@@ -1449,4 +1501,130 @@ public class Storage {
             throw new IllegalStateException("Could not retrieve tutorial attempts.", exception);
         }
     }
+
+    /**
+     * Saves the analysis hand for the given deal if not already saved and returns its hand ID.
+     * 
+     * @param connection active database connection
+     * @param deal deal to save
+     * @return the hand ID representing the analysis hand
+     * @throws SQLException if unable to save analysis hand
+     */
+    private String saveAnalysisHand(Connection connection, Deal deal) throws SQLException {
+        String id = DoubleDummyTable.handId(deal);
+        try (PreparedStatement statement = connection.prepareStatement(
+                "INSERT OR IGNORE INTO analysis_hands (hand_id, holdings) VALUES (?, ?)")) {
+            statement.setString(1, id);
+            statement.setString(2, DoubleDummyTable.holdings(deal));
+            statement.executeUpdate();
+        }
+        return id;
+    }
+
+    /**
+     * Retrieves the double dummy table for the specified deal, or null if none is stored.
+     * 
+     * @param deal deal to retrieve the double dummy table for
+     * @return the double dummy table or null
+     */
+    public DoubleDummyTable getDoubleDummyTable(Deal deal) {
+        String id = DoubleDummyTable.handId(deal);
+        int[][] values = new int[5][4];
+        int count = 0;
+        try (Connection connection = openConnection(); PreparedStatement statement = connection.prepareStatement(
+                "SELECT strain, declarer, tricks FROM double_dummy_results WHERE hand_id = ? AND solver_version = ?")) {
+            statement.setString(1, id);
+            statement.setString(2, DoubleDummyTable.SOLVER_VERSION);
+            try (ResultSet results = statement.executeQuery()) {
+                while (results.next()) {
+                    Suit strain = Suit.valueOf(results.getString("strain"));
+                    Position declarer = Position.valueOf(results.getString("declarer"));
+                    values[strain.ordinal()][declarer.ordinal()] = results.getInt("tricks");
+                    count++;
+                }
+            }
+            if (count == 0) return null;
+            if (count != 20) throw new IllegalStateException("The stored double-dummy table is incomplete.");
+            return new DoubleDummyTable(deal, values);
+        } catch (SQLException | IllegalArgumentException exception) {
+            throw new IllegalStateException("Could not read the stored double-dummy table.", exception);
+        }
+    }
+
+    /**
+     * Saves the provided double dummy table for the specified deal, replacing any existing data.
+     * 
+     * @param deal deal the double dummy table corresponds to
+     * @param table double dummy table to save
+     */
+    public void saveDoubleDummyTable(Deal deal, DoubleDummyTable table) {
+        if (table == null || !DoubleDummyTable.handId(deal).equals(table.getHandId())) {
+            throw new IllegalArgumentException("The double-dummy table belongs to a different hand.");
+        }
+        try (Connection connection = openConnection()) {
+            connection.setAutoCommit(false);
+            try {
+                String id = saveAnalysisHand(connection, deal);
+                try (PreparedStatement statement = connection.prepareStatement(
+                        "DELETE FROM double_dummy_results WHERE hand_id = ?")) {
+                    statement.setString(1, id);
+                    statement.executeUpdate();
+                }
+                try (PreparedStatement statement = connection.prepareStatement("""
+                        INSERT INTO double_dummy_results (hand_id, strain, declarer, tricks, solver_version)
+                        VALUES (?, ?, ?, ?, ?)
+                        """)) {
+                    for (Suit strain : Suit.values()) for (Position declarer : Position.values()) {
+                        statement.setString(1, id);
+                        statement.setString(2, strain.name());
+                        statement.setString(3, declarer.name());
+                        statement.setInt(4, table.getTricks(strain, declarer));
+                        statement.setString(5, DoubleDummyTable.SOLVER_VERSION);
+                        statement.addBatch();
+                    }
+                    statement.executeBatch();
+                }
+                connection.commit();
+            } catch (SQLException | RuntimeException exception) {
+                connection.rollback();
+                throw exception;
+            }
+        } catch (SQLException exception) {
+            throw new IllegalStateException("Could not save the double-dummy table.", exception);
+        }
+    }
+
+    /**
+     * Retrieves the double dummy table associated with a saved tutorial attempt for a user.
+     * 
+     * @param user user who owns the attempt
+     * @param attemptId identifier of the tutorial attempt
+     * @return the double dummy table or null if none exists
+     */
+    public DoubleDummyTable getTutorialAttemptDoubleDummyTable(User user, String attemptId) {
+        if (user == null || attemptId == null || attemptId.isBlank()) {
+            throw new IllegalArgumentException("A user and attempt ID are required.");
+        }
+        Deal deal;
+        try (Connection connection = openConnection(); PreparedStatement statement = connection.prepareStatement("""
+                SELECT h.hand_id, h.holdings FROM tutorial_attempts a
+                JOIN tutorial_attempt_analysis_hands link ON a.attempt_id = link.attempt_id
+                JOIN analysis_hands h ON h.hand_id = link.hand_id
+                WHERE a.user_id = ? AND a.attempt_id = ?
+                """)) {
+            statement.setString(1, user.getUserId());
+            statement.setString(2, attemptId);
+            try (ResultSet results = statement.executeQuery()) {
+                if (!results.next()) return null; // Includes legacy attempts without hand links.
+                deal = DoubleDummyTable.fromHoldings(results.getString("holdings"));
+                if (!DoubleDummyTable.handId(deal).equals(results.getString("hand_id"))) {
+                    throw new IllegalStateException("The stored analysis hand has inconsistent cards.");
+                }
+            }
+        } catch (SQLException | IllegalArgumentException exception) {
+            throw new IllegalStateException("Could not read analysis for the saved attempt.", exception);
+        }
+        return getDoubleDummyTable(deal);
+    }
+
 }

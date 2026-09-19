@@ -42,6 +42,11 @@ public class GameView {
     private boolean settlementAnalysisActive;
     private long settlementGeneration;
     private javax.swing.SwingWorker<DdsSolver.Analysis, Void> settlementWorker;
+    private DoubleDummyTable doubleDummyTable;
+    private String doubleDummyHandId;
+    private String doubleDummyError;
+    private long doubleDummyGeneration;
+    private javax.swing.SwingWorker<DoubleDummyTable, Void> doubleDummyWorker;
 
     /**
      * Connects this view to the game controller.
@@ -103,6 +108,7 @@ public class GameView {
         updateBiddingHands(deal, currentBidder);
         window.updateAuction(auction, deal.getDealer(), currentBidder);
         window.setSwapCardsEnabled(controller.canSwapCards());
+        ensureDoubleDummyAnalysis();
     }
 
     /**
@@ -156,6 +162,7 @@ public class GameView {
         }
         this.initialiseWindow();
         Gameplay gameplay = controller.getGameplay();
+        ensureDoubleDummyAnalysis();
 
         /*
          * Claim is available while the game is still played.
@@ -1377,6 +1384,7 @@ public class GameView {
      * Updates the game window to display the current state of the active tutorial session.
      */
     private void renderTutorialSession() {
+        ensureDoubleDummyAnalysis();
         Deal deal = tutorialSession.getLesson().getDeal();
         window.updateInfo(deal.getDealer());
         window.setSwapCardsEnabled(false);
@@ -1552,6 +1560,7 @@ public class GameView {
      */
     private void clearSessionViewState() {
         cancelTutorialDelay();
+        cancelDoubleDummyAnalysis();
         settlementGeneration++;
         if (settlementWorker != null) settlementWorker.cancel(true);
         settlementWorker = null;
@@ -1576,6 +1585,7 @@ public class GameView {
             window.setClaimEnabled(false);
             window.setConcedeEnabled(false);
             window.setTutorialStatus("");
+            window.setDoubleDummyState(false, false, false);
         }
     }
 
@@ -1754,7 +1764,16 @@ public class GameView {
             return;
         }
 
-        javax.swing.JTextArea text = new javax.swing.JTextArea(selected.reportText(), 24, 80);
+        String report = selected.reportText();
+        try {
+            DoubleDummyTable savedAnalysis = controller.getTutorialAttemptDoubleDummyTable(selected.attemptId());
+            report += "\n\n" + (savedAnalysis == null
+                    ? "No original-deal double-dummy table is stored for this attempt."
+                    : savedAnalysis.toDisplayText());
+        } catch (IllegalStateException exception) {
+            report += "\n\nDouble-dummy table unavailable: " + exception.getMessage();
+        }
+        javax.swing.JTextArea text = new javax.swing.JTextArea(report, 24, 80);
 
         text.setEditable(false);
         text.setLineWrap(true);
@@ -1764,4 +1783,100 @@ public class GameView {
         JOptionPane.showMessageDialog(window.getMainFrame(), new javax.swing.JScrollPane(text),
             "Completed tutorial attempt", JOptionPane.PLAIN_MESSAGE);
     }
+
+    private void ensureDoubleDummyAnalysis() {
+        Deal deal = tutorialSession == null ? controller.getCurrentDeal() : tutorialSession.getLesson().getDeal();
+        if (deal == null) return;
+        Deal snapshot = DoubleDummyTable.copyDeal(deal);
+        String key = DoubleDummyTable.handId(snapshot);
+        if (!key.equals(doubleDummyHandId)) {
+            cancelDoubleDummyAnalysis();
+            doubleDummyHandId = key;
+            long generation = doubleDummyGeneration;
+            GameController analysisController = controller;
+            doubleDummyWorker = new javax.swing.SwingWorker<>() {
+                /**
+                 * Performs background double-dummy table calculation.
+                 * @return the double-dummy table result
+                 */
+                @Override protected DoubleDummyTable doInBackground() {
+                    return analysisController.getOrCalculateDoubleDummyTable(snapshot);
+                }
+                /**
+                 * Handles completion of the double-dummy analysis, updating the UI with the results.
+                 */
+                @Override protected void done() {
+                    if (generation != doubleDummyGeneration) return;
+                    doubleDummyWorker = null;
+                    try {
+                        doubleDummyTable = get();
+                    } catch (java.util.concurrent.CancellationException exception) {
+                        return;
+                    } catch (Exception exception) {
+                        Throwable cause = exception instanceof java.util.concurrent.ExecutionException
+                                ? exception.getCause() : exception;
+                        doubleDummyError = cause.getMessage();
+                    }
+                    updateDoubleDummyButton();
+                }
+            };
+            doubleDummyWorker.execute();
+        }
+        updateDoubleDummyButton();
+    }
+
+    /**
+     * Updates the double-dummy button's enabled and error states based on analysis progress.
+     */
+    private void updateDoubleDummyButton() {
+        if (window == null) return;
+        Gameplay play = tutorialSession == null ? controller.getGameplay() : tutorialSession.getGameplay();
+        window.setDoubleDummyState(play != null, doubleDummyWorker != null,
+                doubleDummyError != null);
+    }
+
+    /** Clears both data and workers; late results from another session cannot update this view. */
+    private void cancelDoubleDummyAnalysis() {
+        doubleDummyGeneration++;
+        if (doubleDummyWorker != null) {
+            doubleDummyWorker.cancel(true);
+        }
+
+        doubleDummyWorker = null;
+        doubleDummyTable = null;
+        doubleDummyHandId = null;
+        doubleDummyError = null;
+    }
+
+    /** Display only when a normal or tutorial play session exists. */
+    public void doubleDummyClicked() {
+        if (controller == null) {
+            return;
+        }
+
+        Gameplay play = tutorialSession == null ? controller.getGameplay() : tutorialSession.getGameplay();
+        if (play == null) {
+            showMessage("Double-dummy results become available when the playing phase starts.");
+            return;
+        }
+        ensureDoubleDummyAnalysis();
+        if (doubleDummyError != null) {
+            int choice = JOptionPane.showConfirmDialog(window.getMainFrame(),
+                    "Double-dummy results are unavailable.\n" + doubleDummyError + "\nRetry?",
+                    "Double-dummy analysis", JOptionPane.YES_NO_OPTION);
+            if (choice == JOptionPane.YES_OPTION) {
+                cancelDoubleDummyAnalysis();
+                ensureDoubleDummyAnalysis();
+            }
+            return;
+        }
+        if (doubleDummyTable == null) {
+            showMessage("The original deal is still being analysed. You can continue playing.");
+            return;
+        }
+        Deal deal = tutorialSession == null ? controller.getCurrentDeal() : tutorialSession.getLesson().getDeal();
+        JOptionPane.showMessageDialog(window.getMainFrame(),
+                new DoubleDummyPanel(doubleDummyTable, deal, play), "Double-dummy results", JOptionPane.PLAIN_MESSAGE);
+    }
+
 }

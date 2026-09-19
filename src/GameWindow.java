@@ -85,6 +85,7 @@ public class GameWindow {
     private JButton swapCardsButton;
     private JButton claimButton;
     private JButton concedeButton;
+    private JButton doubleDummyButton;
     private JLabel tutorialStatusLabel;
 
     /*
@@ -159,6 +160,12 @@ public class GameWindow {
 
         headerPanel.add(dealerLabel);
         headerPanel.add(declarerLabel);
+        doubleDummyButton = createActionButton("DD Results");
+        doubleDummyButton.setEnabled(false);
+        doubleDummyButton.addActionListener(event -> {
+            if (view != null) view.doubleDummyClicked();
+        });
+        headerPanel.add(doubleDummyButton);
         mainFrame.add(headerPanel, BorderLayout.NORTH);
         /*
          * =====================================================
@@ -804,9 +811,6 @@ public class GameWindow {
     /**
      * Displays the auction.
      *
-     * GameWindow no longer creates bid buttons itself.
-     * That responsibility belongs to AuctionPanel.
-     *
      * @param auction current auction
      * @param dealer  dealer
      * @param bidder  current bidder
@@ -965,4 +969,19 @@ public class GameWindow {
         headerPanel.revalidate();
         headerPanel.repaint();
     }
+    
+    /**
+     * Sets the state of the double dummy analysis button with status text and tooltip.
+     * 
+     * @param playExists true if a play exists and double dummy is enabled
+     * @param calculating true if double dummy analysis is currently calculating
+     * @param failed true if double dummy calculation failed, prompting retry
+     */
+    public void setDoubleDummyState(boolean playExists, boolean calculating, boolean failed) {
+        doubleDummyButton.setEnabled(playExists);
+        doubleDummyButton.setText(calculating ? "DD: analysing…" : failed ? "DD: retry" : "DD Results");
+        doubleDummyButton.setToolTipText(!playExists ? "Available once the playing phase starts" 
+            : "View original-deal tricks for every strain and declarer");
+    }
+
 }

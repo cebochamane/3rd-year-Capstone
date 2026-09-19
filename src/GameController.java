@@ -826,4 +826,33 @@ public class GameController {
 
         return storage.getTutorialAttempts(currentUser);
     }
+    /**
+     * Returns an existing or calculates a new double dummy analysis table for the specified deal.
+     * 
+     * @param deal the deal to analyze
+     * @return the double dummy analysis table
+     */
+    public DoubleDummyTable getOrCalculateDoubleDummyTable(Deal deal) {
+        Deal snapshot = DoubleDummyTable.copyDeal(deal);
+        if (storage != null) {
+            DoubleDummyTable saved = storage.getDoubleDummyTable(snapshot);
+            if (saved != null) return saved;
+        }
+        DoubleDummyTable result = DdsSolver.analyzeDeal(snapshot);
+        if (storage != null) storage.saveDoubleDummyTable(snapshot, result);
+        return result;
+    }
+
+    /**
+     * Retrieves the double dummy analysis for a specified tutorial attempt from storage for the current user.
+     * @param attemptId the identifier of the tutorial attempt
+     * @return the double dummy table analysis
+     */
+    public DoubleDummyTable getTutorialAttemptDoubleDummyTable(String attemptId) {
+        if (storage == null || currentUser == null) {
+            throw new IllegalStateException("Storage and a selected profile are required.");
+        }
+        return storage.getTutorialAttemptDoubleDummyTable(currentUser, attemptId);
+    }
+
 }
