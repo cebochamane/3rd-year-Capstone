@@ -163,7 +163,7 @@ public final class TutorialLessonParser {
     }
 
     /**
-     * Parses a play-only lesson section including contract and play from tutorial lines starting at the given line.
+     * Parses a play-only tutorial section including play contract and play actions.
      * 
      * @param lines array of tutorial text lines
      * @param line the current line index to start parsing from
@@ -171,29 +171,44 @@ public final class TutorialLessonParser {
      * @return a ParseResult containing the parsed TutorialLesson and the next line index
      */
     private static ParseResult parsePlayOnly(String[] lines, int line, Map<Position, List<Card>> hands) {
-        Contract contract = parsePlayContract(lines[line], line + 1);
+        Contract parsedContract = parsePlayContract(lines[line], line + 1);
         line++;
 
-        /* In play-only lessons, South is always the learner and declarer. */
+        Vulnerability vulnerability = Vulnerability.NONE;
+
+        if (line < lines.length) {
+            String value = lines[line].trim().toUpperCase(Locale.ROOT);
+
+            if (value.endsWith(" VUL")) {
+                vulnerability = parseVulnerability(lines[line], line + 1);
+                line++;
+            }
+        }
+
         Seat south = new Seat(Position.SOUTH);
-        contract = new Contract(contract.getLevel(), contract.getDenomination(), south, false, false);
-        Deal deal = createDeal(south, Vulnerability.NONE, hands, line);
+
+        Contract contract = new Contract(parsedContract.getLevel(), parsedContract.getDenomination(), south,
+                parsedContract.isDoubled(), parsedContract.isRedoubled());
+
+        Deal deal = createDeal(south, vulnerability, hands, line);
+
         return parsePlay(lines, line, TutorialLessonType.PLAY_ONLY, deal, contract, List.of());
     }
 
     /**
-     * Parses the scripted play section of a tutorial lesson based on provided type, deal, contract, and auction bids, starting from the given line.
+     * Parses the play portion of a lesson, validating trick plays and optional claim or concede markers.
      * 
      * @param lines array of tutorial text lines
      * @param line the current line index to start parsing from
-     * @param type the type of tutorial lesson (bid and play or play only)
-     * @param deal the deal associated with the lesson
-     * @param contract the contract of the lesson
-     * @param bids the list of auction bids
+     * @param type the type of tutorial lesson
+     * @param deal the Deal representing the bridge hands and state
+     * @param contract the Contract for the deal
+     * @param bids list of bids in the auction
      * @return a ParseResult containing the parsed TutorialLesson and the next line index
      */
     private static ParseResult parsePlay(String[] lines, int line, TutorialLessonType type,
             Deal deal, Contract contract, List<Bid> bids) {
+
         List<TutorialAction> actions = new ArrayList<>();
 
         for (Bid bid : bids) {
@@ -252,6 +267,28 @@ public final class TutorialLessonParser {
                     "A lesson must contain 13 complete tricks or end with Claim or Concede.");
         }
 
+        Integer finalDeclarerTricks = null;
+
+        if (line < lines.length && startsWith(lines[line], "RESULT:")) {
+            String resultText = lines[line].trim().substring("RESULT:".length()).trim();
+
+            try {
+                finalDeclarerTricks = Integer.parseInt(resultText);
+            } catch (NumberFormatException exception) {
+                throw error(line + 1, "RESULT must be an integer from 0 to 13.");
+            }
+
+            int minimum = gameplay.getDeclarerTricks();
+            int maximum = 13 - gameplay.getDefenderTricks();
+
+            if (finalDeclarerTricks < minimum || finalDeclarerTricks > maximum) {
+                throw error(line + 1, "RESULT contradicts the tricks already played. "
+                        + "It must be between " + minimum + " and " + maximum + ".");
+            }
+
+            line++;
+        }
+
         if (line >= lines.length || !startsWith(lines[line], "NOTE:")) {
             throw error(line + 1,"The completed play, Claim or Concede must be followed by NOTE:.");
         }
@@ -261,7 +298,7 @@ public final class TutorialLessonParser {
             throw error(line + 1, "The lesson note cannot be empty.");
         }
 
-        return new ParseResult(new TutorialLesson(type, deal, contract, actions, note), line + 1);
+        return new ParseResult(new TutorialLesson(type, deal, contract, actions, note, finalDeclarerTricks), line + 1);    
     }
 
     /**

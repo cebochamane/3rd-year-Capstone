@@ -27,6 +27,12 @@ public final class TutorialSession {
         this(lesson, true);
     }
 
+    /**
+     * Creates a new tutorial session using the specified tutorial lesson with control over automatic advancement of computer actions.
+     * 
+     * @param lesson The tutorial lesson to run in this session.
+     * @param automaticallyAdvanceComputerActions If true, computer actions proceed automatically without user intervention.
+     */
     public TutorialSession(TutorialLesson lesson, boolean automaticallyAdvanceComputerActions) {
         if (lesson == null) {
             throw new IllegalArgumentException("A tutorial lesson is required.");
@@ -94,12 +100,44 @@ public final class TutorialSession {
         return feedback;
     }
 
-    /** Returns the player required by the next scripted action, if any. */
+    /**
+     * Gets the seat expected to perform the next tutorial action.
+     * @return The seat (player position) expected for the next action, or null if none.
+     */
     public Seat getExpectedSeat() {
         TutorialAction action = nextAction();
         return action == null ? null : action.getSeat();
     }
 
+    /**
+     * Computes and returns the final score of the tutorial session if complete and gameplay has finished.
+     * 
+     * @return The final score of the tutorial or null if incomplete or gameplay not available.
+     */
+    public Score getScore() {
+        if (!isComplete() || gameplay == null) {
+            return null;
+        }
+
+        Integer finalTricks = lesson.getFinalDeclarerTricks();
+
+        if (finalTricks == null) {
+            if (!gameplay.isFinished()) {
+                return null;
+            }
+
+            return Score.fromCompletedGame(lesson.getDeal(), gameplay);
+        }
+
+        int minimum = gameplay.getDeclarerTricks();
+        int maximum = 13 - gameplay.getDefenderTricks();
+
+        if (finalTricks < minimum || finalTricks > maximum) {
+            throw new IllegalStateException("The tutorial result contradicts the completed tricks.");
+        }
+
+        return new Score(lesson.getContract(), finalTricks, lesson.getDeal().getVulnerability());
+    }
     /**
      * Determines if the tutorial session has been completed.
      * 
@@ -142,7 +180,12 @@ public final class TutorialSession {
         return "The computer is making its move.";
     }
 
-    /** Accepts South's bid only when it matches the scripted auction exactly. */
+    /**
+     * Submits the South player's bid if it matches the expected tutorial bid and advances the lesson.
+     * 
+     * @param bid The bid submitted by South.
+     * @return True if the bid is correct and accepted; false if rejected.
+     */
     public boolean submitSouthBid(Bid bid) {
         TutorialAction expected = nextAction();
         if (phase != TutorialPhase.BIDDING || !isSouthBid(expected)) {
@@ -162,7 +205,12 @@ public final class TutorialSession {
         return true;
     }
 
-    /** Accepts South's card only when it matches the scripted play exactly. */
+    /**
+     * Plays the South player's card if it matches the expected tutorial card and advances the lesson.
+     * 
+     * @param card The card played by South.
+     * @return True if the card is correct and played; false if rejected.
+     */
     public boolean playSouthCard(Card card) {
         TutorialAction expected = nextAction();
         if (phase != TutorialPhase.PLAYING || !isSouthCard(expected)) {
@@ -221,6 +269,11 @@ public final class TutorialSession {
         }
     }
 
+    /**
+     * Advances the lesson by processing one automated computer action if possible.
+     * 
+     * @return True if a computer action was processed; false if South's turn or lesson complete.
+     */
     public boolean advanceOneComputerAction() {
         if (isComplete()) {
             return false;
