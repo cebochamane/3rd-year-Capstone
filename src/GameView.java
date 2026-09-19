@@ -494,19 +494,13 @@ public class GameView {
      * Called when the user clicks New Game from the home page.
      */
     public void newGameClicked() {
-        cancelTutorialDelay();
-
-        // Clearing tutorial state
-        tutorialLearningNote = null;
-        activeTutorial = null;
-        tutorialSession = null;
-        tutorialCompletionShown = false;
-
         if (controller == null) {
             showMessage("Controller has not been connected.");
             return;
         }
+
         initialiseWindow();
+        clearSessionViewState();
 
         /*
          * Replace the home page with the game table.
@@ -523,7 +517,6 @@ public class GameView {
      * Called when the user selects Quit Game.
      */
     public void quitGameClicked() {
-        cancelTutorialDelay();
 
         if (controller == null) {
             return;
@@ -534,8 +527,8 @@ public class GameView {
                 "Quit Game", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
 
         if (choice == JOptionPane.YES_OPTION) {
+            clearSessionViewState();
             controller.quitGame();
-            tutorialLearningNote = null;
             window.showHomePage();
         }
     }
@@ -689,6 +682,7 @@ public class GameView {
             return;
         }
         this.initialiseWindow();
+        clearSessionViewState();
         window.showGameTable();
 
         Deal deal = controller.getCurrentDeal();
@@ -741,14 +735,6 @@ public class GameView {
      * Called when the user clicks Load Game.
      */
     public void loadGameClicked() {
-        cancelTutorialDelay();
-
-        // Clearing tutorial state
-        tutorialLearningNote = null;
-        activeTutorial = null;
-        tutorialSession = null;
-        tutorialCompletionShown = false;
-
         if (controller == null) {
             showMessage("Controller has not been connected.");
             return;
@@ -829,6 +815,9 @@ public class GameView {
         try {
             User createdUser = controller.createUser(username);
 
+            clearSessionViewState();
+            controller.quitGame();
+
             /*
              * Reload the profile list so that the new user
              * appears in the combo box.
@@ -858,6 +847,15 @@ public class GameView {
     public void userSelected(User user) {
         if (controller == null || user == null) {
             return;
+        }
+
+        User previousUser = controller.getCurrentUser();
+
+        boolean profileChanged = previousUser == null || !previousUser.getUserId().equals(user.getUserId());
+
+        if (profileChanged) {
+            clearSessionViewState();
+            controller.quitGame();
         }
 
         controller.setCurrentUser(user);
@@ -906,33 +904,71 @@ public class GameView {
         showMessage(sb.toString());
     }
     
-    /**
-     * Called by a "Quick Note" button on Gameview
-     * Prompts the user to add a quick note for a specified phase and saves it with contextual information.
-     * 
-     * @param phase the phase of the game for the note
-     */
-    public void addQuickNote(NotePhase phase) {
-        String text = javax.swing.JOptionPane.showInputDialog(
-                window != null ? window.getMainFrame() : null,
-                "Add a " + phase.name().toLowerCase().replace('_', ' ') + " note:");
-
-        if (text == null || text.trim().isEmpty())
+    public void addQuickNote(NotePhase requestedPhase) {
+        if (tutorialSession == null && (controller == null || controller.getCurrentDeal() == null)) {
+            showMessage("Start or load a game before adding a note.");
             return;
+        }
+
+        NotePhase phase;
+        Contract activeContract;
+        Gameplay activeGameplay;
+        Auction activeAuction;
+
+        if (tutorialSession != null) {
+            phase = switch (tutorialSession.getPhase()) {
+                case BIDDING -> NotePhase.BIDDING;
+                case PLAYING -> NotePhase.PLAYING;
+                case COMPLETE -> NotePhase.POST_PLAY;
+            };
+
+            activeContract = tutorialSession.getPhase() == TutorialPhase.BIDDING
+                    ? null : tutorialSession.getLesson().getContract();
+
+            activeGameplay = tutorialSession.getGameplay();
+            activeAuction = tutorialSession.getAuction();
+        } else {
+            phase = requestedPhase == null ? NotePhase.fromGamePhase(controller.getPhase()) : requestedPhase;
+
+            activeContract = controller.getContract();
+            activeGameplay = controller.getGameplay();
+            activeAuction = controller.getAuction();
+        }
+
+        String text = JOptionPane.showInputDialog(
+                window != null ? window.getMainFrame() : null,
+                "Add a " + phase.name().toLowerCase(java.util.Locale.ROOT).replace('_', ' ') + " note:");
+
+        if (text == null || text.trim().isEmpty()) {
+            return;
+        }
 
         LearningNote note = new LearningNote(phase);
         note.setNoteText(text.trim());
 
-        if (controller != null && controller.getContract() != null) {
-            note.setContract(controller.getContract().getLevel() + " " + controller.getContract().getDenomination());
+        if (activeContract != null) {
+            note.setContract(activeContract.getLevel() + " " + activeContract.getDenomination());
         }
 
-        if (controller != null && controller.getGameplay() != null) {
-            note.setTrickNumber(controller.getGameplay().getTrickNo());
-
+        if (activeAuction != null && !activeAuction.getBids().isEmpty()) {
+            note.setBiddingSequence(activeAuction.getBids().toString());
         }
+
+        if (activeGameplay != null) {
+            note.setTrickNumber(activeGameplay.getTrickNo());
+
+            if (!activeGameplay.getTricks().isEmpty()) {
+                Trick firstTrick = activeGameplay.getTricks().get(0);
+                Card openingLead = firstTrick.getPlays().get(firstTrick.getLeader());
+
+                if (openingLead != null) {
+                    note.setLeadCard(openingLead.toString());
+                }
+            }
+        }
+
         learningNotes.add(note);
-        showMessage("Note saved: " + note);
+        showMessage("Note added to this session: " + note);
     }
 
     /**
@@ -1156,36 +1192,38 @@ public class GameView {
      * @throws IOException if an error occurs reading tutorial data
      */
     private void startTutorialEntry(TutorialEntry entry) throws IOException {
+        if (entry == null) {
+            throw new IllegalArgumentException("A tutorial or practice entry is required.");
+        }
+
+        TutorialSession nextSession = null;
+        Deal nextPracticeDeal = null;
+
+        if (entry.isScriptedTutorial()) {
+            nextSession = new TutorialSession(entry.getLesson(), false);
+        } else {
+            nextPracticeDeal = HtmlDealParser.parse(entry.getSource());
+        }
+
+        initialiseWindow();
+        clearSessionViewState();
         controller.quitGame();
         window.showGameTable();
 
-        if (entry.isScriptedTutorial()) {
-            tutorialLearningNote = createTutorialLearningNote(entry.getLesson());
-            completedTutorialTrick = null;
-            waitingForTutorialNextTrick = false;
-            window.hideNextTrickButton();
+        if (nextSession != null) {
             activeTutorial = entry;
-            cancelTutorialDelay();
-            tutorialSession = new TutorialSession(entry.getLesson(), false);
-            tutorialCompletionShown = false;
+            tutorialSession = nextSession;
+            tutorialLearningNote =
+                    createTutorialLearningNote(entry.getLesson());
+
             renderTutorialSession();
 
-            /*
-            * If West, North, or East must act first, wait two seconds
-            * before showing that action.
-            */
-            if (!isSouthTutorialTurn()) {
+            if (!tutorialSession.isComplete() && !isSouthTutorialTurn()) {
                 scheduleNextTutorialStep();
             }
-            return;
+        } else {
+            controller.startLoadedDeal(nextPracticeDeal);
         }
-
-        activeTutorial = null;
-        tutorialSession = null;
-        tutorialLearningNote = null;
-        completedTutorialTrick = null;
-        waitingForTutorialNextTrick = false;
-        controller.startLoadedDeal(HtmlDealParser.parse(entry.getSource()));
     }
 
     /**
@@ -1350,5 +1388,31 @@ public class GameView {
         }
 
         tutorialActionDelayActive = false;
+    }
+
+    /**
+     * Clears state belonging to the previous game or tutorial.
+     * Call only when the session is actually being replaced or closed.
+     */
+    private void clearSessionViewState() {
+        cancelTutorialDelay();
+
+        learningNotes.clear();
+
+        tutorialLearningNote = null;
+        activeTutorial = null;
+        tutorialSession = null;
+        tutorialCompletionShown = false;
+
+        completedTutorialTrick = null;
+        waitingForTutorialNextTrick = false;
+
+        swapMode = false;
+        firstSwapSeat = null;
+        firstSwapCard = null;
+
+        if (window != null) {
+            window.hideNextTrickButton();
+        }
     }
 }
