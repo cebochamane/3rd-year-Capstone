@@ -44,11 +44,11 @@ final class TutorialTestSupport {
     static TutorialSession finish(TutorialLesson lesson) {
         TutorialSession session = new TutorialSession(lesson, false);
         for (TutorialAction action : lesson.getActions()) {
-            if (action.getSeat() != null
-                    && action.getSeat().getPosition() == Position.SOUTH) {
+            if (action.getType() == TutorialAction.Type.BID && action.getSeat().getPosition() == Position.SOUTH
+                    || action.getType() == TutorialAction.Type.CARD && session.controlsHand(action.getSeat())) {
                 assertTrue(action.getType() == TutorialAction.Type.BID
                         ? session.submitSouthBid(action.getBid())
-                        : session.playSouthCard(action.getCard()), session.getFeedback());
+                        : session.playLearnerCard(action.getSeat(), action.getCard()), session.getFeedback());
             } else {
                 assertTrue(session.advanceOneComputerAction());
             }

@@ -223,10 +223,11 @@ public class GameView {
                 return;
             }
 
+            if (tutorialSession.getPhase() != TutorialPhase.PLAYING) return;
             Trick trickBeforePlay = tutorialSession.getGameplay().getCurrentTrick();
 
-            if (seat.getPosition() != Position.SOUTH
-                    || !tutorialSession.playSouthCard(card)) {
+            if (!tutorialSession.playLearnerCard(seat, card)) {
+                updateTutorialHintButton();
                 showMessage(tutorialSession.getFeedback());
                 return;
             }
@@ -342,6 +343,7 @@ public class GameView {
             }
 
             if (!tutorialSession.submitSouthBid(bid)) {
+                updateTutorialHintButton();
                 showMessage(tutorialSession.getFeedback());
                 return;
             }
@@ -485,7 +487,7 @@ public class GameView {
 
         renderTutorialSession();
 
-        if (!tutorialSession.isComplete() && !isSouthTutorialTurn()) {
+        if (!tutorialSession.isComplete() && !isLearnerTutorialTurn()) {
             scheduleNextTutorialStep();
         }
     }
@@ -600,6 +602,7 @@ public class GameView {
 
         cancelTutorialDelay();
         settlementAnalysisActive = true;
+        updateTutorialHintButton();
         long generation = ++settlementGeneration;
         window.setClaimEnabled(false);
         window.setConcedeEnabled(false);
@@ -1372,7 +1375,7 @@ public class GameView {
 
             renderTutorialSession();
 
-            if (!tutorialSession.isComplete() && !isSouthTutorialTurn()) {
+            if (!tutorialSession.isComplete() && !isLearnerTutorialTurn()) {
                 scheduleNextTutorialStep();
             }
         } else {
@@ -1391,9 +1394,9 @@ public class GameView {
         boolean mayEnd = !waitingForTutorialNextTrick && !tutorialActionDelayActive && !settlementAnalysisActive;
         window.setClaimEnabled(mayEnd && tutorialSession.isAwaitingClaim());
         window.setConcedeEnabled(mayEnd && tutorialSession.isAwaitingConcede());
+        updateTutorialHintButton();
         if (!settlementAnalysisActive) {
-            window.setTutorialStatus(tutorialSession.isComplete() ? "Lesson complete."
-                    : tutorialSession.isAwaitingEnding() ? tutorialSession.getSouthPrompt() : "");
+            window.setTutorialStatus(tutorialStatusText());
         }
 
         if (tutorialSession.getPhase() == TutorialPhase.BIDDING) {
@@ -1439,7 +1442,7 @@ public class GameView {
         window.updateTrick(gameplay.getCurrentTrick());
         window.updateCurrentPlayer(
             tutorialSession.isComplete() || tutorialActionDelayActive || settlementAnalysisActive
-                    || tutorialSession.isAwaitingEnding() ? null : tutorialSession.getExpectedSeat());
+                    || !tutorialSession.isLearnerTurn() ? null : tutorialSession.getExpectedSeat());
 
         if (tutorialSession.isComplete() && !tutorialCompletionShown) {
             tutorialCompletionShown = true;
@@ -1463,19 +1466,12 @@ public class GameView {
     }
 
     /**
-     * Returns whether it is South's turn in the current tutorial session.
+     * Returns whether the learner supplies the next bid or card.
      * 
-     * @return true if it is South's turn; false otherwise
+     * @return true if the next action belongs to the learner
      */
-    private boolean isSouthTutorialTurn() {
-        if (tutorialSession == null) {
-            return false;
-        }
-
-        Seat expected = tutorialSession.getExpectedSeat();
-
-        return expected != null
-                && expected.getPosition() == Position.SOUTH;
+    private boolean isLearnerTutorialTurn() {
+        return tutorialSession != null && tutorialSession.isLearnerTurn();
     }
 
     /**
@@ -1488,10 +1484,10 @@ public class GameView {
         }
 
         /*
-        * South is the learner. Do not delay a learner's card-play turn.
+        * Do not delay a learner's card-play turn in either controlled hand.
         */
         if (tutorialSession.getPhase() == TutorialPhase.PLAYING
-                && isSouthTutorialTurn()) {
+                && isLearnerTutorialTurn()) {
             tutorialActionDelayActive = false;
             renderTutorialSession();
             return;
@@ -1506,9 +1502,9 @@ public class GameView {
 
             try {
                 /*
-                * After the delay, enable South if it is South's turn.
+                * After the delay, enable the learner if their action is next.
                 */
-                if (isSouthTutorialTurn()) {
+                if (isLearnerTutorialTurn()) {
                     renderTutorialSession();
                     return;
                 }
@@ -1586,6 +1582,7 @@ public class GameView {
             window.setConcedeEnabled(false);
             window.setTutorialStatus("");
             window.setDoubleDummyState(false, false, false);
+            window.setTutorialHintState(false, false);
         }
     }
 
@@ -1784,6 +1781,9 @@ public class GameView {
             "Completed tutorial attempt", JOptionPane.PLAIN_MESSAGE);
     }
 
+    /**
+     * Ensures that a background double-dummy analysis is performed for the current deal as needed.
+     */
     private void ensureDoubleDummyAnalysis() {
         Deal deal = tutorialSession == null ? controller.getCurrentDeal() : tutorialSession.getLesson().getDeal();
         if (deal == null) return;
@@ -1877,6 +1877,49 @@ public class GameView {
         Deal deal = tutorialSession == null ? controller.getCurrentDeal() : tutorialSession.getLesson().getDeal();
         JOptionPane.showMessageDialog(window.getMainFrame(),
                 new DoubleDummyPanel(doubleDummyTable, deal, play), "Double-dummy results", JOptionPane.PLAIN_MESSAGE);
+    }
+
+    /** Keep the visible prompt consistent with paused or delayed controls. */
+    //
+
+    /**
+     * Returns a status string summarizing the current tutorial session state for display.
+     * 
+     * @return the tutorial status message
+     */
+    private String tutorialStatusText() {
+        if (waitingForTutorialNextTrick && completedTutorialTrick != null) {
+            return "Review the trick, then click " + (completedTutorialTrick.getTrickNo() == 13 ? "Show Result." : "Next Trick.");
+        }
+
+        if (tutorialActionDelayActive) {
+            return "Please wait for the next tutorial action.";
+        }
+
+        return tutorialSession.getLearnerPrompt();
+    }
+
+    /**
+     * Determines if the tutorial hint can be requested based on current session and state conditions.
+     * @return true if a tutorial hint can be shown
+     */
+    private boolean canUseTutorialHint() {
+        return tutorialSession != null && tutorialSession.canRequestHint()
+                && !waitingForTutorialNextTrick && !tutorialActionDelayActive && !settlementAnalysisActive;
+    }
+
+    /**
+     * Updates the tutorial hint button's enabled state according to hint availability.
+     */
+    private void updateTutorialHintButton() {
+        if (window != null) window.setTutorialHintState(tutorialSession != null, canUseTutorialHint());
+    }
+
+    /**
+     * Shows the tutorial hint message if hints are currently allowed.
+     */
+    public void tutorialHintClicked() {
+        if (canUseTutorialHint()) showMessage(tutorialSession.getHint());
     }
 
 }

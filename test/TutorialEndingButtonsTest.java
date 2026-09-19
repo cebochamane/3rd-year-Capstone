@@ -8,9 +8,10 @@ class TutorialEndingButtonsTest {
         TutorialSession session = new TutorialSession(lesson, false, true);
         for (TutorialAction action : lesson.getActions()) {
             if (action.getType() == TutorialAction.Type.CLAIM || action.getType() == TutorialAction.Type.CONCEDE) break;
-            if (action.getSeat().getPosition() == Position.SOUTH) {
+            if (action.getType() == TutorialAction.Type.BID && action.getSeat().getPosition() == Position.SOUTH
+                    || action.getType() == TutorialAction.Type.CARD && session.controlsHand(action.getSeat())) {
                 assertTrue(action.getType() == TutorialAction.Type.BID
-                        ? session.submitSouthBid(action.getBid()) : session.playSouthCard(action.getCard()));
+                        ? session.submitSouthBid(action.getBid()) : session.playLearnerCard(action.getSeat(), action.getCard()));
             } else assertTrue(session.advanceOneComputerAction());
         }
         return session;

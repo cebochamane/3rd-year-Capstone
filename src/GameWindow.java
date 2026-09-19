@@ -86,6 +86,7 @@ public class GameWindow {
     private JButton claimButton;
     private JButton concedeButton;
     private JButton doubleDummyButton;
+    private JButton tutorialHintButton;
     private JLabel tutorialStatusLabel;
 
     /*
@@ -275,13 +276,18 @@ public class GameWindow {
         swapCardsButton = createActionButton("Swap cards");
         claimButton = createActionButton("Claim");
         concedeButton = createActionButton("Concede");
+        tutorialHintButton = createActionButton("Hint");
+        tutorialHintButton.setEnabled(false);
+        tutorialHintButton.setVisible(false);
+        tutorialHintButton.setToolTipText("Available after an incorrect tutorial bid or card choice");
+        tutorialHintButton.addActionListener(event -> { if (view != null) {
+                view.tutorialHintClicked();
+            }
+        });
         tutorialStatusLabel = new JLabel("");
         tutorialStatusLabel.setForeground(Color.WHITE);
         nextTrickButton = createActionButton("Next Trick");
 
-        /*
-         * The button is only shown after a trick is completed.
-         */
         nextTrickButton.setVisible(false);
         swapCardsButton.setEnabled(false);
 
@@ -293,6 +299,7 @@ public class GameWindow {
                 }
             }
         });
+
         swapCardsButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -319,6 +326,7 @@ public class GameWindow {
         actionPanel.add(nextTrickButton);
         actionPanel.add(claimButton);
         actionPanel.add(concedeButton);
+        actionPanel.add(tutorialHintButton);
         actionPanel.add(tutorialStatusLabel);
         southHandPanel.setLayout(new FlowLayout(FlowLayout.CENTER, 2, 5));
 
@@ -336,10 +344,6 @@ public class GameWindow {
         westPanel.setPreferredSize(new Dimension(105, 0));
         westPanel.setOpaque(false);
 
-        /*
-         * Give the cards a little space from the
-         * left edge of the window.
-         */
         westPanel.setBorder(BorderFactory.createEmptyBorder(0, 15, 0, 0));
 
         westLabel = new JLabel("WEST", SwingConstants.CENTER);
@@ -362,39 +366,19 @@ public class GameWindow {
         tablePanel.add(southPanel, BorderLayout.SOUTH);
         tablePanel.add(westPanel, BorderLayout.WEST);
 
-        /*
-         * =====================================================
-         * CENTRE
-         * =====================================================
-         */
-
         GridBagLayout trickLayout = new GridBagLayout();
-        /*
-         * Reserve permanent space for the three columns and three rows used by the
-         * trick dispaly
-         */
         trickLayout.columnWidths = new int[] { 140, 140, 140 };
         trickLayout.rowHeights = new int[] { 95, 95, 95 };
 
         trickPanel = new JPanel(trickLayout);
         trickPanel.setOpaque(false);
         this.contractMarkerPanel = new ContractMarkerPanel();
-        /*
-         * GameWindow creates one AuctionPanel and reuses it
-         * whenever bidding information changes.
-         */
         auctionPanel = new AuctionPanel();
         tablePanel.add(trickPanel, BorderLayout.CENTER);
         mainFrame.add(tablePanel, BorderLayout.CENTER);
 
-        /*
-         * Create the home page.
-         */
         homePanel = new HomePanel();
 
-        /*
-         * Centre and display the window.
-         */
         mainFrame.setLocationRelativeTo(null);
         mainFrame.setVisible(true);
             addLearningNotesButtons();
@@ -412,14 +396,7 @@ public class GameWindow {
         southHandPanel.setView(view);
         westHandPanel.setView(view);
 
-        /*
-         * AuctionPanel also needs GameView because
-         * it sends bid clicks to GameView.
-         */
         auctionPanel.setView(view);
-        /*
-         * Start the new game from the home page.
-         */
         homePanel.setNewGameAction(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -429,9 +406,6 @@ public class GameWindow {
             }
         });
 
-        /*
-         * Load a saved game belonging to the selected profile.
-         */
         homePanel.setLoadGameAction(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -441,9 +415,6 @@ public class GameWindow {
             }
         });
 
-        /*
-         * Create a new user profile.
-         */
         homePanel.setCreateUserAction(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -453,9 +424,6 @@ public class GameWindow {
             }
         });
 
-        /*
-         * Change the currently selected user profile.
-         */
         homePanel.setUserSelectionAction(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent event) {
@@ -509,7 +477,6 @@ public class GameWindow {
                 }
             }
         });
-
     }
 
     /**
@@ -591,7 +558,6 @@ public class GameWindow {
      * @param position      player's position
      * @param numberOfCards number of cards to display
      */
-
     public void updateHiddenHand(Position position, int numberOfCards) {
         if (position == null || numberOfCards < 0) {
             return;
@@ -693,10 +659,6 @@ public class GameWindow {
      */
     public void showNextTrickButton(boolean finalTrick) {
 
-        /*
-         * After trick thirteen there is no next trick,
-         * so the button displays a different message.
-         */
         if (finalTrick) {
             nextTrickButton.setText("Show Result");
         } else {
@@ -719,27 +681,13 @@ public class GameWindow {
     }
 
     /**
-     * Displays cards played in the current trick.
-     *
-     * Calling this method automatically removes
-     * the auction from the centre.
-     *
-     * @param trick current trick
+     * Displays the cards played in the current trick on the table and updates the UI accordingly.
+     * 
+     * @param trick the current trick to display
      */
     public void updateTrick(Trick trick) {
-
-        /*
-         * Remove whatever was previously
-         * displayed in the centre.
-         *
-         * During bidding this will be AuctionPanel.
-         */
         trickPanel.removeAll();
 
-        /*
-         * Place the contarct marker in centre of the 4 cards.
-         * 
-         */
         GridBagConstraints contractConstraints = new GridBagConstraints();
         contractConstraints.gridx = 1;
         contractConstraints.gridy = 1;
@@ -752,10 +700,6 @@ public class GameWindow {
             return;
         }
 
-        /*
-         * Display every played card according
-         * to the seat that played it.
-         */
         for (Map.Entry<Seat, Card> entry : trick.getPlays().entrySet()) {
 
             Seat seat = entry.getKey();
@@ -809,11 +753,11 @@ public class GameWindow {
     }
 
     /**
-     * Displays the auction.
-     *
-     * @param auction current auction
-     * @param dealer  dealer
-     * @param bidder  current bidder
+     * Displays the current auction in the center UI area with dealer and current bidder information.
+     * 
+     * @param auction the current auction
+     * @param dealer the dealer's seat
+     * @param bidder the current bidder's seat
      */
     public void updateAuction(Auction auction, Seat dealer, Seat bidder) {
 
@@ -821,25 +765,11 @@ public class GameWindow {
             return;
         }
 
-        /*
-         * Remove whatever is currently displayed
-         * in the centre.
-         */
         trickPanel.removeAll();
 
-        /*
-         * Give the current auction information
-         * to AuctionPanel.
-         */
         auctionPanel.updateAuction(auction, dealer, bidder);
 
-        /*
-         * Put AuctionPanel into the centre.
-         */
         GridBagConstraints auctionConstraints = new GridBagConstraints();
-        /*
-         * Let the auction occupy the 3x3 trick display grid
-         */
         auctionConstraints.gridx = 0;
         auctionConstraints.gridy = 0;
         auctionConstraints.gridwidth = 3;
@@ -885,7 +815,7 @@ public class GameWindow {
     /**
      * Updates the contract displayed in the centre of the table.
      * 
-     * @param
+     * @param contract the contract to be displayed
      */
     public void updateContract(Contract contract) {
         contractMarkerPanel.updateContract(contract);
@@ -982,6 +912,18 @@ public class GameWindow {
         doubleDummyButton.setText(calculating ? "DD: analysing…" : failed ? "DD: retry" : "DD Results");
         doubleDummyButton.setToolTipText(!playExists ? "Available once the playing phase starts" 
             : "View original-deal tricks for every strain and declarer");
+    }
+
+    /** Hide hints in normal games; tutorial sessions decide whether the current action unlocks one.
+     * 
+     * @param tutorialActive true if currently doing a Tutorial lesson, false otherwise
+     * @param enabled true if the hint button should be enabled, false otherwise
+     */
+    public void setTutorialHintState(boolean tutorialActive, boolean enabled) {
+        tutorialHintButton.setVisible(tutorialActive);
+        tutorialHintButton.setEnabled(tutorialActive && enabled);
+        actionPanel.revalidate();
+        actionPanel.repaint();
     }
 
 }

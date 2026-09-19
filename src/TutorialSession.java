@@ -2,8 +2,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Runs one scripted lesson. West, North and East are played automatically;
- * South must supply exactly the next scripted bid or card.
+ * Runs one scripted lesson. The learner bids as South and plays both North/South hands when their partnership declares. 
+ * When defending, only South is controlled.
+ * Incorrect choices unlock an optional hint for that action only.
  */
 public final class TutorialSession {
 
@@ -18,6 +19,7 @@ public final class TutorialSession {
     private boolean conceded;
     private final boolean automaticallyAdvanceComputerActions;
     private final boolean waitForEndingButton;
+    private int hintActionIndex = -1;
 
     /**
      * Initializes a new tutorial session using the specified tutorial lesson.
@@ -106,7 +108,7 @@ public final class TutorialSession {
     }
 
     /**
-     * Provides feedback on the last South action or lesson state.
+     * Provides feedback on the last learner action or lesson state.
      * 
      * @return A string containing feedback messages or prompts for the player.
      */
@@ -236,6 +238,7 @@ public final class TutorialSession {
         if (concede ? !isAwaitingConcede() : !isAwaitingClaim()) return false;
         int tricks = proposedEndingTricks(analysis);
         if (!gameplay.isFinished() && !gameplay.settleTutorial(tricks, concede, analysis)) return false;
+        hintActionIndex = -1;
         completedActions.add(nextAction());
         nextActionIndex++;
         claimed = !concede;
@@ -251,19 +254,87 @@ public final class TutorialSession {
      * @return A string containing instructions or status messages for South.
      */
     public String getSouthPrompt() {
+        return getLearnerPrompt();
+    }
+
+    /**
+     * Determines if the specified seat is controlled by the learner or their partnership during the session.
+     * 
+     * @param seat The player seat to check control for.
+     * @return True if the seat is controlled by the learner or their partnership; false otherwise.
+     */
+    public boolean controlsHand(Seat seat) {
+        if (seat == null || seat.getPosition() == null) return false;
+        Position declarer = lesson.getContract().getDeclarer().getPosition();
+        return seat.getPosition() == Position.SOUTH
+                || (seat.getPosition() == Position.NORTH
+                    && (declarer == Position.NORTH || declarer == Position.SOUTH));
+    }
+
+    /** Bidding remains South-only; card play follows ownership of declarer and dummy. */
+    //
+
+    /**
+     * Checks if it is currently the learner's turn to act in the tutorial session.
+     * Bidding remains South-only; card play follows ownership of declarer and dummy.
+     * 
+     * @return True if it is the learner's turn; false otherwise.
+     */
+    public boolean isLearnerTurn() {
+        TutorialAction expected = nextAction();
+        if (isComplete() || expected == null) return false;
+        return phase == TutorialPhase.BIDDING && isSouthBid(expected)
+                || phase == TutorialPhase.PLAYING && expected.getType() == TutorialAction.Type.CARD
+                    && controlsHand(expected.getSeat());
+    }
+
+    /**
+     * Provides a prompt message instructing or informing the learner about their current tutorial action.
+     * 
+     * @return A string prompt guiding the learner's expected action or state.
+     */
+    public String getLearnerPrompt() {
         if (isAwaitingClaim()) return "Click Claim to finish the lesson.";
         if (isAwaitingConcede()) return "Click Concede to finish the lesson.";
+        if (isComplete()) return "Lesson complete.";
+        if (!isLearnerTurn()) return "The computer is making its move.";
+        if (phase == TutorialPhase.BIDDING) return "Your turn to bid as South.";
+        Seat expected = getExpectedSeat();
+        String hand = expected.getPosition() == Position.NORTH ? "North" : "South";
+        String role = expected.equals(gameplay.getDummy()) ? "dummy"
+                : expected.equals(gameplay.getContract().getDeclarer()) ? "declarer" : "defender";
+        return "Play " + hand + "'s hand (" + role + ").";
+    }
+
+    /**
+     * Determines if the learner can request a hint for the current tutorial action due to an earlier incorrect choice.
+     * 
+     * @return True if a hint is available for the current action; false otherwise.
+     */
+    public boolean canRequestHint() {
+        return isLearnerTurn() && hintActionIndex == nextActionIndex;
+    }
+
+    /**
+     * Retrieves a hint message for the learner related to the expected correct action.
+     * 
+     * @return A string containing a hint describing the expected bid or card to play.
+     */
+    public String getHint() {
+        if (!canRequestHint()) return "A hint is available after an incorrect bid or card choice.";
         TutorialAction expected = nextAction();
-        if (expected == null) {
-            return isComplete() ? lesson.getNote() : "The computer is making its move.";
-        }
-        if (expected.getType() == TutorialAction.Type.BID && isSouth(expected)) {
-            return "Your turn to bid as South.";
-        }
-        if (expected.getType() == TutorialAction.Type.CARD && isSouth(expected)) {
-            return "Your turn to play as South.";
-        }
-        return "The computer is making its move.";
+        if (expected.getType() == TutorialAction.Type.BID) return expectedBidMessage(expected.getBid());
+        return "Play " + expected.getCard() + " from " + expected.getSeat() + "'s hand.";
+    }
+
+    /**
+     * Registers a rejected learner choice and provides feedback indicating to try again or request a hint.
+     * @param message A message explaining why the choice was rejected.
+     * @return False indicating the choice was rejected.
+     */
+    private boolean rejectChoice(String message) {
+        hintActionIndex = nextActionIndex;
+        return reject(message + " Try again, or use Hint.");
     }
 
     /**
@@ -277,8 +348,13 @@ public final class TutorialSession {
         if (phase != TutorialPhase.BIDDING || !isSouthBid(expected)) {
             return reject("It is not South's turn to bid.");
         }
+
+        if (bid == null || bid.getBidder() == null || bid.getBidder().getPosition() != Position.SOUTH) {
+            return reject("Submit a bid for South.");
+        }
+
         if (!sameBid(expected.getBid(), bid)) {
-            return reject("That is not the lesson bid. " + expectedBidMessage(expected.getBid()));
+            return rejectChoice("That is not the lesson bid.");
         }
 
         complete(expected);
@@ -298,16 +374,34 @@ public final class TutorialSession {
      * @return True if the card is correct and played; false if rejected.
      */
     public boolean playSouthCard(Card card) {
+        return playLearnerCard(new Seat(Position.SOUTH), card);
+    }
+
+    /**
+     * Processes the learner playing a card for the specified seat if it matches the expected tutorial card and advances the lesson.
+     * 
+     * @param seat The seat playing the card.
+     * @param card The card played by the learner.
+     * @return True if the card play is correct and accepted; false if rejected.
+     */
+    public boolean playLearnerCard(Seat seat, Card card) {
         TutorialAction expected = nextAction();
-        if (phase != TutorialPhase.PLAYING || !isSouthCard(expected)) {
-            return reject("It is not South's turn to play.");
+
+        if (phase != TutorialPhase.PLAYING || !isLearnerTurn()
+                || seat == null || !seat.equals(expected.getSeat())) {
+            return reject("It is not that hand's turn to play.");
         }
+
+        if (card == null) {
+            return reject("Select a card from the current hand.");
+        }
+
         if (!sameCard(expected.getCard(), card)) {
-            return reject("That is not the lesson card. Play " + expected.getCard() + ".");
+            return rejectChoice("That is not the lesson card.");
         }
-        if (!playScriptedCard(new Seat(Position.SOUTH), expected.getCard())) {
-            throw new IllegalStateException("The lesson's scripted South card is not legal: "
-                    + expected.getCard() + ".");
+
+        if (!playScriptedCard(seat, expected.getCard())) {
+            throw new IllegalStateException("The lesson's scripted card is not legal for " + seat + ".");
         }
 
         feedback = "Correct card.";
@@ -347,7 +441,7 @@ public final class TutorialSession {
     }
 
     /**
-     * Progresses the lesson by executing automated actions played by computer opponents until South's turn or lesson end.
+     * Progresses the lesson by executing automated actions played by computer opponents until a learner turn or lesson end.
      */
     private void advanceComputerActions() {
         while (advanceOneComputerAction()) {
@@ -358,7 +452,7 @@ public final class TutorialSession {
     /**
      * Advances the lesson by processing one automated computer action if possible.
      * 
-     * @return True if a computer action was processed; false if South's turn or lesson complete.
+     * @return True if a computer action was processed; false if a learner turn or lesson complete.
      */
     public boolean advanceOneComputerAction() {
         if (isComplete()) {
@@ -377,6 +471,7 @@ public final class TutorialSession {
         }
 
         if (expected.getType() == TutorialAction.Type.CLAIM) {
+            hintActionIndex = -1;
             claimed = true;
             phase = TutorialPhase.COMPLETE;
             feedback = lesson.getNote();
@@ -384,13 +479,14 @@ public final class TutorialSession {
         }
 
         if (expected.getType() == TutorialAction.Type.CONCEDE) {
+            hintActionIndex = -1;
             conceded = true;
             phase = TutorialPhase.COMPLETE;
             feedback = lesson.getNote();
             return true;
         }
 
-        if (isSouth(expected)) {
+        if (isLearnerTurn()) {
             return false;
         }
 
@@ -415,6 +511,7 @@ public final class TutorialSession {
      * @param action The tutorial action to mark as complete.
      */
     private void complete(TutorialAction action) {
+        hintActionIndex = -1;
         completedActions.add(action);
         nextActionIndex++;
 
@@ -512,16 +609,6 @@ public final class TutorialSession {
      */
     private boolean isSouthBid(TutorialAction action) {
         return action != null && action.getType() == TutorialAction.Type.BID && isSouth(action);
-    }
-
-    /**
-     * Determines if the given tutorial action is a South card play.
-     * 
-     * @param action The tutorial action to evaluate.
-     * @return True if the action is a card play by South; false otherwise.
-     */
-    private boolean isSouthCard(TutorialAction action) {
-        return action != null && action.getType() == TutorialAction.Type.CARD && isSouth(action);
     }
 
     /**

@@ -353,9 +353,9 @@ class TutorialScoringTest {
     }
 
     /**
-     * Supplies South's scripted actions.
+     * Supplies the learner's scripted bids and cards from both controlled hands.
      *
-     * In automatic mode, the session executes the other seats itself.
+     * In automatic mode, the session executes the computer actions itself.
      * In stepped mode, this helper advances them one action at a time,
      * as the GUI's timer does.
      */
@@ -366,10 +366,11 @@ class TutorialScoringTest {
         TutorialSession session = new TutorialSession(lesson, automatic);
 
         for (TutorialAction action : lesson.getActions()) {
-            boolean south = action.getSeat() != null
-                    && action.getSeat().getPosition() == Position.SOUTH;
+            boolean learner = action.getType() == TutorialAction.Type.BID
+                    && action.getSeat().getPosition() == Position.SOUTH
+                    || action.getType() == TutorialAction.Type.CARD && session.controlsHand(action.getSeat());
 
-            if (south) {
+            if (learner) {
                 if (action.getType() == TutorialAction.Type.BID) {
                     assertTrue(
                             session.submitSouthBid(action.getBid()),
@@ -380,7 +381,7 @@ class TutorialScoringTest {
                             action.getType());
 
                     assertTrue(
-                            session.playSouthCard(action.getCard()),
+                            session.playLearnerCard(action.getSeat(), action.getCard()),
                             session.getFeedback());
                 }
             } else if (!automatic) {

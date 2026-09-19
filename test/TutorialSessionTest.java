@@ -4,15 +4,21 @@ import org.junit.jupiter.api.Test;
 class TutorialSessionTest {
 
     @Test
-    void playOnlyLessonAutomaticallyPlaysTheComputerCardsAndRequiresSouthsCard() {
+    void playOnlyLessonWaitsForBothNorthAndSouthCards() {
         TutorialLesson lesson = TutorialLessonParser.parse(
                 TutorialLessonParserTest.playOnlyLesson()).get(0);
         TutorialSession session = new TutorialSession(lesson);
 
         assertEquals(TutorialPhase.PLAYING, session.getPhase());
+        assertEquals(1, session.getGameplay().getCurrentTrick().getPlays().size());
+        assertEquals(Position.NORTH, session.getExpectedSeat().getPosition());
+        assertFalse(session.advanceOneComputerAction());
+        assertTrue(session.playLearnerCard(new Seat(Position.NORTH), new Card(Suit.SPADES, Rank.ACE)));
         assertEquals(3, session.getGameplay().getCurrentTrick().getPlays().size());
         assertFalse(session.playSouthCard(new Card(Suit.HEARTS, Rank.KING)));
-        assertTrue(session.getFeedback().contains("Play ACE of HEARTS"));
+        assertFalse(session.getFeedback().contains("ACE"));
+        assertTrue(session.canRequestHint());
+        assertTrue(session.getHint().contains("Play ACE of HEARTS"));
 
         assertTrue(session.playSouthCard(new Card(Suit.HEARTS, Rank.ACE)));
         assertTrue(session.isComplete());
@@ -32,6 +38,10 @@ class TutorialSessionTest {
 
         assertEquals(TutorialPhase.PLAYING, session.getPhase());
         assertEquals(4, session.getAuction().getBids().size());
+        assertEquals(1, session.getGameplay().getCurrentTrick().getPlays().size());
+        assertEquals(Position.NORTH, session.getExpectedSeat().getPosition());
+        assertFalse(session.advanceOneComputerAction());
+        assertTrue(session.playLearnerCard(new Seat(Position.NORTH), new Card(Suit.SPADES, Rank.ACE)));
         assertEquals(3, session.getGameplay().getCurrentTrick().getPlays().size());
         assertTrue(session.playSouthCard(new Card(Suit.HEARTS, Rank.ACE)));
         assertTrue(session.isComplete());
