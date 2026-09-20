@@ -227,10 +227,6 @@ class TutorialScoringTest {
 
     @Test
     void rejectsAResultThatTakesAwayATrickAlreadyWonByDefenders() {
-        /*
-         * In no trump, West wins the first trick.
-         * Declarer can therefore finish with at most 12 tricks.
-         */
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> parse(earlyLesson("3NT", "", "Claim", "13")));
@@ -241,9 +237,6 @@ class TutorialScoringTest {
 
     @Test
     void rejectsAResultThatDisagreesWithACompletedHand() {
-        /*
-         * South wins all 13 tricks in the hearts fixture.
-         */
         IllegalArgumentException exception = assertThrows(
                 IllegalArgumentException.class,
                 () -> parse(
@@ -359,9 +352,7 @@ class TutorialScoringTest {
      * In stepped mode, this helper advances them one action at a time,
      * as the GUI's timer does.
      */
-    private TutorialSession finish(
-            TutorialLesson lesson,
-            boolean automatic) {
+    private TutorialSession finish(TutorialLesson lesson, boolean automatic) {
 
         TutorialSession session = new TutorialSession(lesson, automatic);
 
@@ -395,11 +386,7 @@ class TutorialScoringTest {
         return session;
     }
 
-    private void assertScore(
-            TutorialSession session,
-            int declarerTricks,
-            int expectedNS,
-            int expectedEW) {
+    private void assertScore(TutorialSession session, int declarerTricks, int expectedNS, int expectedEW) {
 
         Score score = session.getScore();
 
@@ -416,11 +403,7 @@ class TutorialScoringTest {
      * The first trick always starts with West, because South
      * is declarer. Subsequent tricks begin with the known winner.
      */
-    private String fullLesson(
-            Suit strain,
-            boolean bidAndPlay,
-            String vulnerabilityLine,
-            String ending) {
+    private String fullLesson(Suit strain, boolean bidAndPlay, String vulnerabilityLine, String ending) {
 
         String strainCode = switch (strain) {
             case HEARTS -> "H";
@@ -480,11 +463,7 @@ class TutorialScoringTest {
     /**
      * Produces a lesson that stops after one complete trick.
      */
-    private String earlyLesson(
-            String contract,
-            String vulnerabilityLine,
-            String marker,
-            String result) {
+    private String earlyLesson(String contract, String vulnerabilityLine, String marker, String result) {
 
         StringBuilder text = new StringBuilder(HANDS);
 

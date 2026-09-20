@@ -26,8 +26,6 @@ public class TrickTest {
 
     @Test
     public void testOneTrumpBeatsLedSuit() {
-        Suit trump = Suit.HEARTS;
-
         Seat leader = new Seat(Position.NORTH);
         Trick trick = new Trick(1, leader);
         trick.addPlay(leader, new Card(Suit.SPADES, Rank.ACE));
@@ -45,9 +43,6 @@ public class TrickTest {
 
     @Test
     public void testMultipleTrumpsHighestWins() {
-
-        Suit trump = Suit.HEARTS;
-
         Seat leader = new Seat(Position.NORTH);
         Trick trick = new Trick(1, leader);
         trick.addPlay(leader, new Card(Suit.SPADES, Rank.TEN));
@@ -66,9 +61,6 @@ public class TrickTest {
 
     @Test
     public void testNoTrumpPlayed() {
-
-        Suit trump = Suit.HEARTS;
-
         Seat seat1 = new Seat(Position.NORTH);
         Seat seat2 = new Seat(Position.EAST);
         Seat seat3 = new Seat(Position.SOUTH);
@@ -84,9 +76,6 @@ public class TrickTest {
 
     @Test
     public void testLedSuitIsTrumpSuit() {
-
-        Suit trump = Suit.HEARTS;
-
         Seat seat1 = new Seat(Position.NORTH);
         Seat seat2 = new Seat(Position.EAST);
         Seat seat3 = new Seat(Position.SOUTH);
@@ -102,9 +91,6 @@ public class TrickTest {
 
     @Test
     public void testVoidPlayerDiscardsNonTrump() {
-
-        Suit trump = Suit.HEARTS;
-
         Seat leader = new Seat(Position.NORTH);
         Trick trick = new Trick(1, leader);
         trick.addPlay(leader, new Card(Suit.SPADES, Rank.TEN));
@@ -142,21 +128,13 @@ public class TrickTest {
 
     @Test
     public void testConstructorInitializesEmptyPlays() {
-        // TODO: construct a Trick
         Trick trick = new Trick(1, new Seat(Position.NORTH));
-        // TODO: assert getPlays() is not null and size() == 0
         assertNotNull(trick.getPlays());
         assertEquals(0, trick.getPlays().size());
     }
 
-    // TODO: if you added getTrickNo()/getLeader() getters (option b above),
-    // add a test here asserting they return what was passed to the constructor
-
-    // --- addPlay() branch tests ---
-
     @Test
     public void testAddPlayRejectsNullSeat() {
-        // TODO
         Trick trick = new Trick(1, new Seat(Position.NORTH));
         Card card = new Card(Suit.CLUBS, Rank.ACE);
 
@@ -167,7 +145,6 @@ public class TrickTest {
 
     @Test
     public void testAddPlayRejectsNullCard() {
-        // TODO
         Trick trick = new Trick(1, new Seat(Position.NORTH));
 
         trick.addPlay(new Seat(Position.NORTH), null);
@@ -177,7 +154,6 @@ public class TrickTest {
 
     @Test
     public void testAddPlaySingleValidPlay() {
-        // TODO
         Trick trick = new Trick(1, new Seat(Position.NORTH));
         Seat north = new Seat(Position.NORTH);
         Card card = new Card(Suit.CLUBS, Rank.ACE);
@@ -190,7 +166,6 @@ public class TrickTest {
 
     @Test
     public void testAddPlayRejectsDuplicateSeat() {
-        // TODO
         Trick trick = new Trick(1, new Seat(Position.NORTH));
         Seat north = new Seat(Position.NORTH);
 
@@ -207,7 +182,6 @@ public class TrickTest {
 
     @Test
     public void testAddPlayRejectsFifthPlay() {
-        // TODO
         Trick trick = new Trick(1, new Seat(Position.NORTH));
         trick.addPlay(new Seat(Position.NORTH), new Card(Suit.CLUBS, Rank.ACE));
         trick.addPlay(new Seat(Position.EAST), new Card(Suit.CLUBS, Rank.KING));
@@ -220,7 +194,6 @@ public class TrickTest {
 
     @Test
     public void testAddPlayAllFourSeats() {
-        // TODO
         Seat north = new Seat(Position.NORTH);
         Seat east = new Seat(Position.EAST);
         Seat south = new Seat(Position.SOUTH);
@@ -249,8 +222,6 @@ public class TrickTest {
 
     @Test
     public void testGetPlaysEmptyOnNewTrick() {
-        // TODO (may overlap with testConstructorInitializesEmptyPlays --
-        // decide if you want both, or if one subsumes the other)
         Trick trick = new Trick(1, new Seat(Position.NORTH));
 
         assertNotNull(trick.getPlays());
@@ -265,7 +236,6 @@ public class TrickTest {
         Seat south = new Seat(Position.SOUTH);
         Seat west = new Seat(Position.WEST);
 
-        // TODO: add all 4, assert getPlays() maps each seat to its own correct card
         Trick trick = new Trick(1, new Seat(Position.NORTH));
 
         Card northCard = new Card(Suit.CLUBS, Rank.ACE);
@@ -298,7 +268,6 @@ public class TrickTest {
 
     @Test
     public void testIsCompleteFalseWithTwoPlays() {
-        // TODO
         Trick trick = new Trick(1, new Seat(Position.NORTH));
 
         trick.addPlay(new Seat(Position.NORTH), new Card(Suit.CLUBS, Rank.ACE));
@@ -324,10 +293,6 @@ public class TrickTest {
 
     @Test
     public void testWinningCardMatchesWinnerSeat() {
-        // TODO: build any valid complete trick
-        // TODO: assert plays.get(trick.getWinner(trump)) equals
-        // trick.getWinningCard(trump)
-        // NOTE: getPlays() returns the map, so you can do this via the public API
         Seat north = new Seat(Position.NORTH);
         Seat east = new Seat(Position.EAST);
         Seat south = new Seat(Position.SOUTH);
