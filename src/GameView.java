@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import javax.swing.JDialog;
 import java.awt.event.ComponentAdapter;
 import java.awt.event.ComponentEvent;
-import javax.swing.SwingUtilities;
 
 /**
  * GameView handles communication between the GameController and the graphical user interface.

@@ -8,14 +8,12 @@ import java.awt.Font;
 import javax.swing.BorderFactory;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import javax.swing.Box;
 import java.util.ArrayList;
 import java.util.EnumMap;
 
 public class PlayerHandPanel extends JPanel {
     private Position position;
     private GameView view;
-    private boolean vertical;
 
     private static final Color GOLD_ACCENT = new Color(201, 162, 39);
     private static final Color CARD_BACK = new Color(35, 55, 100);
@@ -27,9 +25,14 @@ public class PlayerHandPanel extends JPanel {
     private static final int CARD_WIDTH = 68;
     private static final int CARD_HEIGHT = 36;
 
+    /**
+     * Constructs a PlayerHandPanel with the specified player position and orientation.
+     * 
+     * @param position the player's position
+     * @param vertical true for vertical layout, false for horizontal layout
+     */
     public PlayerHandPanel(Position position, boolean vertical) {
         this.position = position;
-        this.vertical = vertical;
         this.setOpaque(false);
         if (vertical) {
             this.setLayout(new BoxLayout(this, BoxLayout.Y_AXIS));
@@ -38,17 +41,26 @@ public class PlayerHandPanel extends JPanel {
         }
     }
 
+    /**
+     * Returns the player position associated with this panel.
+     * 
+     * @return the player's position
+     */
     public Position getPosition() {
         return this.position;
     }
 
+    /**
+     * Sets the GameView instance used by this panel for event handling.
+     * 
+     * @param view the GameView to associate with this panel
+     */
     public void setView(GameView view) {
         this.view = view;
     }
 
     /**
-     * Enables or disables every card button
-     * inside one player's hand.
+     * Enables or disables every card button inside one player's hand.
      *
      * @param handPanel panel containing cards
      * @param enabled   whether cards can be clicked
@@ -61,6 +73,11 @@ public class PlayerHandPanel extends JPanel {
         }
     }
 
+    /**
+     * Displays a given number of face-down cards as card backs.
+     * 
+     * @param numberOfCards the number of hidden card backs to display
+     */
     public void showHiddenCards(int numberOfCards) {
         if (numberOfCards < 0) {
             return;
@@ -97,8 +114,7 @@ public class PlayerHandPanel extends JPanel {
     }
 
     /**
-     * Converts a Rank enum into the short text
-     * displayed on a playing card.
+     * Converts a Rank enum into the short text displayed on a playing card.
      *
      * @param rank card rank
      * @return short rank text
@@ -206,6 +222,11 @@ public class PlayerHandPanel extends JPanel {
          */
         button.addActionListener(new ActionListener() {
             @Override
+            /**
+             * Handles action events; no implementation provided in the given code.
+             * 
+             * @param e the action event triggered
+             */
             public void actionPerformed(ActionEvent e) {
                 if (view != null) {
                     view.cardClicked(new Seat(PlayerHandPanel.this.position), card);
@@ -215,6 +236,11 @@ public class PlayerHandPanel extends JPanel {
         return button;
     }
 
+    /**
+     * Displays the specified hand's cards in the panel in alternating suit order.
+     * 
+     * @param hand the hand of cards to show
+     */
     public void showCards(Hand hand) {
         if (hand == null) {
             return;

@@ -96,7 +96,6 @@ public class GameWindow {
     private static final Color FELT_GREEN = new Color(27, 77, 62);
     private static final Color GOLD_ACCENT = new Color(201, 162, 39);
     private static final Color CARD_BACKGROUND = new Color(250, 248, 240);
-    private static final Color RED_SUIT = new Color(190, 30, 45);
     /*
      * Fonts.
      */
