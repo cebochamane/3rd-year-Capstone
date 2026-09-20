@@ -1,0 +1,7 @@
+BridgeTut demo snapshot
+Source commit: 6a2d5151814f91d142970ed89e3e34ae4b07f6d6
+Java target: 17
+Entry point: GameView
+Bundled runtime dependency: org.xerial:sqlite-jdbc:3.50.3.0
+Bundled DDS source: 2.9.0 (built locally by run-demo.sh)
+Application sources unchanged. Native sources and tutorials copied from this commit.
