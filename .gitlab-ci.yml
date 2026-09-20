@@ -10,4 +10,5 @@ build:
 test:
   stage: test
   script:
+    - python3 native/build_dds.py
     - mvn test
