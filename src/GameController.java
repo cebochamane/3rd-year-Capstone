@@ -28,7 +28,7 @@ public class GameController {
      */
     public void startNewGame() {
 
-        Seat dealer = new Seat(Position.NORTH);
+        Seat dealer = new Seat(Position.SOUTH);
 
         Vulnerability vulnerability = Vulnerability.NONE;
 
@@ -83,6 +83,7 @@ public class GameController {
 
     /**
      * Synchronises tutorials between the tutorial catalog and the current user's saved tutorials.
+     * 
      * @return the number of tutorials synchronized
      */
     public int syncTutorials() {
@@ -264,8 +265,7 @@ public class GameController {
     }
 
     /**
-     * Starts a loaded deal if it contains four hands
-     * of thirteen cards.
+     * Starts a loaded deal if it contains four hands of thirteen cards.
      *
      * @param deal the deal to start
      */

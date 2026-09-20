@@ -589,7 +589,7 @@ public class GameWindow {
      * @param declarer declarer
      */
     public void updateDeclarer(Seat declarer) {
-        declarerLabel.setText("Declarer: " + declarer);
+        declarerLabel.setText(declarer == null ? "" : "Declarer: " + declarer);
     }
 
     /**
@@ -764,6 +764,8 @@ public class GameWindow {
             return;
         }
 
+        updateContract(null);
+
         trickPanel.removeAll();
 
         auctionPanel.updateAuction(auction, dealer, bidder);
@@ -818,6 +820,7 @@ public class GameWindow {
      */
     public void updateContract(Contract contract) {
         contractMarkerPanel.updateContract(contract);
+        updateDeclarer(contract == null ? null : contract.getDeclarer());
     }
 
     /**
